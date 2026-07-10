@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    /*
+    | Microservicio de dispositivos (device-service en Python/FastAPI).
+    | Es la única pieza que habla el protocolo ZKTeco con los equipos.
+    | Laravel se comunica con él por HTTP usando un token compartido.
+    */
+    'device_service' => [
+        'url' => env('DEVICE_SERVICE_URL', 'http://127.0.0.1:9001'),
+        'token' => env('DEVICE_SERVICE_TOKEN'),
+    ],
+
 ];
