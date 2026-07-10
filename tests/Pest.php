@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /*
@@ -44,7 +46,15 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * Crea un usuario con el rol super_admin de Shield (acceso total al panel).
+ */
+function asSuperAdmin(): User
 {
-    // ..
+    $role = Role::firstOrCreate([
+        'name' => 'super_admin',
+        'guard_name' => 'web',
+    ]);
+
+    return User::factory()->create()->assignRole($role);
 }

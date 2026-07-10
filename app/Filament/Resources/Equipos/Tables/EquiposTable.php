@@ -35,10 +35,6 @@ class EquiposTable
                 TextColumn::make('ip')
                     ->label('IP')
                     ->searchable(),
-                TextColumn::make('puerto')
-                    ->label('Puerto')
-                    ->numeric()
-                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('ubicacion')
                     ->label('Ubicación')
                     ->searchable()
@@ -63,15 +59,6 @@ class EquiposTable
                 IconColumn::make('activo')
                     ->label('Activo')
                     ->boolean(),
-                TextColumn::make('comm_key')
-                    ->label('COMM key')
-                    ->numeric()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('created_at')
-                    ->label('Creado')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 //

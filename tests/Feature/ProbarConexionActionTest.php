@@ -2,7 +2,6 @@
 
 use App\Filament\Resources\Equipos\Pages\ListEquipos;
 use App\Models\Equipo;
-use App\Models\User;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -14,8 +13,8 @@ beforeEach(function () {
     config()->set('services.device_service.url', 'http://microservicio.test');
     config()->set('services.device_service.token', 'token-de-prueba');
 
-    // El panel exige un usuario autenticado.
-    $this->actingAs(User::factory()->create());
+    // El panel exige un usuario autenticado con permisos (Shield).
+    $this->actingAs(asSuperAdmin());
 });
 
 test('probar conexión marca el equipo en línea y guarda el algoritmo', function () {

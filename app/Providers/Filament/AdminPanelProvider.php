@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Widgets\EquiposStats;
+use BezhanSalleh\FilamentShield\FilamentShieldPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -31,13 +32,15 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('SISBIO')
-            // Paleta institucional (verde Beni + acento dorado).
+            // Paleta institucional estilo SISCOR (AdminLTE skin verde).
             ->colors([
-                'primary' => Color::hex('#098429'),
+                'primary' => Color::hex('#00a65a'),
                 'gray' => Color::Slate,
             ])
             // Permite ocultar/colapsar el menú lateral en escritorio (botón junto al logo).
             ->sidebarCollapsibleOnDesktop()
+            // Sidebar más angosto que el default (20rem) para ganar espacio de contenido.
+            ->sidebarWidth('14.5rem')
             // Contenido a ancho completo: la tabla aprovecha toda la pantalla.
             ->maxContentWidth(Width::Full)
             // Inyecta el tema visual (color del sidebar y realce de las cajas).
@@ -65,6 +68,9 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+            ])
+            ->plugins([
+                FilamentShieldPlugin::make(),
             ])
             ->authMiddleware([
                 Authenticate::class,

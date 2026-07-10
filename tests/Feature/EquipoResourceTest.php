@@ -4,14 +4,13 @@ use App\Filament\Resources\Equipos\EquipoResource;
 use App\Filament\Resources\Equipos\Pages\CreateEquipo;
 use App\Filament\Resources\Equipos\Pages\EditEquipo;
 use App\Models\Equipo;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(asSuperAdmin());
 });
 
 test('al crear un equipo redirige al listado', function () {

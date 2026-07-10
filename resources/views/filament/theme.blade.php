@@ -1,10 +1,20 @@
-{{-- Tema visual de SISBIO al estilo institucional (Gobierno del Beni). --}}
-{{-- Banda verde arriba + sidebar navy + acentos verde/dorado. Sin build de Vite. --}}
+{{-- Tema visual de SISBIO al estilo SISCOR (AdminLTE skin verde, Gobierno del Beni). --}}
+{{-- Topbar verde + sidebar carbón oscuro + cabecera de tabla verde. Sin build de Vite. --}}
 <style>
-    /* ===== Topbar: banda verde institucional con acento dorado ===== */
+    /* ===== Paleta SISCOR (AdminLTE green skin) ===== */
+    :root {
+        --siscor-green: #00a65a;        /* Verde principal (botones, tabla) */
+        --siscor-green-dark: #008d4c;   /* Verde oscuro (marca / topbar) */
+        --siscor-sidebar: #222d32;      /* Fondo del sidebar */
+        --siscor-sidebar-user: #1a2226; /* Bloque del usuario, más oscuro */
+        --siscor-sidebar-text: #b8c7ce; /* Texto del sidebar */
+        --siscor-body-bg: #ecf0f5;      /* Fondo del contenido */
+    }
+
+    /* ===== Topbar: banda verde SISCOR ===== */
     .fi-topbar {
-        background: #098429 !important;
-        border-bottom: 3px solid #FFD700;
+        background: var(--siscor-green-dark) !important;
+        border-bottom: 0;
         box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
     }
     /* Marca, íconos y textos del topbar en blanco */
@@ -15,33 +25,84 @@
         color: #ffffff !important;
     }
 
-    /* ===== Sidebar: navy oscuro limpio ===== */
+    /* ===== Sidebar: carbón oscuro AdminLTE, compacto ===== */
     .fi-sidebar {
-        background: #1b2532 !important;
-        border-right: 1px solid rgba(0, 0, 0, .15);
+        background: var(--siscor-sidebar) !important;
+        border-right: 0;
     }
     .fi-sidebar .fi-sidebar-header {
-        background: #1b2532 !important;
+        background: var(--siscor-green-dark) !important;
+        box-shadow: none;
     }
-    .fi-sidebar .fi-sidebar-item-label { color: #d6dde5; }
-    .fi-sidebar .fi-sidebar-item-icon { color: #8b97a5; }
-    .fi-sidebar .fi-sidebar-group-label { color: #6b7885; }
-    .fi-sidebar .fi-sidebar-item-btn:hover { background: rgba(255, 255, 255, .05); }
-    /* Ítem activo: fondo más claro + barra + ícono verde */
+    .fi-sidebar .fi-sidebar-header .fi-logo { color: #ffffff !important; }
+    /* Navegación más compacta y aireada */
+    .fi-sidebar .fi-sidebar-nav {
+        padding: .5rem .625rem;
+        gap: .125rem;
+    }
+    .fi-sidebar .fi-sidebar-item-btn {
+        border-radius: .375rem;
+        padding: .5rem .625rem;
+        transition: background .15s ease, color .15s ease;
+    }
+    .fi-sidebar .fi-sidebar-item-label {
+        color: var(--siscor-sidebar-text);
+        font-size: .875rem;
+    }
+    .fi-sidebar .fi-sidebar-item-icon {
+        color: #8a9ba5;
+        width: 1.125rem;
+        height: 1.125rem;
+    }
+    .fi-sidebar .fi-sidebar-group-label {
+        color: #4b646f;
+        font-size: .6875rem;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+    }
+    .fi-sidebar .fi-sidebar-item-btn:hover { background: #1e282c; }
+    .fi-sidebar .fi-sidebar-item-btn:hover .fi-sidebar-item-label { color: #ffffff; }
+    .fi-sidebar .fi-sidebar-item-btn:hover .fi-sidebar-item-icon { color: #ffffff; }
+    /* Ítem activo: fondo oscuro + barra verde a la izquierda (como AdminLTE) */
     .fi-sidebar .fi-sidebar-item.fi-active .fi-sidebar-item-btn {
-        background: #2c3845;
-        box-shadow: inset 3px 0 0 #2FB251;
+        background: #1e282c;
+        box-shadow: inset 3px 0 0 var(--siscor-green);
     }
     .fi-sidebar .fi-sidebar-item.fi-active .fi-sidebar-item-label { color: #ffffff; font-weight: 600; }
-    .fi-sidebar .fi-sidebar-item.fi-active .fi-sidebar-item-icon { color: #2FB251; }
+    .fi-sidebar .fi-sidebar-item.fi-active .fi-sidebar-item-icon { color: var(--siscor-green); }
 
-    /* ===== Cajas / tablas: limpias, redondeadas, con leve realce ===== */
-    .fi-ta-ctn,
-    .fi-section {
-        border-radius: 1rem !important;
+    /* ===== Fondo del contenido: gris claro AdminLTE ===== */
+    .fi-body,
+    .fi-main-ctn {
+        background: var(--siscor-body-bg);
     }
+
+    /* ===== Tablas: cabecera verde con texto blanco (como SISCOR) ===== */
     .fi-ta-ctn {
-        box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+        border-radius: .375rem !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
+        overflow: hidden;
     }
-    /* Botón primario (Crear equipo) ya usa el verde del primary de Filament. */
+    /* Filament pinta el fondo en el <tr> y el color en el <th>, por eso se
+       sobreescriben los tres niveles (thead, tr, th) y no solo el thead. */
+    .fi-ta-table thead,
+    .fi-ta-table thead > tr,
+    .fi-ta-table thead > tr > th {
+        background-color: var(--siscor-green) !important;
+        border-color: rgba(255, 255, 255, .2) !important;
+    }
+    .fi-ta-table thead > tr > th,
+    .fi-ta-table thead .fi-ta-header-cell,
+    .fi-ta-table thead .fi-ta-header-cell-label,
+    .fi-ta-table thead button,
+    .fi-ta-table thead svg {
+        color: #ffffff !important;
+    }
+
+    /* ===== Cajas / secciones ===== */
+    .fi-section {
+        border-radius: .375rem !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
+    }
+    /* Botón primario (Crear) usa el verde del primary de Filament. */
 </style>
