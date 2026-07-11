@@ -114,6 +114,21 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
+        'sia' => [
+            'driver' => 'sqlsrv',
+            'host' => env('DB_HOST_SIA', '127.0.0.1'),
+            'port' => env('DB_PORT_SIA', '1433'),
+            'database' => env('DB_DATABASE_SIA', 'SIA_DEV'),
+            'username' => env('DB_USERNAME_SIA'),
+            'password' => env('DB_PASSWORD_SIA'),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            // SQL Server 2008 R2: TLS antiguo, sin cifrado moderno.
+            'encrypt' => env('DB_ENCRYPT_SIA', 'no'),
+            'trust_server_certificate' => env('DB_TRUST_SERVER_CERT_SIA', true),
+        ],
+
     ],
 
     /*

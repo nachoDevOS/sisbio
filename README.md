@@ -1,59 +1,206 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# SISBIO
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Sistema de control biométrico — Gobierno Autónomo Departamental del Beni.
+Panel en Laravel 13 + Filament 5 que administra equipos biométricos ZKTeco
+(vía un microservicio Python) y consulta la base institucional **SIA** en un
+SQL Server 2008 R2 remoto.
 
-## About Laravel
-
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-Token--> Laravel/Filament
+                                                                                          |
+                                                              SQL Server 2008 R2 (SIA) <--+  (conexión 'sia', pdo_sqlsrv)
+                                                              MySQL local (sisbio)     <--+  (conexión por defecto)
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+---
 
-## Contributing
+## 1. Requisitos generales
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+| Componente | Versión / detalle |
+|---|---|
+| PHP | 8.3 (Laragon: build **TS, vs16, x64**) |
+| Composer | 2.x |
+| Node.js + npm | Para assets (Vite / Tailwind 4) |
+| MySQL | Base local `sisbio` (conexión por defecto) |
+| Python | 3.10+ (solo para el microservicio de biométricos) |
 
-## Code of Conduct
+### Instalación base
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+composer install
+npm install && npm run build
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+```
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## 2. Conexión a los equipos biométricos (ZKTeco)
 
-## License
+Laravel **nunca** habla TCP directo con los equipos. Todo pasa por el
+microservicio `device-service/` (FastAPI + pyzk), única pieza que abre
+sockets al puerto **4370** de cada equipo.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-# sisbio
+### Requisitos
+
+- Python 3.10+ con `venv` disponible.
+- Red: la máquina que corre `device-service` debe alcanzar la IP de cada
+  equipo ZKTeco por **TCP 4370**.
+- Un token compartido: el mismo valor en el `.env` de Laravel y en el
+  `.env` de `device-service` (`DEVICE_SERVICE_TOKEN`).
+- El microservicio **no debe exponerse a internet**: solo localhost / red interna.
+
+### Pasos
+
+1. **Instalar dependencias del microservicio:**
+
+   ```bash
+   cd device-service
+   python3 -m venv .venv
+   source .venv/bin/activate        # Windows: .venv\Scripts\activate
+   pip install -r requirements.txt  # fastapi, uvicorn, pydantic, pyzk
+   ```
+
+2. **Configurar el token compartido:**
+
+   ```bash
+   cp .env.example .env
+   # editar .env: DEVICE_SERVICE_TOKEN = mismo valor que en el .env de Laravel
+   ```
+
+3. **Levantar el servicio** (puerto 9001, el que Laravel espera por defecto):
+
+   ```bash
+   set -a && source .env && set +a
+   python3 -m uvicorn main:app --host 127.0.0.1 --port 9001
+   ```
+
+4. **Configurar Laravel** — en `.env`:
+
+   ```env
+   DEVICE_SERVICE_URL=http://127.0.0.1:9001
+   DEVICE_SERVICE_TOKEN=el_mismo_token_del_microservicio
+   ```
+
+5. **Registrar los equipos en el panel** (recurso *Equipos*): IP, puerto
+   (4370 por defecto), COMM key y ubicación de cada aparato.
+
+6. **Verificar:**
+
+   ```bash
+   # ¿Vive el microservicio? (sin token)
+   curl http://127.0.0.1:9001/health
+
+   # ¿Responde un equipo? (con token)
+   curl -H "X-Auth-Token: TU_TOKEN" "http://127.0.0.1:9001/device/info?ip=192.168.1.201&port=4370&password=0"
+   ```
+
+   En el panel, la acción **"Probar conexión"** de cada equipo hace esta misma
+   consulta y guarda estado, algoritmo y hora; **"Ver marcaciones"** consulta
+   `/device/attendance` en vivo.
+
+Endpoints disponibles: `/health`, `/device/info`, `/device/users`,
+`/device/attendance` (todos menos `/health` exigen `X-Auth-Token`).
+Más detalle en [device-service/README.md](device-service/README.md).
+
+---
+
+## 3. Conexión a SQL Server 2008 R2 (base SIA)
+
+El sistema consulta la base institucional `SIA_DEV` en un SQL Server 2008 R2
+remoto mediante la conexión Laravel **`sia`** (`config/database.php`).
+
+### Requisitos
+
+- **Red:** alcance TCP al servidor SQL por el puerto **1433**.
+- **ODBC:** "ODBC Driver 17 for SQL Server" (x64) instalado en Windows.
+- **PHP:** extensión `pdo_sqlsrv` (PECL 5.12+). La build debe coincidir con
+  el PHP instalado: misma versión (8.3), **Thread Safety (TS)**, **vs16** y
+  **x64**. Verificar antes de descargar con `php -i` (Thread Safety y
+  `extension_dir`).
+- **TLS antiguo (crítico):** SQL Server 2008 R2 no soporta TLS moderno. La
+  conexión **debe** llevar `encrypt=no` y `trust_server_certificate=true`;
+  sin eso el handshake TLS falla con drivers actuales.
+- **Docker (Debian):** instalar `msodbcsql18` + `pecl install sqlsrv pdo_sqlsrv`
+  en la imagen. La configuración no cambia: todo se lee de variables de entorno.
+
+### Pasos
+
+1. **Verificar red** (PowerShell):
+
+   ```powershell
+   Test-NetConnection IP_DEL_SERVIDOR -Port 1433
+   # debe dar TcpTestSucceeded : True
+   ```
+
+2. **Verificar la extensión PHP:**
+
+   ```bash
+   php -m | grep sqlsrv
+   # debe listar: pdo_sqlsrv
+   ```
+
+   Si falta: descargar de PECL la DLL que coincida con la build de PHP,
+   copiarla a `ext/` y agregar `extension=pdo_sqlsrv` al `php.ini`.
+
+3. **Verificar el driver ODBC** (PowerShell):
+
+   ```powershell
+   Get-OdbcDriver | Where-Object Name -like '*SQL Server*'
+   # debe listar "ODBC Driver 17 for SQL Server" en 64-bit
+   ```
+
+4. **Configurar `.env`** (las credenciales **solo** van aquí — nunca en
+   commits, código ni documentación; `.env` está en `.gitignore`):
+
+   ```env
+   # SIA - SQL Server 2008 R2 remoto (encrypt=no obligatorio por TLS antiguo)
+   DB_HOST_SIA=ip_del_servidor
+   DB_PORT_SIA=1433
+   DB_DATABASE_SIA=SIA_DEV
+   DB_USERNAME_SIA=usuario
+   DB_PASSWORD_SIA="contraseña_entre_comillas_si_tiene_caracteres_especiales"
+   DB_ENCRYPT_SIA=no
+   DB_TRUST_SERVER_CERT_SIA=true
+   ```
+
+5. **Limpiar caché de configuración:**
+
+   ```bash
+   php artisan config:clear
+   ```
+
+6. **Prueba final desde Laravel:**
+
+   ```bash
+   # Comillas dobles por fuera: en cmd.exe el "->" con comillas simples
+   # se interpreta como redirección y crea un archivo vacío.
+   php artisan tinker --execute "var_dump(DB::connection('sia')->select('SELECT TOP 3 name FROM sys.tables'));"
+   ```
+
+   Debe devolver nombres de tablas reales de `SIA_DEV`.
+
+### Uso en código
+
+```php
+DB::connection('sia')->select('...');
+// o en un modelo:
+protected $connection = 'sia';
+```
+
+---
+
+## 4. Levantar el sistema completo (desarrollo)
+
+1. MySQL local corriendo (Laragon).
+2. `device-service` corriendo en `127.0.0.1:9001`.
+3. Acceso de red al SQL Server (puerto 1433).
+4. `php artisan serve` (o el vhost de Laragon) + `npm run dev` si se tocan assets.
+
+---
+
+## Documentación
+
+- Bitácora de sesiones: [docs/sesiones/](docs/sesiones/)
+- Microservicio de biométricos: [device-service/README.md](device-service/README.md)
