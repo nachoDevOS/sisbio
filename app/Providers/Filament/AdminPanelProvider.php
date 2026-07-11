@@ -32,6 +32,8 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->brandName('SISBIO')
+            // Sin buscador global en el topbar.
+            ->globalSearch(false)
             // Paleta institucional estilo SISCOR (AdminLTE skin verde).
             ->colors([
                 'primary' => Color::hex('#00a65a'),

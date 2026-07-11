@@ -11,6 +11,23 @@
         --siscor-body-bg: #ecf0f5;      /* Fondo del contenido */
     }
 
+    /* ===== Layout AdminLTE: sidebar hasta arriba, topbar a su derecha ===== */
+    /* Filament pone el topbar a lo ancho y el sidebar debajo (top: 4rem).
+       Aquí el sidebar abierto pasa a fijo desde el borde superior, y el topbar
+       y el contenido arrancan después de su ancho, como en SISCOR/AdminLTE. */
+    .fi-body-has-topbar .fi-sidebar.fi-sidebar-open {
+        position: fixed !important;
+        top: 0 !important;
+        height: 100dvh !important;
+        z-index: 40 !important;
+    }
+    @media (min-width: 1024px) {
+        .fi-body-has-topbar:has(.fi-sidebar.fi-sidebar-open) .fi-topbar-ctn,
+        .fi-body-has-topbar:has(.fi-sidebar.fi-sidebar-open) .fi-main-ctn {
+            margin-inline-start: var(--sidebar-width, 14.5rem);
+        }
+    }
+
     /* ===== Topbar: banda verde SISCOR ===== */
     .fi-topbar {
         background: var(--siscor-green-dark) !important;

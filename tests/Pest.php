@@ -1,7 +1,11 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -57,4 +61,41 @@ function asSuperAdmin(): User
     ]);
 
     return User::factory()->create()->assignRole($role);
+}
+
+/**
+ * Reemplaza la conexión 'sia' (SQL Server 2008 remoto) por un sqlite en
+ * memoria con las tablas del módulo de asistencia, para probar sin red.
+ */
+function fakeSiaDatabase(): void
+{
+    config()->set('database.connections.sia', [
+        'driver' => 'sqlite',
+        'database' => ':memory:',
+        'prefix' => '',
+        'foreign_key_constraints' => false,
+    ]);
+
+    DB::purge('sia');
+    Cache::flush();
+
+    Schema::connection('sia')->create('Personas', function (Blueprint $tabla): void {
+        $tabla->string('IdPersona', 12)->primary();
+        $tabla->string('Paterno', 25);
+        $tabla->string('Materno', 25)->nullable();
+        $tabla->string('Nombres', 35);
+        $tabla->dateTime('FechaNacimiento')->nullable();
+        $tabla->string('Sexo', 1)->nullable();
+        $tabla->string('EstadoCivil', 1)->nullable();
+        $tabla->string('CodigoProfesion', 2)->nullable();
+        $tabla->boolean('MarcaDirecta')->default(false);
+        $tabla->string('PinReloj', 10)->nullable();
+    });
+
+    Schema::connection('sia')->create('Asistencia', function (Blueprint $tabla): void {
+        $tabla->string('IdPersona', 12);
+        $tabla->dateTime('Fecha');
+        $tabla->dateTime('Hora');
+        $tabla->string('Tipo', 1);
+    });
 }
