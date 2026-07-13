@@ -9,6 +9,7 @@
         --siscor-sidebar-user: #1a2226; /* Bloque del usuario, más oscuro */
         --siscor-sidebar-text: #b8c7ce; /* Texto del sidebar */
         --siscor-body-bg: #ecf0f5;      /* Fondo del contenido */
+        --siscor-topbar-h: 3rem;        /* Alto del topbar (Filament trae 4rem) */
     }
 
     /* ===== Layout AdminLTE: sidebar hasta arriba, topbar a su derecha ===== */
@@ -26,13 +27,32 @@
         .fi-body-has-topbar:has(.fi-sidebar.fi-sidebar-open) .fi-main-ctn {
             margin-inline-start: var(--sidebar-width, 14.5rem);
         }
+
+        /* Logo dentro del sidebar (como AdminLTE): Filament oculta el header
+           del sidebar en desktop cuando hay topbar (lg:hidden); se restaura
+           y se quita el logo duplicado del topbar mientras el sidebar esté abierto. */
+        .fi-body-has-topbar .fi-sidebar.fi-sidebar-open .fi-sidebar-header {
+            display: flex !important;
+        }
+        .fi-body-has-topbar:has(.fi-sidebar.fi-sidebar-open) .fi-topbar .fi-logo {
+            display: none !important;
+        }
     }
 
-    /* ===== Topbar: banda verde SISCOR ===== */
+    /* ===== Topbar: banda verde SISCOR, más delgada que el default ===== */
     .fi-topbar {
         background: var(--siscor-green-dark) !important;
         border-bottom: 0;
         box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+        min-height: var(--siscor-topbar-h) !important;
+        padding-block: 0;
+    }
+    /* El sidebar cerrado en desktop arranca debajo del topbar (Filament asume 4rem). */
+    @media (min-width: 1024px) {
+        .fi-body-has-topbar .fi-sidebar:not(.fi-sidebar-open) {
+            top: var(--siscor-topbar-h) !important;
+            height: calc(100dvh - var(--siscor-topbar-h)) !important;
+        }
     }
     /* Marca, íconos y textos del topbar en blanco */
     .fi-topbar .fi-logo,
@@ -48,7 +68,7 @@
         border-right: 0;
     }
     .fi-sidebar .fi-sidebar-header {
-        background: var(--siscor-green-dark) !important;
+        background: var(--siscor-sidebar) !important;
         box-shadow: none;
     }
     .fi-sidebar .fi-sidebar-header .fi-logo { color: #ffffff !important; }
@@ -114,6 +134,54 @@
     .fi-ta-table thead button,
     .fi-ta-table thead svg {
         color: #ffffff !important;
+    }
+
+    /* ===== Filas: cebra suave + hover verdoso ===== */
+    .fi-ta-row.fi-striped { background: #f6f8fa; }
+    .fi-ta-row:hover { background: #eef7f2; }
+
+    /* ===== Paginación estilo AdminLTE ===== */
+    /* El "por página" vive arriba de la tabla (hook TOOLBAR_START); se oculta el de abajo */
+    .fi-pagination .fi-pagination-records-per-page-select-ctn {
+        display: none !important;
+    }
+    /* Selector superior compacto, alineado a la izquierda del toolbar */
+    .siscor-per-page-top {
+        display: block;
+        margin-inline-end: auto;
+    }
+    /* Números abajo a la derecha; "Mostrando X a Y de Z" a la izquierda.
+       (Al ocultar el "por página" central, el grid los dejaba al medio.) */
+    .fi-pagination .fi-pagination-overview {
+        grid-column: 1;
+        justify-self: start;
+    }
+    .fi-pagination .fi-pagination-items {
+        grid-column: 3;
+        justify-self: end;
+    }
+    /* Caja de números: borde limpio, sin sombra */
+    .fi-pagination-items {
+        box-shadow: none;
+        border: 1px solid #d2d6de;
+        border-radius: .375rem;
+        overflow: hidden;
+    }
+    /* Página activa: verde SISCOR con número en blanco */
+    .fi-pagination-item.fi-active .fi-pagination-item-btn {
+        background: var(--siscor-green) !important;
+    }
+    .fi-pagination-item.fi-active .fi-pagination-item-label {
+        color: #ffffff !important;
+    }
+    /* Hover de páginas: verde muy claro */
+    .fi-pagination-item-btn:enabled:hover {
+        background: #e8f5ee;
+    }
+    /* Texto "Mostrando X a Y de Z" discreto */
+    .fi-pagination-overview {
+        color: #6b7280;
+        font-weight: 400;
     }
 
     /* ===== Cajas / secciones ===== */

@@ -28,6 +28,10 @@ test('al crear un equipo redirige al listado', function () {
     $this->assertDatabaseHas('equipos', ['nombre' => 'iClock Entrada', 'ip' => '192.168.1.50']);
 });
 
+test('crear equipo no ofrece "crear y crear otro"', function () {
+    expect((new CreateEquipo)->canCreateAnother())->toBeFalse();
+});
+
 test('al editar un equipo redirige al listado', function () {
     $equipo = Equipo::factory()->create();
 
@@ -35,6 +39,7 @@ test('al editar un equipo redirige al listado', function () {
         ->fillForm(['nombre' => 'Nombre actualizado'])
         ->call('save')
         ->assertHasNoFormErrors()
+        ->assertNotified('Guardado')
         ->assertRedirect(EquipoResource::getUrl('index'));
 
     expect($equipo->refresh()->nombre)->toBe('Nombre actualizado');

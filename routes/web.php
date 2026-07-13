@@ -2,6 +2,5 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+// La raíz manda al panel: Filament redirige al login si no hay sesión.
+Route::redirect('/', '/admin');

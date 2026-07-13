@@ -10,10 +10,8 @@ class CreateUser extends CreateRecord
     protected static string $resource = UserResource::class;
 
     /**
-     * Tras crear un usuario, vuelve al listado.
+     * Sin botón "crear y crear otro"; al crear se vuelve al listado
+     * (redirect global en AdminPanelProvider::resourceCreatePageRedirect).
      */
-    protected function getRedirectUrl(): string
-    {
-        return $this->getResource()::getUrl('index');
-    }
+    protected static bool $canCreateAnother = false;
 }

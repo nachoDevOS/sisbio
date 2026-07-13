@@ -8,7 +8,18 @@
       "PowerShell(php artisan cache:clear --no-interaction)",
       "PowerShell($css = Get-Content \"public\\\\css\\\\filament\\\\filament\\\\app.css\" -Raw; foreach \\($pat in @\\('\\\\.fi-sidebar\\\\{[^}]{0,600}', '\\\\.fi-topbar\\\\{[^}]{0,600}', '--sidebar-width[^;}]{0,80}', '\\\\.fi-body-has-topbar[^{]{0,120}\\\\{[^}]{0,400}'\\)\\) { \"`n=== $pat ===\"; [regex]::Matches\\($css, $pat\\) | Select-Object -First 4 | ForEach-Object { $_.Value } })",
       "PowerShell($css = Get-Content \"public\\\\css\\\\filament\\\\filament\\\\app.css\" -Raw; foreach \\($pat in @\\('[^{}]{0,120}\\\\{[^}]{0,200}--sidebar-width[^}]{0,200}\\\\}', '\\\\.fi-topbar-ctn[^{]{0,80}\\\\{[^}]{0,300}', '\\\\.fi-body-has-topbar \\\\.fi-topbar[^{]{0,60}\\\\{[^}]{0,200}', 'sidebar-open[^{]{0,140}\\\\{[^}]{0,250}'\\)\\) { \"`n=== $pat ===\"; [regex]::Matches\\($css, $pat\\) | Select-Object -First 8 | ForEach-Object { $_.Value; '---' } })",
-      "PowerShell($css = Get-Content \"public\\\\css\\\\filament\\\\filament\\\\app.css\" -Raw; foreach \\($pat in @\\('[^{}]{0,300}\\\\.fi-sidebar[^{}]{0,120}\\\\{[^}]{0,120}position[^}]{0,120}\\\\}', '[^{}]{0,250}\\\\.fi-main-ctn\\\\{[^}]{0,250}\\\\}', '[^{}]{0,200}\\\\.fi-topbar-ctn[^{}]{0,60}\\\\{[^}]{0,200}\\\\}'\\)\\) { \"`n=== PATRON ===\"; [regex]::Matches\\($css, $pat\\) | Select-Object -First 10 | ForEach-Object { $_.Value; '---' } })"
+      "PowerShell($css = Get-Content \"public\\\\css\\\\filament\\\\filament\\\\app.css\" -Raw; foreach \\($pat in @\\('[^{}]{0,300}\\\\.fi-sidebar[^{}]{0,120}\\\\{[^}]{0,120}position[^}]{0,120}\\\\}', '[^{}]{0,250}\\\\.fi-main-ctn\\\\{[^}]{0,250}\\\\}', '[^{}]{0,200}\\\\.fi-topbar-ctn[^{}]{0,60}\\\\{[^}]{0,200}\\\\}'\\)\\) { \"`n=== PATRON ===\"; [regex]::Matches\\($css, $pat\\) | Select-Object -First 10 | ForEach-Object { $_.Value; '---' } })",
+      "PowerShell(php artisan make:test --pest AdminThemeTest --no-interaction)",
+      "PowerShell(php artisan test --compact tests/Feature/AdminThemeTest.php)",
+      "PowerShell(php artisan config:show app.locale)",
+      "PowerShell(php artisan test --compact tests/Feature/UserResourceTest.php)",
+      "PowerShell(php artisan test --compact tests/Feature/UserResourceTest.php tests/Feature/EquipoResourceTest.php)",
+      "PowerShell(php artisan test --compact tests/Feature/AdminThemeTest.php tests/Feature/UserResourceTest.php tests/Feature/EquipoResourceTest.php)",
+      "PowerShell(php artisan make:migration add_avatar_path_to_users_table --no-interaction)",
+      "PowerShell(php artisan storage:link)",
+      "PowerShell(php artisan migrate --no-interaction)",
+      "PowerShell(php artisan test --compact tests/Feature/UserResourceTest.php tests/Feature/AdminThemeTest.php)",
+      "PowerShell(php artisan test --compact tests/Feature/EquiposFueraDeLineaWidgetTest.php)"
     ]
   }
 }

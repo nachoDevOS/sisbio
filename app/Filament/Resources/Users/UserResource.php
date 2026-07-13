@@ -26,6 +26,14 @@ class UserResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+    /**
+     * Mismo grupo de navegación que el recurso de Roles (Filament Shield).
+     */
+    public static function getNavigationGroup(): ?string
+    {
+        return __('filament-shield::filament-shield.nav.group');
+    }
+
     public static function form(Schema $schema): Schema
     {
         return UserForm::configure($schema);

@@ -14,7 +14,7 @@ use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
-use Filament\Widgets\AccountWidget;
+use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -31,7 +31,12 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
-            ->brandName('SISBIO')
+            ->brandName(config('app.name'))
+            // Ícono + APP_NAME juntos (vista propia en lugar de solo la imagen).
+            ->brandLogo(fn (): View => view('filament.logo'))
+            ->brandLogoHeight('2.5rem')
+            // La misma imagen como ícono de la pestaña del navegador.
+            ->favicon(asset('image/icon.png'))
             // Sin buscador global en el topbar.
             ->globalSearch(false)
             // Paleta institucional estilo SISCOR (AdminLTE skin verde).
@@ -45,6 +50,19 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarWidth('14.5rem')
             // Contenido a ancho completo: la tabla aprovecha toda la pantalla.
             ->maxContentWidth(Width::Full)
+            // Tras crear un registro en cualquier recurso, vuelve al listado.
+            ->resourceCreatePageRedirect('index')
+            // Errores inesperados como notificación toast (con APP_DEBUG=false)
+            // en lugar del modal de error de Livewire.
+            ->registerErrorNotification(
+                title: 'Ocurrió un error',
+                body: 'La operación no se pudo completar. Inténtalo nuevamente.',
+            )
+            ->registerErrorNotification(
+                title: 'Registro no encontrado',
+                body: 'El registro que buscas ya no existe.',
+                statusCode: 404,
+            )
             // Inyecta el tema visual (color del sidebar y realce de las cajas).
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
@@ -57,7 +75,6 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
-                AccountWidget::class,
                 EquiposStats::class,
             ])
             ->middleware([

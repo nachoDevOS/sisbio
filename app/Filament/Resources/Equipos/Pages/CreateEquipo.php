@@ -10,10 +10,8 @@ class CreateEquipo extends CreateRecord
     protected static string $resource = EquipoResource::class;
 
     /**
-     * Tras crear un equipo, vuelve al listado (no se queda en el formulario).
+     * Sin botón "crear y crear otro"; al crear se vuelve al listado
+     * (redirect global en AdminPanelProvider::resourceCreatePageRedirect).
      */
-    protected function getRedirectUrl(): string
-    {
-        return $this->getResource()::getUrl('index');
-    }
+    protected static bool $canCreateAnother = false;
 }
