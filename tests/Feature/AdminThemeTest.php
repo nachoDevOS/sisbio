@@ -38,5 +38,6 @@ test('el tema estiliza la paginación de las tablas', function () {
     expect($css)
         ->toContain('.fi-pagination-item.fi-active .fi-pagination-item-btn')
         ->toContain('.fi-ta-row.fi-striped')
-        ->toContain('.fi-pagination .fi-pagination-items');
+        ->toContain('.fi-pagination .fi-pagination-items')
+        ->toContain('.fi-header-heading');
 });

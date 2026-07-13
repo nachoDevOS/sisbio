@@ -19,7 +19,18 @@
       "PowerShell(php artisan storage:link)",
       "PowerShell(php artisan migrate --no-interaction)",
       "PowerShell(php artisan test --compact tests/Feature/UserResourceTest.php tests/Feature/AdminThemeTest.php)",
-      "PowerShell(php artisan test --compact tests/Feature/EquiposFueraDeLineaWidgetTest.php)"
+      "PowerShell(php artisan test --compact tests/Feature/EquiposFueraDeLineaWidgetTest.php)",
+      "PowerShell(git commit -F \"C:\\\\Users\\\\User\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--garoto-gadbeni-sisbio\\\\cd2aefed-0432-4197-bff7-cbeb73ff1a65\\\\scratchpad\\\\commit-msg.txt\")",
+      "PowerShell(git add docs/sesiones/07-2026/2026-07-12.md)",
+      "PowerShell(git commit -m \"docs: registra hash del commit en la sesion 2026-07-12\" -m \"Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\")",
+      "PowerShell(\\(Get-Content README.md -Raw -Encoding UTF8\\).Length; \\(Get-Content README.md -Encoding UTF8 | Measure-Object -Line\\).Lines)",
+      "PowerShell(git add README.md)",
+      "PowerShell(git commit -m \"docs: README completo con modulos, arquitectura y despliegue\" -m \"Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\")",
+      "PowerShell(Get-ChildItem -Recurse app -File | Select-Object -ExpandProperty FullName | ForEach-Object { $_.Replace\\(\\(Get-Location\\).Path + '\\\\', ''\\) })",
+      "PowerShell(git add docs/ESTRUCTURA.md README.md)",
+      "PowerShell(git commit -m \"docs: mapa del codigo con estructura y flujos principales\" -m \"Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>\")",
+      "PowerShell(php artisan test --compact tests/Feature/PersonaResourceTest.php)",
+      "PowerShell(php artisan test --compact tests/Feature/MarcacionResourceTest.php tests/Feature/PersonaResourceTest.php)"
     ]
   }
 }

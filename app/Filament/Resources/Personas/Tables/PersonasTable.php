@@ -2,9 +2,7 @@
 
 namespace App\Filament\Resources\Personas\Tables;
 
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 
 class PersonasTable
@@ -17,7 +15,7 @@ class PersonasTable
         return $table
             ->columns([
                 TextColumn::make('IdPersona')
-                    ->label('Código')
+                    ->label('CI')
                     ->formatStateUsing(fn (string $state): string => trim($state))
                     ->searchable(),
                 TextColumn::make('Paterno')
@@ -35,13 +33,6 @@ class PersonasTable
                 TextColumn::make('PinReloj')
                     ->label('PIN reloj')
                     ->placeholder('Sin PIN'),
-                IconColumn::make('MarcaDirecta')
-                    ->label('Marca directa')
-                    ->boolean(),
-            ])
-            ->filters([
-                TernaryFilter::make('MarcaDirecta')
-                    ->label('Marca directa'),
             ])
             ->defaultSort('Paterno')
             ->defaultPaginationPageOption(25)

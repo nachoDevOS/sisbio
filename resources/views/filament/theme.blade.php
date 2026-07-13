@@ -108,6 +108,12 @@
     .fi-sidebar .fi-sidebar-item.fi-active .fi-sidebar-item-label { color: #ffffff; font-weight: 600; }
     .fi-sidebar .fi-sidebar-item.fi-active .fi-sidebar-item-icon { color: var(--siscor-green); }
 
+    /* ===== Títulos de página más compactos (Filament trae 1.5–1.875rem) ===== */
+    .fi-header-heading {
+        font-size: 1.25rem !important;
+        line-height: 1.75rem;
+    }
+
     /* ===== Fondo del contenido: gris claro AdminLTE ===== */
     .fi-body,
     .fi-main-ctn {

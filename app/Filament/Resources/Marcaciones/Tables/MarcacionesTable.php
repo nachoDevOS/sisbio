@@ -25,7 +25,7 @@ class MarcacionesTable
             ->modifyQueryUsing(fn (Builder $query): Builder => $query->with('persona'))
             ->columns([
                 TextColumn::make('IdPersona')
-                    ->label('Código')
+                    ->label('CI')
                     ->formatStateUsing(fn (string $state): string => trim($state))
                     ->searchable(),
                 TextColumn::make('persona_nombre')
