@@ -1,9 +1,10 @@
 # SISBIO
 
-Sistema de control biométrico — Gobierno Autónomo Departamental del Beni.
-Panel en Laravel 13 + Filament 5 que administra equipos biométricos ZKTeco
-(vía un microservicio Python) y consulta la base institucional **SIA** en un
-SQL Server 2008 R2 remoto.
+Sistema de Sincronización de Biométricos — Gobierno Autónomo Departamental
+del Beni. Panel administrativo en **Laravel 13 + Filament 5** que administra
+los equipos biométricos ZKTeco de la institución (vía un microservicio
+Python) y consulta la asistencia registrada en la base institucional **SIA**
+(SQL Server 2008 R2 remoto).
 
 ```
 Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-Token--> Laravel/Filament
@@ -14,46 +15,138 @@ Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-T
 
 ---
 
-## 1. Requisitos generales
+## 1. ¿Qué hace el sistema?
+
+### Tablero (dashboard)
+- **Tarjetas de equipos:** total registrado, en línea, fuera de línea y maestros.
+- **Equipos fuera de línea:** tabla con los equipos activos sin conexión
+  (nombre, IP, ubicación, última sincronización); clic en la fila lleva a
+  editar el equipo. Si todo está bien muestra «Todos los equipos están en línea».
+- **Asistencia SIA:** marcaciones de hoy, personas que marcaron, marcaciones
+  del mes y funcionarios registrados. Con caché de 5 minutos y sin polling
+  para no castigar el SQL Server 2008; si el SIA no responde, el tablero
+  sigue en pie.
+- **Gráfico:** marcaciones por día de los últimos 14 días.
+
+### Equipos (biométricos ZKTeco)
+- Alta/edición/baja de equipos: nombre, IP, puerto (4370), COMM key,
+  ubicación, algoritmo, maestro/esclavo, activo.
+- **Probar conexión:** consulta el equipo real vía el microservicio y guarda
+  estado en línea, algoritmo y hora del aparato.
+- **Ver marcaciones:** lee las marcaciones directamente del equipo, en vivo.
+
+### Asistencia SIA (solo lectura)
+- **Marcaciones:** listado paginado con filtro por rango de fechas y tipo,
+  búsqueda por funcionario y orden por fecha. La paginación usa
+  `ROW_NUMBER()` (grammar propio) porque SQL Server 2008 no soporta
+  `OFFSET/FETCH`. El filtro por defecto (mes actual hasta hoy) excluye las
+  fechas basura que arrastra el SIA (años 2064/2103).
+- **Funcionarios:** personal registrado en el SIA con su PIN de reloj.
+
+### Usuarios, roles y permisos
+- Usuarios del panel con **foto de perfil** (recorte circular; sin foto se
+  muestran las iniciales), correo y contraseña.
+- **Roles y permisos** con Filament Shield (Spatie Permission): cada recurso,
+  página y widget tiene permisos granulares; Usuarios y Roles conviven en el
+  mismo bloque del menú.
+
+### Experiencia de uso
+- Identidad institucional estilo SISCOR/AdminLTE: sidebar carbón con el logo
+  y el nombre del sistema (`APP_NAME`), topbar verde delgado, tablas con
+  cabecera verde, filas cebra y paginación con la página activa en verde.
+- Selector «por página» arriba de cada tabla, a la izquierda; números de
+  página abajo a la derecha.
+- Tras crear un registro se vuelve al listado (sin «crear y crear otro»).
+- Notificaciones toast en español para crear/guardar/eliminar y para errores
+  (los errores como toast aplican con `APP_DEBUG=false`).
+- La raíz `/` redirige al panel (`/admin`); login si no hay sesión.
+
+---
+
+## 2. Cómo funciona (arquitectura)
+
+| Pieza | Rol |
+|---|---|
+| **Laravel 13 + Filament 5** | Panel web, lógica de negocio, base local MySQL `sisbio` (usuarios, roles, equipos). |
+| **device-service (Python/FastAPI + pyzk)** | Única pieza que habla TCP 4370 con los ZKTeco. Laravel lo consume por REST con token `X-Auth-Token` (`app/Services/DeviceService.php`). |
+| **Conexión `sia` (pdo_sqlsrv)** | Lectura de la base institucional `SIA_DEV` en SQL Server 2008 R2. Modelos de solo lectura en `app/Models/Sia/` y grammar `SqlServer2008Grammar` para paginación compatible. |
+
+Puntos clave:
+
+- Laravel **nunca** abre sockets a los equipos; si el microservicio está
+  caído, el panel sigue funcionando (solo fallan las acciones de equipos).
+- Las consultas al SIA se cachean 5 minutos y toleran caída del servidor.
+- El tema visual es CSS inyectado por render hook
+  (`resources/views/filament/theme.blade.php`); no requiere build de Vite
+  para cambiar estilos del panel.
+
+---
+
+## 3. Requisitos
+
+### Comunes (desarrollo y producción)
 
 | Componente | Versión / detalle |
 |---|---|
-| PHP | 8.3 (Laragon: build **TS, vs16, x64**) |
+| PHP | 8.3 con extensiones: `pdo_mysql`, `pdo_sqlsrv`, `intl`, `zip`, `gd` |
 | Composer | 2.x |
-| Node.js + npm | Para assets (Vite / Tailwind 4) |
-| MySQL | Base local `sisbio` (conexión por defecto) |
-| Python | 3.10+ (solo para el microservicio de biométricos) |
+| Node.js + npm | Solo para compilar assets (Vite / Tailwind 4) |
+| MySQL / MariaDB | Base local `sisbio` (conexión por defecto) |
+| ODBC | «ODBC Driver 17 for SQL Server» x64 (18 en Linux con `msodbcsql18`) |
+| Python | 3.10+ para el microservicio `device-service` |
+| Red | TCP 1433 al SQL Server del SIA; TCP 4370 a cada equipo ZKTeco (desde la máquina del microservicio) |
 
-### Instalación base
+> **pdo_sqlsrv en Windows:** la DLL de PECL debe coincidir con la build de
+> PHP: 8.3, **Thread Safety (TS)**, **vs16**, **x64** (verificar con `php -i`).
+> **En Docker/Debian:** `msodbcsql18` + `pecl install sqlsrv pdo_sqlsrv`.
+
+---
+
+## 4. Despliegue en desarrollo
 
 ```bash
+git clone <repo> sisbio && cd sisbio
 composer install
 npm install && npm run build
 cp .env.example .env
 php artisan key:generate
 php artisan migrate
+php artisan storage:link        # fotos de perfil (avatars)
+php artisan db:seed             # usuario de prueba test@example.com
+```
+
+Configurar en `.env`:
+
+```env
+APP_NAME="SISTEMA DE SINCRONIZACIÓN DE BIOMETRICO"
+DB_DATABASE=sisbio ...                    # MySQL local
+DB_HOST_SIA=... DB_USERNAME_SIA=...       # SQL Server del SIA (sección 6)
+DEVICE_SERVICE_URL=http://127.0.0.1:9001  # microservicio (sección 5)
+DEVICE_SERVICE_TOKEN=un_token_compartido
+```
+
+Levantar todo:
+
+1. MySQL corriendo (Laragon).
+2. `device-service` corriendo en `127.0.0.1:9001` (sección 5).
+3. Acceso de red al SQL Server (puerto 1433).
+4. `php artisan serve` (o el vhost de Laragon) + `npm run dev` si se tocan assets.
+
+Pruebas:
+
+```bash
+php artisan test --compact
 ```
 
 ---
 
-## 2. Conexión a los equipos biométricos (ZKTeco)
+## 5. Microservicio de biométricos (`device-service`)
 
-Laravel **nunca** habla TCP directo con los equipos. Todo pasa por el
-microservicio `device-service/` (FastAPI + pyzk), única pieza que abre
-sockets al puerto **4370** de cada equipo.
+Laravel **nunca** habla TCP directo con los equipos. Todo pasa por
+`device-service/` (FastAPI + pyzk), única pieza que abre sockets al puerto
+**4370** de cada equipo.
 
-### Requisitos
-
-- Python 3.10+ con `venv` disponible.
-- Red: la máquina que corre `device-service` debe alcanzar la IP de cada
-  equipo ZKTeco por **TCP 4370**.
-- Un token compartido: el mismo valor en el `.env` de Laravel y en el
-  `.env` de `device-service` (`DEVICE_SERVICE_TOKEN`).
-- El microservicio **no debe exponerse a internet**: solo localhost / red interna.
-
-### Pasos
-
-1. **Instalar dependencias del microservicio:**
+1. **Instalar dependencias:**
 
    ```bash
    cd device-service
@@ -62,97 +155,43 @@ sockets al puerto **4370** de cada equipo.
    pip install -r requirements.txt  # fastapi, uvicorn, pydantic, pyzk
    ```
 
-2. **Configurar el token compartido:**
+2. **Token compartido:** `cp .env.example .env` y poner en
+   `DEVICE_SERVICE_TOKEN` el mismo valor que en el `.env` de Laravel.
 
-   ```bash
-   cp .env.example .env
-   # editar .env: DEVICE_SERVICE_TOKEN = mismo valor que en el .env de Laravel
-   ```
-
-3. **Levantar el servicio** (puerto 9001, el que Laravel espera por defecto):
+3. **Levantar** (puerto 9001, el que Laravel espera por defecto):
 
    ```bash
    set -a && source .env && set +a
    python3 -m uvicorn main:app --host 127.0.0.1 --port 9001
    ```
 
-4. **Configurar Laravel** — en `.env`:
+4. **Registrar los equipos en el panel** (recurso *Equipos*): IP, puerto,
+   COMM key y ubicación.
 
-   ```env
-   DEVICE_SERVICE_URL=http://127.0.0.1:9001
-   DEVICE_SERVICE_TOKEN=el_mismo_token_del_microservicio
-   ```
-
-5. **Registrar los equipos en el panel** (recurso *Equipos*): IP, puerto
-   (4370 por defecto), COMM key y ubicación de cada aparato.
-
-6. **Verificar:**
+5. **Verificar:**
 
    ```bash
-   # ¿Vive el microservicio? (sin token)
-   curl http://127.0.0.1:9001/health
-
-   # ¿Responde un equipo? (con token)
+   curl http://127.0.0.1:9001/health                     # vive (sin token)
    curl -H "X-Auth-Token: TU_TOKEN" "http://127.0.0.1:9001/device/info?ip=192.168.1.201&port=4370&password=0"
    ```
 
-   En el panel, la acción **"Probar conexión"** de cada equipo hace esta misma
-   consulta y guarda estado, algoritmo y hora; **"Ver marcaciones"** consulta
-   `/device/attendance` en vivo.
-
-Endpoints disponibles: `/health`, `/device/info`, `/device/users`,
-`/device/attendance` (todos menos `/health` exigen `X-Auth-Token`).
-Más detalle en [device-service/README.md](device-service/README.md).
+Endpoints: `/health`, `/device/info`, `/device/users`, `/device/attendance`
+(todos menos `/health` exigen `X-Auth-Token`). El microservicio **no debe
+exponerse a internet**: solo localhost / red interna. Más detalle en
+[device-service/README.md](device-service/README.md).
 
 ---
 
-## 3. Conexión a SQL Server 2008 R2 (base SIA)
+## 6. Conexión a SQL Server 2008 R2 (base SIA)
 
-El sistema consulta la base institucional `SIA_DEV` en un SQL Server 2008 R2
-remoto mediante la conexión Laravel **`sia`** (`config/database.php`).
+La conexión Laravel **`sia`** (`config/database.php`) lee la base
+institucional `SIA_DEV`.
 
-### Requisitos
-
-- **Red:** alcance TCP al servidor SQL por el puerto **1433**.
-- **ODBC:** "ODBC Driver 17 for SQL Server" (x64) instalado en Windows.
-- **PHP:** extensión `pdo_sqlsrv` (PECL 5.12+). La build debe coincidir con
-  el PHP instalado: misma versión (8.3), **Thread Safety (TS)**, **vs16** y
-  **x64**. Verificar antes de descargar con `php -i` (Thread Safety y
-  `extension_dir`).
-- **TLS antiguo (crítico):** SQL Server 2008 R2 no soporta TLS moderno. La
-  conexión **debe** llevar `encrypt=no` y `trust_server_certificate=true`;
-  sin eso el handshake TLS falla con drivers actuales.
-- **Docker (Debian):** instalar `msodbcsql18` + `pecl install sqlsrv pdo_sqlsrv`
-  en la imagen. La configuración no cambia: todo se lee de variables de entorno.
-
-### Pasos
-
-1. **Verificar red** (PowerShell):
-
-   ```powershell
-   Test-NetConnection IP_DEL_SERVIDOR -Port 1433
-   # debe dar TcpTestSucceeded : True
-   ```
-
-2. **Verificar la extensión PHP:**
-
-   ```bash
-   php -m | grep sqlsrv
-   # debe listar: pdo_sqlsrv
-   ```
-
-   Si falta: descargar de PECL la DLL que coincida con la build de PHP,
-   copiarla a `ext/` y agregar `extension=pdo_sqlsrv` al `php.ini`.
-
-3. **Verificar el driver ODBC** (PowerShell):
-
-   ```powershell
-   Get-OdbcDriver | Where-Object Name -like '*SQL Server*'
-   # debe listar "ODBC Driver 17 for SQL Server" en 64-bit
-   ```
-
-4. **Configurar `.env`** (las credenciales **solo** van aquí — nunca en
-   commits, código ni documentación; `.env` está en `.gitignore`):
+1. **Red** (PowerShell): `Test-NetConnection IP_DEL_SERVIDOR -Port 1433`
+   debe dar `TcpTestSucceeded : True`.
+2. **Extensión PHP:** `php -m | grep sqlsrv` debe listar `pdo_sqlsrv`.
+3. **Driver ODBC** (PowerShell): `Get-OdbcDriver | Where-Object Name -like '*SQL Server*'`.
+4. **`.env`** (credenciales solo aquí; `.env` está en `.gitignore`):
 
    ```env
    # SIA - SQL Server 2008 R2 remoto (encrypt=no obligatorio por TLS antiguo)
@@ -165,42 +204,98 @@ remoto mediante la conexión Laravel **`sia`** (`config/database.php`).
    DB_TRUST_SERVER_CERT_SIA=true
    ```
 
-5. **Limpiar caché de configuración:**
+   > **TLS antiguo (crítico):** SQL Server 2008 R2 no soporta TLS moderno;
+   > sin `encrypt=no` + `trust_server_certificate=true` el handshake falla.
+
+5. `php artisan config:clear` y prueba final:
 
    ```bash
-   php artisan config:clear
-   ```
-
-6. **Prueba final desde Laravel:**
-
-   ```bash
-   # Comillas dobles por fuera: en cmd.exe el "->" con comillas simples
-   # se interpreta como redirección y crea un archivo vacío.
    php artisan tinker --execute "var_dump(DB::connection('sia')->select('SELECT TOP 3 name FROM sys.tables'));"
    ```
 
-   Debe devolver nombres de tablas reales de `SIA_DEV`.
+Uso en código: `DB::connection('sia')` o `protected $connection = 'sia';`
+en el modelo (los de `app/Models/Sia/` ya lo hacen).
 
-### Uso en código
+---
 
-```php
-DB::connection('sia')->select('...');
-// o en un modelo:
-protected $connection = 'sia';
+## 7. Despliegue en producción
+
+### Requisitos adicionales
+
+- Servidor web (Nginx/Apache) apuntando a `public/` con HTTPS.
+- PHP-FPM 8.3 con OPcache habilitado.
+- Supervisor (o systemd) para el worker de colas.
+- El microservicio como servicio del sistema (systemd en Linux, NSSM o
+  Tarea Programada en Windows), escuchando **solo** en localhost/red interna.
+
+### Pasos
+
+```bash
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+cp .env.example .env               # y completar (ver abajo)
+php artisan key:generate
+php artisan migrate --force
+php artisan storage:link
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan filament:optimize      # cachea componentes e íconos de Filament
+```
+
+`.env` de producción (diferencias clave):
+
+```env
+APP_ENV=production
+APP_DEBUG=false                    # activa los toasts de error en español
+APP_URL=https://sisbio.beni.gob.bo # la URL real
+LOG_LEVEL=warning
+SESSION_ENCRYPT=true
+```
+
+Worker de colas (Supervisor):
+
+```ini
+[program:sisbio-queue]
+command=php /ruta/sisbio/artisan queue:work --tries=3 --timeout=90
+autostart=true
+autorestart=true
+```
+
+### Primer usuario y permisos
+
+```bash
+php artisan make:filament-user            # crea el primer usuario del panel
+php artisan shield:generate --all         # genera permisos de recursos/páginas/widgets
+php artisan shield:super-admin            # asigna rol super_admin a un usuario
+```
+
+### Checklist de seguridad
+
+- [ ] `APP_DEBUG=false` y `APP_KEY` generada.
+- [ ] `.env` fuera del control de versiones y con permisos restringidos.
+- [ ] `DEVICE_SERVICE_TOKEN` largo y aleatorio; microservicio **no** expuesto a internet.
+- [ ] Usuario del SQL Server SIA con permisos de **solo lectura**.
+- [ ] HTTPS forzado; `storage/` y `bootstrap/cache/` escribibles solo por el usuario de PHP.
+
+### Al actualizar versión
+
+```bash
+php artisan down
+git pull
+composer install --no-dev --optimize-autoloader
+npm ci && npm run build
+php artisan migrate --force
+php artisan config:cache && php artisan route:cache && php artisan view:cache
+php artisan filament:optimize
+php artisan up
 ```
 
 ---
 
-## 4. Levantar el sistema completo (desarrollo)
+## 8. Documentación
 
-1. MySQL local corriendo (Laragon).
-2. `device-service` corriendo en `127.0.0.1:9001`.
-3. Acceso de red al SQL Server (puerto 1433).
-4. `php artisan serve` (o el vhost de Laragon) + `npm run dev` si se tocan assets.
-
----
-
-## Documentación
-
-- Bitácora de sesiones: [docs/sesiones/](docs/sesiones/)
+- Bitácora de sesiones de trabajo: [docs/sesiones/](docs/sesiones/)
 - Microservicio de biométricos: [device-service/README.md](device-service/README.md)
+- Pruebas: `php artisan test --compact` (Pest 4; las pruebas simulan la
+  conexión SIA en SQLite, no requieren el servidor real).
