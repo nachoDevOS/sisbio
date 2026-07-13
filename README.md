@@ -295,6 +295,7 @@ php artisan up
 
 ## 8. Documentación
 
+- Mapa del código (qué archivo hace qué): [docs/ESTRUCTURA.md](docs/ESTRUCTURA.md)
 - Bitácora de sesiones de trabajo: [docs/sesiones/](docs/sesiones/)
 - Microservicio de biométricos: [device-service/README.md](device-service/README.md)
 - Pruebas: `php artisan test --compact` (Pest 4; las pruebas simulan la
