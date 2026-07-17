@@ -2,13 +2,16 @@
 
 namespace App\Filament\Resources\Personas\Tables;
 
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
 class PersonasTable
 {
     /**
-     * Tabla del listado de funcionarios del SIA (solo lectura).
+     * Tabla del listado de funcionarios del SIA, con ficha (ojito) y edición
+     * por fila. Ambas páginas viven dentro del panel (con su sidebar).
      */
     public static function configure(Table $table): Table
     {
@@ -33,6 +36,12 @@ class PersonasTable
                 TextColumn::make('PinReloj')
                     ->label('PIN reloj')
                     ->placeholder('Sin PIN'),
+            ])
+            ->recordActions([
+                ViewAction::make()
+                    ->button(),
+                EditAction::make()
+                    ->button(),
             ])
             ->defaultSort('Paterno')
             ->defaultPaginationPageOption(25)

@@ -46,8 +46,24 @@
         .aviso { background: #dcfce7; color: #166534; padding: .75rem 1rem; border-radius: .5rem; margin-bottom: 1.25rem; font-size: .9rem; }
         .campo { margin-bottom: 1.1rem; }
         .campo label { display: block; font-weight: 600; font-size: .85rem; margin-bottom: .35rem; }
-        .campo input[type=text], .campo input[type=number] { width: 100%; padding: .55rem .7rem;
-            border: 1px solid var(--border); border-radius: .5rem; font-size: .9rem; }
+        .campo input[type=text], .campo input[type=number], .campo input[type=date],
+        .campo input[type=email], .campo select { width: 100%; padding: .55rem .7rem;
+            border: 1px solid var(--border); border-radius: .5rem; font-size: .9rem;
+            background: #fff; color: var(--fg); }
+        .campo input:focus, .campo select:focus { outline: none;
+            border-color: var(--verde); box-shadow: 0 0 0 2px rgba(0, 166, 90, .35); }
+        .campo .req { color: var(--danger); }
+        /* Formulario tipo panel: cards por sección en grilla de dos columnas. */
+        .form-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1.25rem;
+            align-items: start; }
+        .tarjeta { background: var(--card); border: 1px solid var(--border); border-radius: .75rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,.05); padding: 1.25rem 1.5rem; }
+        .tarjeta h2 { font-size: 1rem; margin: 0 0 1.1rem; }
+        .tarjeta fieldset { border: 0; padding: 0; margin: 0; }
+        .tarjeta fieldset[disabled] .campo { opacity: .55; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.25rem; }
+        @media (max-width: 900px) { .form-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
         .campo .ayuda { color: var(--muted); font-size: .78rem; margin-top: .3rem; }
         .campo .error { color: var(--danger); font-size: .8rem; margin-top: .3rem; }
         .check { display: flex; align-items: center; gap: .5rem; }

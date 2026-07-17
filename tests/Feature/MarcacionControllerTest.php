@@ -12,7 +12,7 @@ beforeEach(function () {
 
 test('el listado muestra las marcaciones del rango por defecto', function () {
     DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '777', 'Paterno' => 'Diaz', 'Materno' => null, 'Nombres' => 'Eva', 'PinReloj' => null,
+        'IdPersona' => '777', 'Paterno' => 'Diaz', 'Materno' => null, 'Nombres' => 'Eva', 'PinReloj' => null, 'MarcaDirecta' => false,
     ]);
     DB::connection('sia')->table('Asistencia')->insert([
         'IdPersona' => '777',
@@ -29,7 +29,7 @@ test('el listado muestra las marcaciones del rango por defecto', function () {
 
 test('el rango de fechas excluye lo que queda fuera', function () {
     DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '888', 'Paterno' => 'Vieja', 'Materno' => null, 'Nombres' => 'Marca', 'PinReloj' => null,
+        'IdPersona' => '888', 'Paterno' => 'Vieja', 'Materno' => null, 'Nombres' => 'Marca', 'PinReloj' => null, 'MarcaDirecta' => false,
     ]);
     DB::connection('sia')->table('Asistencia')->insert([
         'IdPersona' => '888',

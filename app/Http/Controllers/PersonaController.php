@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StorePersonaRequest;
+use App\Http\Requests\UpdatePersonaRequest;
 use App\Models\Sia\Persona;
+use App\Models\Sia\Profesion;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
- * Listado de solo lectura de los funcionarios del SIA (SQL Server 2008 remoto).
+ * CRUD clásico (MVC) de los funcionarios del SIA (SQL Server 2008 remoto).
  *
- * Solo `index`: el panel nunca escribe sobre esa base legada, igual que el
- * recurso Filament equivalente que tampoco expone alta/edición.
+ * Convive con el recurso Filament (que vive en /admin): mismo modelo
+ * `Persona`, pero con controlador, FormRequests y vistas Blade propias y
+ * personalizables. Sin borrado: eso sigue siendo del sistema de escritorio.
  */
 class PersonaController extends Controller
 {
@@ -33,5 +39,101 @@ class PersonaController extends Controller
             ->withQueryString();
 
         return view('funcionarios.index', compact('funcionarios', 'busqueda'));
+    }
+
+    /**
+     * Formulario de alta.
+     */
+    public function create(): View
+    {
+        return view('funcionarios.create', $this->datosDeFormulario());
+    }
+
+    /**
+     * Guarda un funcionario nuevo. La validación la hace StorePersonaRequest.
+     * MarcaDirecta es NOT NULL sin default en el SQL Server y el formulario
+     * la tiene deshabilitada: el INSERT siempre la manda en falso.
+     */
+    public function store(StorePersonaRequest $request): RedirectResponse
+    {
+        Persona::create($request->validated() + ['MarcaDirecta' => false]);
+
+        return redirect()
+            ->route('funcionarios.index')
+            ->with('estado', 'Funcionario registrado correctamente.');
+    }
+
+    /**
+     * Ficha de detalle de un funcionario, con sus últimas marcaciones.
+     */
+    public function show(Persona $persona): View
+    {
+        $persona->loadMissing('profesion');
+
+        $marcaciones = $persona->marcaciones()
+            ->orderByDesc('Fecha')
+            ->orderByDesc('Hora')
+            ->limit(10)
+            ->get();
+
+        return view('funcionarios.show', compact('persona', 'marcaciones'));
+    }
+
+    /**
+     * Todas las marcaciones de un funcionario, filtradas por rango de fechas.
+     *
+     * La tabla Asistencia tiene millones de filas: siempre se acota por
+     * IdPersona y por rango (por defecto el mes actual) y se pagina.
+     */
+    public function marcaciones(Request $request, Persona $persona): View
+    {
+        $desde = $request->query('desde', now()->startOfMonth()->toDateString());
+        $hasta = $request->query('hasta', now()->toDateString());
+
+        $marcaciones = $persona->marcaciones()
+            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('Fecha', '>=', $d))
+            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('Fecha', '<=', $h))
+            ->orderByDesc('Fecha')
+            ->orderByDesc('Hora')
+            ->paginate(50)
+            ->withQueryString();
+
+        return view('funcionarios.marcaciones', compact('persona', 'marcaciones', 'desde', 'hasta'));
+    }
+
+    /**
+     * Formulario de edición.
+     */
+    public function edit(Persona $persona): View
+    {
+        return view('funcionarios.edit', ['persona' => $persona] + $this->datosDeFormulario());
+    }
+
+    /**
+     * Actualiza un funcionario. La validación la hace UpdatePersonaRequest;
+     * el carnet (clave primaria) y el control de asistencia no se tocan.
+     */
+    public function update(UpdatePersonaRequest $request, Persona $persona): RedirectResponse
+    {
+        $persona->update($request->validated());
+
+        return redirect()
+            ->route('funcionarios.index')
+            ->with('estado', 'Funcionario actualizado correctamente.');
+    }
+
+    /**
+     * Catálogos que necesitan los formularios de alta y edición.
+     *
+     * @return array{profesiones: Collection<string, string>, niveles: list<string>}
+     */
+    private function datosDeFormulario(): array
+    {
+        return [
+            'profesiones' => Profesion::query()
+                ->orderBy('NombreProfesion')
+                ->pluck('NombreProfesion', 'CodigoProfesion'),
+            'niveles' => StorePersonaRequest::NIVELES_ESTUDIO,
+        ];
     }
 }

@@ -2,7 +2,6 @@
 
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -21,23 +20,7 @@ use Tests\TestCase;
 */
 
 pest()->extend(TestCase::class)
- // ->use(RefreshDatabase::class)
     ->in('Feature');
-
-/*
-|--------------------------------------------------------------------------
-| Expectations
-|--------------------------------------------------------------------------
-|
-| When you're writing tests, you often need to check that values meet certain conditions. The
-| "expect()" function gives you access to a set of "expectations" methods that you can use
-| to assert different things. Of course, you may extend the Expectation API at any time.
-|
-*/
-
-expect()->extend('toBeOne', function () {
-    return $this->toBe(1);
-});
 
 /*
 |--------------------------------------------------------------------------
@@ -81,15 +64,28 @@ function fakeSiaDatabase(): void
 
     Schema::connection('sia')->create('Personas', function (Blueprint $tabla): void {
         $tabla->string('IdPersona', 12)->primary();
+        $tabla->string('OrigenId', 3)->nullable();
         $tabla->string('Paterno', 25);
         $tabla->string('Materno', 25)->nullable();
         $tabla->string('Nombres', 35);
         $tabla->dateTime('FechaNacimiento')->nullable();
+        $tabla->string('LugarNacimiento', 25)->nullable();
         $tabla->string('Sexo', 1)->nullable();
         $tabla->string('EstadoCivil', 1)->nullable();
         $tabla->string('CodigoProfesion', 2)->nullable();
-        $tabla->boolean('MarcaDirecta')->default(false);
+        $tabla->string('NivelEstudio', 20)->nullable();
+        $tabla->string('Telefono', 20)->nullable();
+        $tabla->string('Direccion', 40)->nullable();
+        $tabla->string('CorreoE', 40)->nullable();
+        // Sin default: igual que en el SQL Server real, el INSERT debe
+        // mandar siempre MarcaDirecta o falla por NOT NULL.
+        $tabla->boolean('MarcaDirecta');
         $tabla->string('PinReloj', 10)->nullable();
+    });
+
+    Schema::connection('sia')->create('Profesiones', function (Blueprint $tabla): void {
+        $tabla->string('CodigoProfesion', 2)->primary();
+        $tabla->string('NombreProfesion', 60);
     });
 
     Schema::connection('sia')->create('Asistencia', function (Blueprint $tabla): void {

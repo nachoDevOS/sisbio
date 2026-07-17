@@ -5,6 +5,7 @@
 @section('contenido')
     <div class="cabecera">
         <h1>Funcionarios (SIA)</h1>
+        <a href="{{ route('funcionarios.create') }}" class="btn">+ Nuevo funcionario</a>
     </div>
 
     <form method="GET" action="{{ route('funcionarios.index') }}" style="margin-bottom: 1.25rem; display: flex; gap: .6rem;">
@@ -25,6 +26,7 @@
                     <th>Materno</th>
                     <th>Nombres</th>
                     <th>PIN reloj</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -35,9 +37,13 @@
                         <td>{{ trim($persona->Materno) ?: '—' }}</td>
                         <td>{{ trim($persona->Nombres) }}</td>
                         <td>{{ trim((string) $persona->PinReloj) ?: 'Sin PIN' }}</td>
+                        <td class="acciones">
+                            <a href="{{ route('funcionarios.show', $persona) }}" class="btn btn--sm btn--gris">Ver</a>
+                            <a href="{{ route('funcionarios.edit', $persona) }}" class="btn btn--sm btn--gris">Editar</a>
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="vacio">Sin funcionarios en el criterio buscado.</td></tr>
+                    <tr><td colspan="6" class="vacio">Sin funcionarios en el criterio buscado.</td></tr>
                 @endforelse
             </tbody>
         </table>

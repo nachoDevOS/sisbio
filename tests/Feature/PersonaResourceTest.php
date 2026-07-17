@@ -1,8 +1,14 @@
 <?php
 
+use App\Filament\Resources\Personas\Pages\CreatePersona;
+use App\Filament\Resources\Personas\Pages\EditPersona;
 use App\Filament\Resources\Personas\Pages\ListPersonas;
+use App\Filament\Resources\Personas\Pages\MarcacionesPersona;
+use App\Filament\Resources\Personas\Pages\VerPersona;
 use App\Models\Sia\Persona;
+use App\Models\Sia\Profesion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -28,4 +34,142 @@ test('busca funcionarios por apellido', function () {
         ->searchTable('Zabaleta')
         ->assertSee('Zabaleta')
         ->assertDontSee('Quiroga');
+});
+
+test('muestra la página de alta de funcionarios', function () {
+    Livewire::test(CreatePersona::class)
+        ->assertSuccessful();
+});
+
+test('da de alta un funcionario en la tabla Personas del SIA', function () {
+    $profesion = Profesion::factory()->create(['NombreProfesion' => 'CONTADOR GENERAL']);
+
+    Livewire::test(CreatePersona::class)
+        ->fillForm([
+            'IdPersona' => '1234567',
+            'OrigenId' => 'BE',
+            'Paterno' => 'Suárez',
+            'Materno' => 'Roca',
+            'Nombres' => 'Ana María',
+            'FechaNacimiento' => '1990-05-10',
+            'LugarNacimiento' => 'Trinidad',
+            'Sexo' => 'F',
+            'EstadoCivil' => 'S',
+            'CodigoProfesion' => $profesion->CodigoProfesion,
+            'NivelEstudio' => 'Profesional',
+            'Telefono' => '71234567',
+            'Direccion' => 'Av. 6 de Agosto 123',
+            'CorreoE' => 'ana@example.com',
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $persona = Persona::query()->find('1234567');
+
+    expect($persona)->not->toBeNull()
+        ->and($persona->Paterno)->toBe('Suárez')
+        ->and($persona->Nombres)->toBe('Ana María')
+        ->and($persona->OrigenId)->toBe('BE')
+        ->and($persona->CodigoProfesion)->toBe($profesion->CodigoProfesion)
+        // Sección "Control de asistencia" deshabilitada: se guardan los
+        // valores por defecto, sin PIN y sin marcación con contraseña.
+        ->and($persona->PinReloj)->toBeNull()
+        ->and($persona->MarcaDirecta)->toBeFalse();
+});
+
+test('valida los campos obligatorios del alta', function () {
+    Livewire::test(CreatePersona::class)
+        ->fillForm([
+            'IdPersona' => '',
+            'Paterno' => '',
+            'Nombres' => '',
+            'FechaNacimiento' => null,
+            'Sexo' => null,
+            'EstadoCivil' => null,
+            'CodigoProfesion' => null,
+        ])
+        ->call('create')
+        ->assertHasFormErrors([
+            'IdPersona' => 'required',
+            'Paterno' => 'required',
+            'Nombres' => 'required',
+            'FechaNacimiento' => 'required',
+            'Sexo' => 'required',
+            'EstadoCivil' => 'required',
+            'CodigoProfesion' => 'required',
+        ]);
+
+    expect(Persona::query()->count())->toBe(0);
+});
+
+test('rechaza un carnet ya registrado', function () {
+    Persona::factory()->create(['IdPersona' => '9999999']);
+
+    Livewire::test(CreatePersona::class)
+        ->fillForm([
+            'IdPersona' => '9999999',
+            'Paterno' => 'Suárez',
+            'Nombres' => 'Ana',
+            'FechaNacimiento' => '1990-05-10',
+            'Sexo' => 'F',
+            'EstadoCivil' => 'S',
+            'CodigoProfesion' => '00',
+        ])
+        ->call('create')
+        ->assertHasFormErrors(['IdPersona' => 'unique']);
+
+    expect(Persona::query()->count())->toBe(1);
+});
+
+test('muestra la ficha de detalle dentro del panel', function () {
+    Profesion::factory()->create();
+    $persona = Persona::factory()->create([
+        'IdPersona' => '7778888',
+        'Paterno' => 'Detalle',
+        'Nombres' => 'Vista Completa',
+    ]);
+
+    Livewire::test(VerPersona::class, ['record' => '7778888'])
+        ->assertSuccessful()
+        ->assertSee('Detalle')
+        ->assertSee('Vista Completa');
+});
+
+test('lista las marcaciones del funcionario dentro del panel', function () {
+    $persona = Persona::factory()->create(['IdPersona' => '4443333']);
+
+    DB::connection('sia')->table('Asistencia')->insert([
+        'IdPersona' => $persona->IdPersona,
+        'Fecha' => now()->toDateString().' 00:00:00',
+        'Hora' => '1899-12-30 08:00:00',
+        'Tipo' => 'R',
+    ]);
+
+    Livewire::test(MarcacionesPersona::class, ['record' => '4443333'])
+        ->assertSuccessful()
+        ->assertCanSeeTableRecords($persona->marcaciones()->get());
+});
+
+test('edita un funcionario desde el panel sin tocar el carnet', function () {
+    $profesion = Profesion::factory()->create();
+    $persona = Persona::factory()->create([
+        'IdPersona' => '5551234',
+        'Paterno' => 'Original',
+        'CodigoProfesion' => $profesion->CodigoProfesion,
+    ]);
+
+    Livewire::test(EditPersona::class, ['record' => '5551234'])
+        ->assertSuccessful()
+        ->fillForm([
+            'Paterno' => 'Cambiado',
+            'Nombres' => 'Nuevo Nombre',
+        ])
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    $persona->refresh();
+
+    expect($persona->Paterno)->toBe('Cambiado')
+        ->and($persona->Nombres)->toBe('Nuevo Nombre')
+        ->and(trim($persona->IdPersona))->toBe('5551234');
 });

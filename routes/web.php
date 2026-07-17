@@ -18,7 +18,14 @@ Route::middleware('auth')->group(function (): void {
         ->parameters(['usuarios' => 'usuario'])
         ->except('show');
 
-    // Solo lectura: el SIA (SQL Server remoto) nunca se escribe.
-    Route::get('funcionarios', [PersonaController::class, 'index'])->name('funcionarios.index');
+    // Funcionarios del SIA (SQL Server remoto): listado, ficha, alta y
+    // edición. Sin destroy: el borrado sigue siendo del sistema de escritorio.
+    Route::get('funcionarios/{persona}/marcaciones', [PersonaController::class, 'marcaciones'])
+        ->name('funcionarios.marcaciones');
+    Route::resource('funcionarios', PersonaController::class)
+        ->parameters(['funcionarios' => 'persona'])
+        ->except(['destroy']);
+
+    // Solo lectura: las marcaciones nunca se escriben desde aquí.
     Route::get('marcaciones', [MarcacionController::class, 'index'])->name('marcaciones.index');
 });
