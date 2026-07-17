@@ -99,7 +99,7 @@ test('el alta valida obligatorios y carnet repetido', function () {
     expect(Persona::query()->count())->toBe(1);
 });
 
-test('muestra la ficha de detalle con datos y marcaciones', function () {
+test('muestra la ficha de detalle con datos', function () {
     $profesion = Profesion::factory()->create(['NombreProfesion' => 'CONTADOR GENERAL']);
     $persona = Persona::factory()->create([
         'IdPersona' => '7778888',
@@ -108,35 +108,11 @@ test('muestra la ficha de detalle con datos y marcaciones', function () {
         'CodigoProfesion' => $profesion->CodigoProfesion,
     ]);
 
-    DB::connection('sia')->table('Asistencia')->insert([
-        'IdPersona' => $persona->IdPersona,
-        'Fecha' => '2026-07-15 00:00:00',
-        'Hora' => '1899-12-30 08:05:00',
-        'Tipo' => 'R',
-    ]);
-
     $this->get(route('funcionarios.show', $persona))
         ->assertOk()
         ->assertSee('Detalle')
         ->assertSee('Vista Completa')
-        ->assertSee('CONTADOR GENERAL')
-        ->assertSee('15/07/2026')
-        ->assertSee('08:05');
-});
-
-test('lista las marcaciones de un funcionario filtradas por fecha', function () {
-    $persona = Persona::factory()->create(['IdPersona' => '4443333']);
-
-    DB::connection('sia')->table('Asistencia')->insert([
-        ['IdPersona' => $persona->IdPersona, 'Fecha' => now()->toDateString().' 00:00:00', 'Hora' => '1899-12-30 08:00:00', 'Tipo' => 'R'],
-        ['IdPersona' => $persona->IdPersona, 'Fecha' => now()->subMonths(3)->toDateString().' 00:00:00', 'Hora' => '1899-12-30 09:00:00', 'Tipo' => 'M'],
-    ]);
-
-    // Rango por defecto (mes actual): incluye la de hoy, excluye la vieja.
-    $this->get(route('funcionarios.marcaciones', $persona))
-        ->assertOk()
-        ->assertSee('08:00:00')
-        ->assertDontSee('09:00:00');
+        ->assertSee('CONTADOR GENERAL');
 });
 
 test('muestra el formulario de edición con los datos actuales', function () {

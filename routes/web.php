@@ -20,8 +20,7 @@ Route::middleware('auth')->group(function (): void {
 
     // Funcionarios del SIA (SQL Server remoto): listado, ficha, alta y
     // edición. Sin destroy: el borrado sigue siendo del sistema de escritorio.
-    Route::get('funcionarios/{persona}/marcaciones', [PersonaController::class, 'marcaciones'])
-        ->name('funcionarios.marcaciones');
+    // Las marcaciones del funcionario se ven en el panel Filament (/admin).
     Route::resource('funcionarios', PersonaController::class)
         ->parameters(['funcionarios' => 'persona'])
         ->except(['destroy']);

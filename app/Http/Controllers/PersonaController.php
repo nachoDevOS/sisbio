@@ -64,41 +64,13 @@ class PersonaController extends Controller
     }
 
     /**
-     * Ficha de detalle de un funcionario, con sus últimas marcaciones.
+     * Ficha de detalle de un funcionario.
      */
     public function show(Persona $persona): View
     {
         $persona->loadMissing('profesion');
 
-        $marcaciones = $persona->marcaciones()
-            ->orderByDesc('Fecha')
-            ->orderByDesc('Hora')
-            ->limit(10)
-            ->get();
-
-        return view('funcionarios.show', compact('persona', 'marcaciones'));
-    }
-
-    /**
-     * Todas las marcaciones de un funcionario, filtradas por rango de fechas.
-     *
-     * La tabla Asistencia tiene millones de filas: siempre se acota por
-     * IdPersona y por rango (por defecto el mes actual) y se pagina.
-     */
-    public function marcaciones(Request $request, Persona $persona): View
-    {
-        $desde = $request->query('desde', now()->startOfMonth()->toDateString());
-        $hasta = $request->query('hasta', now()->toDateString());
-
-        $marcaciones = $persona->marcaciones()
-            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('Fecha', '>=', $d))
-            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('Fecha', '<=', $h))
-            ->orderByDesc('Fecha')
-            ->orderByDesc('Hora')
-            ->paginate(50)
-            ->withQueryString();
-
-        return view('funcionarios.marcaciones', compact('persona', 'marcaciones', 'desde', 'hasta'));
+        return view('funcionarios.show', compact('persona'));
     }
 
     /**

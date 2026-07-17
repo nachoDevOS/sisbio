@@ -3,12 +3,10 @@
 use App\Filament\Resources\Personas\Pages\CreatePersona;
 use App\Filament\Resources\Personas\Pages\EditPersona;
 use App\Filament\Resources\Personas\Pages\ListPersonas;
-use App\Filament\Resources\Personas\Pages\MarcacionesPersona;
 use App\Filament\Resources\Personas\Pages\VerPersona;
 use App\Models\Sia\Persona;
 use App\Models\Sia\Profesion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 
 uses(RefreshDatabase::class);
@@ -133,21 +131,6 @@ test('muestra la ficha de detalle dentro del panel', function () {
         ->assertSuccessful()
         ->assertSee('Detalle')
         ->assertSee('Vista Completa');
-});
-
-test('lista las marcaciones del funcionario dentro del panel', function () {
-    $persona = Persona::factory()->create(['IdPersona' => '4443333']);
-
-    DB::connection('sia')->table('Asistencia')->insert([
-        'IdPersona' => $persona->IdPersona,
-        'Fecha' => now()->toDateString().' 00:00:00',
-        'Hora' => '1899-12-30 08:00:00',
-        'Tipo' => 'R',
-    ]);
-
-    Livewire::test(MarcacionesPersona::class, ['record' => '4443333'])
-        ->assertSuccessful()
-        ->assertCanSeeTableRecords($persona->marcaciones()->get());
 });
 
 test('edita un funcionario desde el panel sin tocar el carnet', function () {

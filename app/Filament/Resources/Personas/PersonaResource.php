@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Personas;
 use App\Filament\Resources\Personas\Pages\CreatePersona;
 use App\Filament\Resources\Personas\Pages\EditPersona;
 use App\Filament\Resources\Personas\Pages\ListPersonas;
-use App\Filament\Resources\Personas\Pages\MarcacionesPersona;
 use App\Filament\Resources\Personas\Pages\VerPersona;
 use App\Filament\Resources\Personas\Schemas\PersonaForm;
 use App\Filament\Resources\Personas\Schemas\PersonaInfolist;
@@ -60,7 +59,6 @@ class PersonaResource extends Resource
             'index' => ListPersonas::route('/'),
             'create' => CreatePersona::route('/create'),
             'view' => VerPersona::route('/{record}'),
-            'marcaciones' => MarcacionesPersona::route('/{record}/marcaciones'),
             'edit' => EditPersona::route('/{record}/edit'),
         ];
     }

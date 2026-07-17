@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Personas\Pages;
 
 use App\Filament\Resources\Personas\PersonaResource;
-use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Resources\Pages\ViewRecord;
 
@@ -23,11 +22,6 @@ class VerPersona extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('marcaciones')
-                ->label('Marcaciones')
-                ->icon('heroicon-o-clock')
-                ->color('gray')
-                ->url(PersonaResource::getUrl('marcaciones', ['record' => $this->record])),
             EditAction::make(),
         ];
     }

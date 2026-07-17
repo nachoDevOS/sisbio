@@ -99,32 +99,4 @@
             </dl>
         </div>
     </div>
-
-    <div class="cabecera" style="margin-top: 1.5rem; margin-bottom: .75rem;">
-        <h2 style="font-size: 1rem; margin: 0;">Últimas marcaciones</h2>
-        <a href="{{ route('funcionarios.marcaciones', $persona) }}" class="btn btn--sm">Ver todas →</a>
-    </div>
-
-    <div class="card">
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Hora</th>
-                    <th>Tipo</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($marcaciones as $marcacion)
-                    <tr>
-                        <td>{{ $marcacion->Fecha?->format('d/m/Y') ?? '—' }}</td>
-                        <td>{{ $marcacion->Hora?->format('H:i') ?? '—' }}</td>
-                        <td>{{ ['R' => 'Reloj', 'M' => 'Manual'][$marcacion->Tipo] ?? $marcacion->Tipo }}</td>
-                    </tr>
-                @empty
-                    <tr><td colspan="3" class="vacio">Sin marcaciones registradas.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
 @endsection
