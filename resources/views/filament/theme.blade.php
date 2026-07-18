@@ -196,4 +196,33 @@
         box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
     }
     /* Botón primario (Crear) usa el verde del primary de Filament. */
+
+    /* ===== Densidad compacta: filas de tabla y contenido de secciones ===== */
+    /* Filament trae bastante aire por defecto; menos padding = más filas
+       visibles sin scroll, sobre todo en Marcaciones/Funcionarios. */
+    .fi-ta-cell {
+        padding-block: .5rem !important;
+        padding-inline: .75rem !important;
+    }
+    .fi-section-content {
+        padding: 1rem 1.25rem !important;
+    }
+
+    /* ===== Filtros arriba de la tabla: barra compacta, no tarjeta pesada ===== */
+    .fi-ta-filters-above-content-ctn .fi-ta-filters {
+        padding: .75rem 1rem !important;
+        box-shadow: none !important;
+        border: 1px solid #d2d6de;
+        border-radius: .375rem;
+    }
+    .fi-ta-filters-above-content-ctn .fi-ta-filters-header {
+        margin-bottom: .5rem;
+    }
+    .fi-ta-filters-above-content-ctn .fi-ta-filters-heading {
+        font-size: .8125rem !important;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+    }
 </style>

@@ -64,12 +64,13 @@ class EquiposTable
                 //
             ])
             ->recordActions([
-                // Acciones agrupadas en un menú (⋮) para no saturar la fila.
+                // Fila de botones ícono (sin dropdown: no hay nada destructivo que ocultar).
                 ActionGroup::make([
                     // Conecta con el equipo real a través del microservicio y
                     // actualiza su estado (en línea, algoritmo, última conexión).
                     Action::make('probar_conexion')
                         ->label('Probar conexión')
+                        ->hiddenLabel()
                         ->icon('heroicon-o-signal')
                         ->color('info')
                         ->action(function (Equipo $record): void {
@@ -104,6 +105,7 @@ class EquiposTable
                     // Lee las marcaciones en vivo del equipo y las muestra en un modal.
                     Action::make('ver_marcaciones')
                         ->label('Ver marcaciones')
+                        ->hiddenLabel()
                         ->icon('heroicon-o-clock')
                         ->color('gray')
                         ->modalHeading(fn (Equipo $record): string => "Marcaciones de «{$record->nombre}»")
@@ -125,8 +127,9 @@ class EquiposTable
                                 ]);
                             }
                         }),
-                    EditAction::make(),
-                ]),
+                    EditAction::make()
+                        ->hiddenLabel(),
+                ])->buttonGroup(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

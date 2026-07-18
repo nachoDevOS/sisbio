@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Marcaciones\Tables;
 use App\Models\Sia\Asistencia;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -67,6 +68,8 @@ class MarcacionesTable
                             ->label('Hasta')
                             ->default(now()),
                     ])
+                    ->columns(2)
+                    ->columnSpan(2)
                     ->query(fn (Builder $query, array $data): Builder => $query
                         ->when($data['desde'] ?? null, fn (Builder $subQuery, string $desde) => $subQuery->whereDate('Fecha', '>=', $desde))
                         ->when($data['hasta'] ?? null, fn (Builder $subQuery, string $hasta) => $subQuery->whereDate('Fecha', '<=', $hasta))),
@@ -77,7 +80,10 @@ class MarcacionesTable
                         Asistencia::TIPO_A => 'A',
                         Asistencia::TIPO_MANUAL => 'M',
                     ]),
-            ])
+                // Visibles siempre (no escondidos detrás del ícono de embudo):
+                // la búsqueda por CI/nombre queda arriba, en el buscador global.
+            ], layout: FiltersLayout::AboveContent)
+            ->filtersFormColumns(3)
             // La tabla no tiene clave primaria simple: sin esto Filament intenta
             // ordenar por una PK inexistente. El default como string (no closure)
             // se omite cuando el usuario ya ordena por Fecha; un closure se

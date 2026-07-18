@@ -6,12 +6,12 @@
     <div class="cabecera">
         <h1>{{ $equipo->nombre }}</h1>
         <div class="acciones">
-            <a href="{{ route('equipos.edit', $equipo) }}" class="btn btn--gris">Editar</a>
-            <a href="{{ route('equipos.index') }}" class="btn btn--gris">← Volver</a>
+            <a href="{{ route('equipos.edit', $equipo) }}" class="btn btn--gris"><x-heroicon-o-pencil-square />Editar</a>
+            <a href="{{ route('equipos.index') }}" class="btn btn--gris"><x-heroicon-o-arrow-left />Volver</a>
         </div>
     </div>
 
-    <div class="card" style="padding: 1.5rem;">
+    <div class="card card--padded">
         <dl class="datos">
             <dt>IP</dt>
             <dd>{{ $equipo->ip }}</dd>

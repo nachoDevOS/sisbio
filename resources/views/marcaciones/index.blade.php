@@ -7,19 +7,16 @@
         <h1>Marcaciones (SIA)</h1>
     </div>
 
-    <form method="GET" action="{{ route('marcaciones.index') }}"
-          style="margin-bottom: 1.25rem; display: flex; gap: .6rem; align-items: flex-end; flex-wrap: wrap;">
-        <div class="campo" style="margin: 0;">
+    <form method="GET" action="{{ route('marcaciones.index') }}" class="toolbar">
+        <div class="campo">
             <label for="desde">Desde</label>
-            <input type="date" id="desde" name="desde" value="{{ $desde }}"
-                   style="padding: .5rem; border: 1px solid #e5e7eb; border-radius: .5rem;">
+            <input type="date" id="desde" name="desde" value="{{ $desde }}" class="input">
         </div>
-        <div class="campo" style="margin: 0;">
+        <div class="campo">
             <label for="hasta">Hasta</label>
-            <input type="date" id="hasta" name="hasta" value="{{ $hasta }}"
-                   style="padding: .5rem; border: 1px solid #e5e7eb; border-radius: .5rem;">
+            <input type="date" id="hasta" name="hasta" value="{{ $hasta }}" class="input">
         </div>
-        <button type="submit" class="btn">Filtrar</button>
+        <button type="submit" class="btn"><x-heroicon-o-funnel />Filtrar</button>
     </form>
 
     <div class="card">
@@ -49,5 +46,5 @@
         </table>
     </div>
 
-    <div style="margin-top: 1rem;">{{ $marcaciones->links() }}</div>
+    <div class="paginacion">{{ $marcaciones->links() }}</div>
 @endsection

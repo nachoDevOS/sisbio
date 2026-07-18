@@ -5,7 +5,7 @@
 @section('contenido')
     <div class="cabecera">
         <h1>Equipos biométricos</h1>
-        <a href="{{ route('equipos.create') }}" class="btn">+ Nuevo equipo</a>
+        <a href="{{ route('equipos.create') }}" class="btn"><x-heroicon-o-plus />Nuevo equipo</a>
     </div>
 
     <div class="card">
@@ -40,13 +40,20 @@
                         </td>
                         <td>
                             <div class="acciones">
-                                <a href="{{ route('equipos.edit', $equipo) }}" class="btn btn--gris btn--sm">Editar</a>
-                                <form action="{{ route('equipos.destroy', $equipo) }}" method="POST"
-                                      onsubmit="return confirm('¿Eliminar el equipo «{{ $equipo->nombre }}»?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn--peligro btn--sm">Eliminar</button>
-                                </form>
+                                <a href="{{ route('equipos.edit', $equipo) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
+                                <div class="dropdown" x-data="{ open: false }" x-on:click.outside="open = false">
+                                    <button type="button" class="dropdown-toggle" x-on:click="open = !open" aria-haspopup="true" :aria-expanded="open">
+                                        Mas <x-heroicon-o-chevron-down />
+                                    </button>
+                                    <div class="dropdown-menu" x-show="open" x-cloak x-transition.opacity.duration.100ms>
+                                        <form action="{{ route('equipos.destroy', $equipo) }}" method="POST"
+                                              onsubmit="return confirm('¿Eliminar el equipo «{{ $equipo->nombre }}»?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="peligro"><x-heroicon-o-trash />Eliminar</button>
+                                        </form>
+                                    </div>
+                                </div>
                             </div>
                         </td>
                     </tr>
@@ -59,7 +66,7 @@
         </table>
     </div>
 
-    <div style="margin-top: 1rem;">
+    <div class="paginacion">
         {{ $equipos->links() }}
     </div>
 @endsection

@@ -5,7 +5,7 @@
 @section('contenido')
     <div class="cabecera">
         <h1>Usuarios del panel</h1>
-        <a href="{{ route('usuarios.create') }}" class="btn">+ Nuevo usuario</a>
+        <a href="{{ route('usuarios.create') }}" class="btn"><x-heroicon-o-plus />Nuevo usuario</a>
     </div>
 
     <div class="card">
@@ -34,13 +34,20 @@
                         <td>{{ $usuario->created_at?->format('d/m/Y H:i') }}</td>
                         <td>
                             <div class="acciones">
-                                <a href="{{ route('usuarios.edit', $usuario) }}" class="btn btn--gris btn--sm">Editar</a>
-                                <form action="{{ route('usuarios.destroy', $usuario) }}" method="POST"
-                                      onsubmit="return confirm('¿Eliminar al usuario «{{ $usuario->name }}»?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn--peligro btn--sm">Eliminar</button>
-                                </form>
+                                <a href="{{ route('usuarios.edit', $usuario) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
+                                <div class="dropdown" x-data="{ open: false }" x-on:click.outside="open = false">
+                                    <button type="button" class="dropdown-toggle" x-on:click="open = !open" aria-haspopup="true" :aria-expanded="open">
+                                        Mas <x-heroicon-o-chevron-down />
+                                    </button>
+                                    <div class="dropdown-menu" x-show="open" x-cloak x-transition.opacity.duration.100ms>
+                                        <form action="{{ route('usuarios.destroy', $usuario) }}" method="POST"
+                                              onsubmit="return confirm('¿Eliminar al usuario «{{ $usuario->name }}»?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="peligro"><x-heroicon-o-trash />Eliminar</button>
+                                        </form>
+                                    </div>
+                                </div>
                             </div>
                         </td>
                     </tr>
@@ -51,5 +58,5 @@
         </table>
     </div>
 
-    <div style="margin-top: 1rem;">{{ $usuarios->links() }}</div>
+    <div class="paginacion">{{ $usuarios->links() }}</div>
 @endsection

@@ -17,6 +17,12 @@ test('el listado muestra los equipos registrados', function () {
         ->assertSee('iClock Entrada');
 });
 
+test('muestra el formulario de alta', function () {
+    $this->get(route('equipos.create'))
+        ->assertOk()
+        ->assertSee('Nuevo equipo');
+});
+
 test('guarda un equipo nuevo y redirige al listado', function () {
     $datos = [
         'nombre' => 'iClock Bodega',
@@ -62,6 +68,22 @@ test('rechaza IP + puerto duplicados', function () {
     ])->assertSessionHasErrors('ip');
 
     $this->assertDatabaseCount('equipos', 1);
+});
+
+test('muestra la ficha de un equipo', function () {
+    $equipo = Equipo::factory()->create(['nombre' => 'iClock Ficha']);
+
+    $this->get(route('equipos.show', $equipo))
+        ->assertOk()
+        ->assertSee('iClock Ficha');
+});
+
+test('muestra el formulario de edición con los datos actuales', function () {
+    $equipo = Equipo::factory()->create(['nombre' => 'iClock Editar']);
+
+    $this->get(route('equipos.edit', $equipo))
+        ->assertOk()
+        ->assertSee('iClock Editar');
 });
 
 test('actualiza un equipo existente', function () {

@@ -27,8 +27,7 @@
 
 <div class="campo">
     <label for="roles">Roles</label>
-    <select id="roles" name="roles[]" multiple size="{{ max(3, $roles->count()) }}"
-            style="width: 100%; padding: .5rem; border: 1px solid #e5e7eb; border-radius: .5rem;">
+    <select id="roles" name="roles[]" multiple size="{{ max(3, $roles->count()) }}" class="input">
         @foreach ($roles as $rol)
             <option value="{{ $rol->id }}" @selected(in_array($rol->id, $rolesActuales))>{{ $rol->name }}</option>
         @endforeach

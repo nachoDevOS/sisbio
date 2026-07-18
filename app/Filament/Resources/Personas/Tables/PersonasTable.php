@@ -39,9 +39,9 @@ class PersonasTable
             ])
             ->recordActions([
                 ViewAction::make()
-                    ->button(),
+                    ->iconButton(),
                 EditAction::make()
-                    ->button(),
+                    ->iconButton(),
             ])
             ->defaultSort('Paterno')
             ->defaultPaginationPageOption(25)

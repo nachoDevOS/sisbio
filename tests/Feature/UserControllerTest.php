@@ -19,6 +19,12 @@ test('el listado muestra los usuarios', function () {
         ->assertSee('Ada Lovelace');
 });
 
+test('muestra el formulario de alta', function () {
+    $this->get(route('usuarios.create'))
+        ->assertOk()
+        ->assertSee('Nuevo usuario');
+});
+
 test('crea un usuario, hashea la contraseña y asigna roles', function () {
     $rol = Role::firstOrCreate(['name' => 'operador', 'guard_name' => 'web']);
 
@@ -51,6 +57,14 @@ test('rechaza contraseña corta al crear', function () {
         'email' => 'corto@example.com',
         'password' => '123',
     ])->assertSessionHasErrors('password');
+});
+
+test('muestra el formulario de edición con los datos actuales', function () {
+    $user = User::factory()->create(['name' => 'Editar Nombre']);
+
+    $this->get(route('usuarios.edit', $user))
+        ->assertOk()
+        ->assertSee('Editar Nombre');
 });
 
 test('actualiza sin cambiar la contraseña si viene vacía', function () {
