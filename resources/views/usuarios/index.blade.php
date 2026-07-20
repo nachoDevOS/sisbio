@@ -4,7 +4,10 @@
 
 @section('contenido')
     <div class="cabecera">
-        <h1>Usuarios del panel</h1>
+        <div class="cabecera__titulo">
+            <span class="cabecera__icono"><x-heroicon-o-user /></span>
+            <h1>Usuarios del panel</h1>
+        </div>
         <a href="{{ route('usuarios.create') }}" class="btn"><x-heroicon-o-plus />Nuevo usuario</a>
     </div>
 

@@ -67,7 +67,7 @@ test('filtra por tipo de marcación', function () {
         ->assertDontSee('Manualino');
 });
 
-test('ordena por fecha al hacer clic en la columna sin duplicar el ORDER BY', function () {
+test('siempre ordena por más reciente primero, sin control del usuario', function () {
     $temprano = Persona::factory()->create(['Paterno' => 'Madrugador']);
     $tarde = Persona::factory()->create(['Paterno' => 'Vespertino']);
 
@@ -75,10 +75,6 @@ test('ordena por fecha al hacer clic en la columna sin duplicar el ORDER BY', fu
     Asistencia::factory()->create(['IdPersona' => $tarde->IdPersona, 'Fecha' => today(), 'Hora' => '1899-12-30 17:00:00']);
 
     Livewire::test(ListMarcaciones::class)
-        ->sortTable('Fecha')
-        ->assertSuccessful()
-        ->assertSeeInOrder(['Madrugador', 'Vespertino'])
-        ->sortTable('Fecha', 'desc')
         ->assertSuccessful()
         ->assertSeeInOrder(['Vespertino', 'Madrugador']);
 });
@@ -91,7 +87,34 @@ test('busca marcaciones por apellido del funcionario', function () {
     Asistencia::factory()->create(['IdPersona' => $otro->IdPersona]);
 
     Livewire::test(ListMarcaciones::class)
-        ->searchTable('Zabaleta')
+        ->filterTable('rango', ['buscar' => 'Zabaleta'])
         ->assertSee('Zabaleta')
         ->assertDontSee('Quiroga');
+});
+
+test('busca marcaciones por CI del funcionario', function () {
+    $buscado = Persona::factory()->create(['Paterno' => 'Rocabado']);
+    $otro = Persona::factory()->create(['Paterno' => 'Salvatierra']);
+
+    Asistencia::factory()->create(['IdPersona' => $buscado->IdPersona]);
+    Asistencia::factory()->create(['IdPersona' => $otro->IdPersona]);
+
+    Livewire::test(ListMarcaciones::class)
+        ->filterTable('rango', ['buscar' => trim($buscado->IdPersona)])
+        ->assertSee('Rocabado')
+        ->assertDontSee('Salvatierra');
+});
+
+test('vaciar los campos de fecha muestra marcaciones de todo el historial', function () {
+    $anterior = Persona::factory()->create(['Paterno' => 'Antiguano']);
+    $vigente = Persona::factory()->create(['Paterno' => 'Vigente']);
+
+    Asistencia::factory()->create(['IdPersona' => $anterior->IdPersona, 'Fecha' => today()->subMonths(3)]);
+    Asistencia::factory()->create(['IdPersona' => $vigente->IdPersona, 'Fecha' => today()]);
+
+    Livewire::test(ListMarcaciones::class)
+        ->filterTable('rango', ['desde' => null, 'hasta' => null])
+        ->assertSuccessful()
+        ->assertSee('Vigente')
+        ->assertSee('Antiguano');
 });

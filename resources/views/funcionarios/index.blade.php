@@ -4,7 +4,10 @@
 
 @section('contenido')
     <div class="cabecera">
-        <h1>Funcionarios (SIA)</h1>
+        <div class="cabecera__titulo">
+            <span class="cabecera__icono"><x-heroicon-o-user-group /></span>
+            <h1>Funcionarios (SIA)</h1>
+        </div>
         <a href="{{ route('funcionarios.create') }}" class="btn"><x-heroicon-o-plus />Nuevo funcionario</a>
     </div>
 

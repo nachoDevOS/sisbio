@@ -4,7 +4,10 @@
 
 @section('contenido')
     <div class="cabecera">
-        <h1>Equipos biométricos</h1>
+        <div class="cabecera__titulo">
+            <span class="cabecera__icono"><x-heroicon-o-computer-desktop /></span>
+            <h1>Equipos biométricos</h1>
+        </div>
         <a href="{{ route('equipos.create') }}" class="btn"><x-heroicon-o-plus />Nuevo equipo</a>
     </div>
 

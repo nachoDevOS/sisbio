@@ -4,7 +4,10 @@
 
 @section('contenido')
     <div class="cabecera">
-        <h1>Marcaciones (SIA)</h1>
+        <div class="cabecera__titulo">
+            <span class="cabecera__icono"><x-heroicon-o-finger-print /></span>
+            <h1>Marcaciones (SIA)</h1>
+        </div>
     </div>
 
     <form method="GET" action="{{ route('marcaciones.index') }}" class="toolbar">

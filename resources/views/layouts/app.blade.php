@@ -5,38 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('titulo', 'Equipos') · {{ config('app.name') }}</title>
-    {{-- Alpine.js autohospedado (sin CDN externo, sin build): solo para el
-         dropdown "Mas" de las acciones de fila. --}}
+    {{-- Alpine.js autohospedado (sin CDN externo, sin build): para el dropdown
+         "Mas" de las acciones de fila y el toggle del sidebar en móvil. --}}
     <script defer src="{{ asset('vendor/alpine/alpine.min.js') }}"></script>
     <style>
         [x-cloak] { display: none !important; }
-        :root { --verde: #00a65a; --verde-osc: #008d4c; --bg: #f4f6f9; --card: #fff;
-            --fg: #1f2937; --muted: #6b7280; --border: #e5e7eb; --danger: #ef4444; }
+        :root {
+            --verde: #00a65a; --verde-osc: #008d4c; --bg: #f4f6f9; --card: #fff;
+            --fg: #1f2937; --muted: #6b7280; --border: #e5e7eb; --danger: #ef4444;
+            --sidebar: #1b2540; --sidebar-hover: #263252; --sidebar-activo: #2c3a63;
+            --sidebar-fg: #b9c2d8; --sidebar-fg-activo: #fff;
+            --thead: #3b4b8f; --thead-fg: #fff;
+            --sidebar-w: 15.5rem;
+        }
         * { box-sizing: border-box; }
         body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-            background: var(--bg); color: var(--fg); font-size: .9rem; line-height: 1.45; }
+            background: var(--bg); color: var(--fg); font-size: .9rem; line-height: 1.45;
+            display: flex; min-height: 100vh; }
         a { color: inherit; text-decoration: none; }
         svg { display: block; }
 
-        /* ===== Barra superior: marca + navegación + volver al panel ===== */
-        .barra { background: var(--verde-osc); color: #fff; padding: .65rem 1.5rem;
-            display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-            flex-wrap: wrap; box-shadow: 0 2px 8px rgba(0, 0, 0, .15); }
-        .barra__marca { display: flex; align-items: center; gap: .5rem; font-weight: 700;
-            font-size: .9rem; letter-spacing: .01em; }
-        .barra__marca img { height: 1.75rem; width: auto; }
-        .barra__nav { display: flex; gap: .25rem; align-items: center; }
-        .barra__nav a { opacity: .85; padding: .4rem .75rem; border-radius: .4rem;
-            font-size: .875rem; transition: background .15s ease, opacity .15s ease; }
-        .barra__nav a:hover { opacity: 1; background: rgba(255, 255, 255, .1); }
-        .barra__nav a.activo { opacity: 1; background: rgba(255, 255, 255, .18); font-weight: 600; }
-        .barra__vol { font-size: .8125rem; opacity: .85; }
-        .barra__vol:hover { opacity: 1; text-decoration: underline; }
+        /* ===== Sidebar ===== */
+        .sidebar { width: var(--sidebar-w); flex-shrink: 0; background: var(--sidebar);
+            color: var(--sidebar-fg); display: flex; flex-direction: column;
+            position: fixed; top: 0; left: 0; bottom: 0; overflow-y: auto; z-index: 30;
+            transition: transform .2s ease; }
+        .sidebar__marca { display: flex; align-items: center; gap: .6rem; padding: 1rem 1.1rem;
+            font-weight: 700; font-size: .8rem; color: #fff; border-bottom: 1px solid rgba(255,255,255,.08);
+            line-height: 1.25; }
+        .sidebar__marca img { height: 2rem; width: auto; flex-shrink: 0; }
+        .sidebar__nav { padding: .6rem; display: flex; flex-direction: column; gap: .15rem; }
+        .sidebar__link { display: flex; align-items: center; gap: .7rem; padding: .55rem .7rem;
+            border-radius: .45rem; font-size: .8rem; font-weight: 500; color: var(--sidebar-fg); }
+        .sidebar__link svg { width: 1.15rem; height: 1.15rem; flex-shrink: 0; }
+        .sidebar__link:hover { background: var(--sidebar-hover); color: #fff; }
+        .sidebar__link.activo { background: var(--sidebar-activo); color: var(--sidebar-fg-activo); }
+        .sidebar__overlay { display: none; }
 
-        .contenedor { max-width: 1120px; margin: 1.5rem auto; padding: 0 1.5rem; }
+        /* ===== Zona principal: topbar + contenido ===== */
+        .zona { margin-left: var(--sidebar-w); flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .topbar { background: #fff; border-bottom: 1px solid var(--border); padding: .65rem 1.5rem;
+            display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+            position: sticky; top: 0; z-index: 20; }
+        .topbar__toggle { display: none; background: none; border: 0; cursor: pointer; padding: .3rem; }
+        .topbar__toggle svg { width: 1.4rem; height: 1.4rem; }
+        .topbar__vol { font-size: .8125rem; color: var(--muted); }
+        .topbar__vol:hover { color: var(--fg); text-decoration: underline; }
+
+        .contenedor { padding: 1.5rem; }
         .cabecera { display: flex; align-items: center; justify-content: space-between;
             margin-bottom: 1.1rem; gap: 1rem; flex-wrap: wrap; }
-        .cabecera h1 { font-size: 1.3rem; margin: 0; }
+        .cabecera__titulo { display: flex; align-items: center; gap: .65rem; }
+        .cabecera__icono { display: inline-flex; align-items: center; justify-content: center;
+            width: 2.25rem; height: 2.25rem; border-radius: .55rem; background: #eef2ff; color: var(--thead); flex-shrink: 0; }
+        .cabecera__icono svg { width: 1.25rem; height: 1.25rem; }
+        .cabecera h1 { font-size: 1.15rem; margin: 0; }
 
         /* ===== Botones ===== */
         .btn { display: inline-flex; align-items: center; gap: .4rem; border: 0; cursor: pointer;
@@ -57,13 +80,13 @@
         .card--padded { padding: 1.25rem; }
 
         table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
-        thead th { text-align: left; background: #f9fafb; color: var(--muted); font-size: .7rem;
-            text-transform: uppercase; letter-spacing: .04em; padding: .55rem .75rem; border-bottom: 1px solid var(--border); }
+        thead th { text-align: left; background: var(--thead); color: var(--thead-fg); font-size: .7rem;
+            text-transform: uppercase; letter-spacing: .04em; padding: .6rem .75rem; }
         tbody td { padding: .5rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
         tbody tr:last-child td { border-bottom: 0; }
         tbody tr:hover { background: #f9fafb; }
 
-        .pill { display: inline-block; padding: .15rem .5rem; border-radius: 9999px; font-size: .7rem; font-weight: 600; }
+        .pill { display: inline-block; padding: .2rem .6rem; border-radius: 9999px; font-size: .7rem; font-weight: 700; }
         .pill--ok { background: #dcfce7; color: #166534; }
         .pill--no { background: #fee2e2; color: #991b1b; }
 
@@ -83,9 +106,9 @@
         /* ===== Dropdown "Mas": agrupa acciones secundarias/destructivas ===== */
         .dropdown { position: relative; display: inline-flex; }
         .dropdown-toggle { display: inline-flex; align-items: center; gap: .3rem;
-            background: #eef2ff; color: #3730a3; border: 0; cursor: pointer;
+            background: #3b5bdb; color: #fff; border: 0; cursor: pointer;
             padding: 0 .55rem; height: 1.9rem; border-radius: .4rem; font-size: .75rem; font-weight: 600; }
-        .dropdown-toggle:hover { background: #e0e7ff; }
+        .dropdown-toggle:hover { background: #3348b0; }
         .dropdown-toggle svg { width: .8rem; height: .8rem; }
         .dropdown-menu { position: absolute; right: 0; top: calc(100% + .3rem); z-index: 20;
             background: #fff; border: 1px solid var(--border); border-radius: .5rem;
@@ -101,10 +124,11 @@
         .aviso { background: #dcfce7; color: #166534; padding: .65rem .9rem; border-radius: .5rem;
             margin-bottom: 1.1rem; font-size: .85rem; }
 
-        /* ===== Barra de herramientas: buscador y filtros arriba de una tabla ===== */
-        .toolbar { display: flex; gap: .6rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; }
+        /* ===== Barra de herramientas: buscador y filtros en caja, con etiqueta arriba ===== */
+        .toolbar { display: flex; gap: .9rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem;
+            background: var(--card); border: 1px solid var(--border); border-radius: .625rem; padding: .9rem 1rem; }
         .toolbar .campo { margin-bottom: 0; }
-        .toolbar input[type=text].input { flex: 1; min-width: 12rem; }
+        .toolbar input[type=text].input { min-width: 16rem; }
 
         /* ===== Formularios ===== */
         .campo { margin-bottom: .9rem; }
@@ -140,29 +164,54 @@
 
         .vacio { padding: 2.5rem; text-align: center; color: var(--muted); }
         .paginacion { margin-top: 1rem; }
+
+        /* ===== Móvil: sidebar oculto tras el botón de la topbar ===== */
+        @media (max-width: 960px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.abierto { transform: translateX(0); box-shadow: 0 0 0 100vmax rgba(0,0,0,.35); }
+            .zona { margin-left: 0; }
+            .topbar__toggle { display: inline-flex; }
+        }
     </style>
 </head>
-<body>
-    <nav class="barra">
-        <a href="{{ route('equipos.index') }}" class="barra__marca">
+<body x-data="{ sidebarAbierto: false }">
+    <aside class="sidebar" :class="{ abierto: sidebarAbierto }">
+        <a href="{{ route('equipos.index') }}" class="sidebar__marca">
             <img src="{{ asset('image/icon.png') }}" alt="">
             <span>{{ config('app.name') }}</span>
         </a>
-        <div class="barra__nav">
-            <a href="{{ route('equipos.index') }}" class="{{ request()->routeIs('equipos.*') ? 'activo' : '' }}">Equipos</a>
-            <a href="{{ route('usuarios.index') }}" class="{{ request()->routeIs('usuarios.*') ? 'activo' : '' }}">Usuarios</a>
-            <a href="{{ route('funcionarios.index') }}" class="{{ request()->routeIs('funcionarios.*') ? 'activo' : '' }}">Funcionarios</a>
-            <a href="{{ route('marcaciones.index') }}" class="{{ request()->routeIs('marcaciones.*') ? 'activo' : '' }}">Marcaciones</a>
-        </div>
-        <a href="/admin" class="barra__vol">Volver al panel →</a>
-    </nav>
+        <nav class="sidebar__nav">
+            <a href="{{ route('equipos.index') }}" class="sidebar__link {{ request()->routeIs('equipos.*') ? 'activo' : '' }}">
+                <x-heroicon-o-computer-desktop />Equipos
+            </a>
+            <a href="{{ route('usuarios.index') }}" class="sidebar__link {{ request()->routeIs('usuarios.*') ? 'activo' : '' }}">
+                <x-heroicon-o-user />Usuarios
+            </a>
+            <a href="{{ route('funcionarios.index') }}" class="sidebar__link {{ request()->routeIs('funcionarios.*') ? 'activo' : '' }}">
+                <x-heroicon-o-user-group />Funcionarios
+            </a>
+            <a href="{{ route('marcaciones.index') }}" class="sidebar__link {{ request()->routeIs('marcaciones.*') ? 'activo' : '' }}">
+                <x-heroicon-o-finger-print />Marcaciones
+            </a>
+        </nav>
+    </aside>
 
-    <main class="contenedor">
-        @if (session('estado'))
-            <div class="aviso">{{ session('estado') }}</div>
-        @endif
+    <div class="zona">
+        <header class="topbar">
+            <button type="button" class="topbar__toggle" x-on:click="sidebarAbierto = !sidebarAbierto" aria-label="Abrir menú">
+                <x-heroicon-o-bars-3 />
+            </button>
+            <span></span>
+            <a href="/admin" class="topbar__vol">Volver al panel →</a>
+        </header>
 
-        @yield('contenido')
-    </main>
+        <main class="contenedor">
+            @if (session('estado'))
+                <div class="aviso">{{ session('estado') }}</div>
+            @endif
+
+            @yield('contenido')
+        </main>
+    </div>
 </body>
 </html>
