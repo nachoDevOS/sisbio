@@ -168,6 +168,23 @@
         .vacio { padding: 2.5rem; text-align: center; color: var(--muted); }
         .paginacion { margin-top: 1rem; }
 
+        /* ===== Escritorio: tarjetas de estadística y mini gráfico ===== */
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+        @media (max-width: 960px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 560px) { .stats-grid { grid-template-columns: 1fr; } }
+        .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: .625rem;
+            padding: 1rem 1.1rem; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+        .stat-card__valor { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
+        .stat-card__label { font-size: .8rem; color: var(--muted); margin-top: .2rem; }
+        .stat-card--success .stat-card__valor { color: #166534; }
+        .stat-card--danger .stat-card__valor { color: #991b1b; }
+        .stat-card--warning .stat-card__valor { color: #92400e; }
+        .stat-card--info .stat-card__valor { color: #1e40af; }
+
+        .mini-chart { display: flex; align-items: flex-end; gap: .3rem; height: 8rem; padding-top: .5rem; }
+        .mini-chart__barra { flex: 1; background: var(--verde); border-radius: .2rem .2rem 0 0; min-height: 2px; }
+        .mini-chart__ejes { display: flex; justify-content: space-between; color: var(--muted); font-size: .7rem; margin-top: .4rem; }
+
         /* ===== Móvil: sidebar oculto tras el botón de la topbar ===== */
         @media (max-width: 960px) {
             .sidebar { transform: translateX(-100%); }
@@ -179,11 +196,14 @@
 </head>
 <body x-data="{ sidebarAbierto: false }">
     <aside class="sidebar" :class="{ abierto: sidebarAbierto }">
-        <a href="{{ route('equipos.index') }}" class="sidebar__marca">
+        <a href="{{ route('dashboard') }}" class="sidebar__marca">
             <img src="{{ asset('image/icon.png') }}" alt="">
             <span>{{ config('app.name') }}</span>
         </a>
         <nav class="sidebar__nav">
+            <a href="{{ route('dashboard') }}" class="sidebar__link {{ request()->routeIs('dashboard') ? 'activo' : '' }}">
+                <x-heroicon-o-home />Escritorio
+            </a>
             <a href="{{ route('equipos.index') }}" class="sidebar__link {{ request()->routeIs('equipos.*') ? 'activo' : '' }}">
                 <x-heroicon-o-computer-desktop />Equipos
             </a>

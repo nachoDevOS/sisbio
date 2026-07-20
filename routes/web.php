@@ -1,17 +1,19 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\MarcacionController;
 use App\Http\Controllers\PersonaController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-// La raíz manda al panel: Filament redirige al login si no hay sesión.
-Route::redirect('/', '/admin');
-
 // CRUD clásico (MVC) protegido con la misma sesión del panel Filament.
 // Conviven con los recursos de /admin: mismo modelo, otra interfaz.
 Route::middleware('auth')->group(function (): void {
+    // Escritorio: mismo resumen que el Dashboard de Filament (equipos,
+    // asistencia SIA, gráfico de marcaciones).
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
     // CRUD completo (base local).
     Route::resource('equipos', EquipoController::class);
     // Habla en vivo con el microservicio Python: mismo criterio que las
@@ -22,9 +24,9 @@ Route::middleware('auth')->group(function (): void {
         ->parameters(['usuarios' => 'usuario'])
         ->except('show');
 
-    // Funcionarios del SIA (SQL Server remoto): listado, ficha, alta y
-    // edición. Sin destroy: el borrado sigue siendo del sistema de escritorio.
-    // Las marcaciones del funcionario se ven en el panel Filament (/admin).
+    // Funcionarios del SIA (SQL Server remoto): listado, ficha (con sus
+    // marcaciones filtradas), alta y edición. Sin destroy: el borrado sigue
+    // siendo del sistema de escritorio.
     Route::resource('funcionarios', PersonaController::class)
         ->parameters(['funcionarios' => 'persona'])
         ->except(['destroy']);
