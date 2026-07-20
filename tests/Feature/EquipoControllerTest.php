@@ -4,6 +4,8 @@ use App\Models\Equipo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
 
@@ -122,6 +124,16 @@ test('un invitado no puede entrar al listado', function () {
 
 test('un usuario sin permiso no puede entrar al listado', function () {
     $this->actingAs(User::factory()->create());
+
+    $this->get(route('equipos.index'))->assertForbidden();
+});
+
+test('un rol con permisos de Usuarios pero no de Equipos no puede entrar', function () {
+    Permission::firstOrCreate(['name' => 'ViewAny:User', 'guard_name' => 'web']);
+    $rol = Role::create(['name' => 'solo_usuarios', 'guard_name' => 'web']);
+    $rol->givePermissionTo('ViewAny:User');
+
+    $this->actingAs(User::factory()->create()->assignRole($rol));
 
     $this->get(route('equipos.index'))->assertForbidden();
 });

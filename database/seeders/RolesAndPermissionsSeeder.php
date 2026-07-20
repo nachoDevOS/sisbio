@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Policies\RolePolicy;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -12,25 +13,15 @@ use Spatie\Permission\Models\Role;
  * y `shield:super-admin` a mano contra la base de desarrollo. Sin este
  * seeder, un `migrate:fresh --seed` no deja el panel usable.
  *
- * Los nombres de permiso replican la convención de Filament Shield
- * (config/filament-shield.php: separador ':', case pascal) para los
- * modelos con policy hoy: Equipo, User, Role, Persona y Asistencia.
+ * La lista de permisos vive en RolePolicy::nombresDePermiso() (misma fuente
+ * que usa RoleController para la matriz de checkboxes).
  */
 class RolesAndPermissionsSeeder extends Seeder
 {
-    private const ABILITIES = ['ViewAny', 'View', 'Create', 'Update', 'Delete'];
-
-    private const MODELOS = ['Equipo', 'User', 'Role', 'Persona', 'Asistencia'];
-
     public function run(): void
     {
-        foreach (self::MODELOS as $modelo) {
-            foreach (self::ABILITIES as $habilidad) {
-                Permission::firstOrCreate([
-                    'name' => "{$habilidad}:{$modelo}",
-                    'guard_name' => 'web',
-                ]);
-            }
+        foreach (RolePolicy::nombresDePermiso() as $nombre) {
+            Permission::firstOrCreate(['name' => $nombre, 'guard_name' => 'web']);
         }
 
         $superAdmin = Role::firstOrCreate([

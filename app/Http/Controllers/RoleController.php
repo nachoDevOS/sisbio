@@ -1,0 +1,101 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Requests\StoreRoleRequest;
+use App\Http\Requests\UpdateRoleRequest;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\View\View;
+use Spatie\Permission\Models\Role;
+
+/**
+ * CRUD clásico (MVC) de roles y su matriz de permisos, reemplazo de la
+ * pantalla de Roles que traía Filament Shield. Mismo modelo Spatie
+ * (roles/permissions), autorización vía RolePolicy.
+ */
+class RoleController extends Controller
+{
+    /**
+     * Listado de roles con su cantidad de permisos.
+     */
+    public function index(): View
+    {
+        $this->authorize('viewAny', Role::class);
+
+        $roles = Role::withCount('permissions')->orderBy('name')->paginate(25);
+
+        return view('roles.index', compact('roles'));
+    }
+
+    /**
+     * Formulario de alta, con la matriz de permisos vacía.
+     */
+    public function create(): View
+    {
+        $this->authorize('create', Role::class);
+
+        return view('roles.create');
+    }
+
+    /**
+     * Guarda un rol nuevo y le sincroniza los permisos elegidos.
+     */
+    public function store(StoreRoleRequest $request): RedirectResponse
+    {
+        $this->authorize('create', Role::class);
+
+        $role = Role::create(['name' => $request->validated('name'), 'guard_name' => 'web']);
+        $role->syncPermissions($request->validated('permisos') ?? []);
+
+        return redirect()
+            ->route('roles.index')
+            ->with('estado', 'Rol creado correctamente.');
+    }
+
+    /**
+     * Formulario de edición, con la matriz marcada según los permisos actuales.
+     */
+    public function edit(Role $role): View
+    {
+        $this->authorize('update', $role);
+
+        return view('roles.edit', [
+            'role' => $role,
+            'permisosActuales' => $role->permissions->pluck('name')->all(),
+        ]);
+    }
+
+    /**
+     * Actualiza el nombre y vuelve a sincronizar los permisos del rol.
+     */
+    public function update(UpdateRoleRequest $request, Role $role): RedirectResponse
+    {
+        $this->authorize('update', $role);
+
+        $role->update(['name' => $request->validated('name')]);
+        $role->syncPermissions($request->validated('permisos') ?? []);
+
+        return redirect()
+            ->route('roles.index')
+            ->with('estado', 'Rol actualizado correctamente.');
+    }
+
+    /**
+     * Elimina un rol. Nunca se puede borrar super_admin: perdería el acceso
+     * al sistema quien lo intente.
+     */
+    public function destroy(Role $role): RedirectResponse
+    {
+        $this->authorize('delete', $role);
+
+        if ($role->name === 'super_admin') {
+            return back()->with('error', 'El rol super_admin no se puede eliminar.');
+        }
+
+        $role->delete();
+
+        return redirect()
+            ->route('roles.index')
+            ->with('estado', 'Rol eliminado.');
+    }
+}

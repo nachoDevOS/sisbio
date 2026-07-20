@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\MarcacionController;
 use App\Http\Controllers\PersonaController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,6 +34,8 @@ Route::middleware('auth')->group(function (): void {
     Route::resource('usuarios', UserController::class)
         ->parameters(['usuarios' => 'usuario'])
         ->except('show');
+    // Roles y su matriz de permisos, reemplazo de la pantalla de Shield.
+    Route::resource('roles', RoleController::class)->except('show');
 
     // Funcionarios del SIA (SQL Server remoto): listado, ficha (con sus
     // marcaciones filtradas), alta y edición. Sin destroy: el borrado sigue

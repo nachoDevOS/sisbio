@@ -210,6 +210,9 @@
             <a href="{{ route('usuarios.index') }}" class="sidebar__link {{ request()->routeIs('usuarios.*') ? 'activo' : '' }}">
                 <x-heroicon-o-user />Usuarios
             </a>
+            <a href="{{ route('roles.index') }}" class="sidebar__link {{ request()->routeIs('roles.*') ? 'activo' : '' }}">
+                <x-heroicon-o-shield-check />Roles
+            </a>
             <a href="{{ route('funcionarios.index') }}" class="sidebar__link {{ request()->routeIs('funcionarios.*') ? 'activo' : '' }}">
                 <x-heroicon-o-user-group />Funcionarios
             </a>
