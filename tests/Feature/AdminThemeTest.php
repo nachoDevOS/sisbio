@@ -4,7 +4,7 @@ test('el login del panel incluye el tema visual SISCOR', function () {
     $response = $this->get('/admin/login');
 
     $response->assertSuccessful();
-    $response->assertSee('--siscor-green', escape: false);
+    $response->assertSee('--panel-verde', escape: false);
 });
 
 test('la marca del panel muestra el ícono junto al nombre de la app', function () {
@@ -29,7 +29,7 @@ test('el tema muestra el logo en el sidebar y lo oculta del topbar en escritorio
     expect($css)
         ->toContain('.fi-body-has-topbar .fi-sidebar.fi-sidebar-open .fi-sidebar-header')
         ->toContain('.fi-body-has-topbar:has(.fi-sidebar.fi-sidebar-open) .fi-topbar .fi-logo')
-        ->toContain('--siscor-topbar-h');
+        ->toContain('--panel-topbar-h');
 });
 
 test('el tema estiliza la paginación de las tablas', function () {

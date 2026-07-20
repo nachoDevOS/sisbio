@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 
@@ -48,4 +49,10 @@ test('un invitado no puede ver marcaciones', function () {
     auth()->logout();
 
     $this->get(route('marcaciones.index'))->assertRedirect();
+});
+
+test('un usuario sin permiso no puede ver marcaciones', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('marcaciones.index'))->assertForbidden();
 });

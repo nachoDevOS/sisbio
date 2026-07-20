@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Equipo;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -113,4 +114,10 @@ test('un invitado no puede entrar al listado', function () {
     auth()->logout();
 
     $this->get(route('equipos.index'))->assertRedirect();
+});
+
+test('un usuario sin permiso no puede entrar al listado', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('equipos.index'))->assertForbidden();
 });

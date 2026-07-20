@@ -102,3 +102,9 @@ test('elimina un usuario', function () {
 
     $this->assertDatabaseMissing('users', ['id' => $user->id]);
 });
+
+test('un usuario sin permiso no puede entrar al listado', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('usuarios.index'))->assertForbidden();
+});

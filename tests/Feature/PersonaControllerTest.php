@@ -2,6 +2,7 @@
 
 use App\Models\Sia\Persona;
 use App\Models\Sia\Profesion;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 
@@ -148,4 +149,10 @@ test('actualiza un funcionario sin tocar el carnet', function () {
     expect($persona->Paterno)->toBe('Cambiado')
         ->and($persona->Nombres)->toBe('Nuevo Nombre')
         ->and(trim($persona->IdPersona))->toBe('5555555');
+});
+
+test('un usuario sin permiso no puede entrar al listado', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('funcionarios.index'))->assertForbidden();
 });

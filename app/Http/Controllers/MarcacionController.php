@@ -20,6 +20,8 @@ class MarcacionController extends Controller
      */
     public function index(Request $request): View
     {
+        $this->authorize('viewAny', Asistencia::class);
+
         // Por defecto: del 1.º del mes hasta hoy (deja fuera las fechas basura
         // futuras que arrastra el SIA, ej. años 2064/2103).
         $desde = $request->query('desde', now()->startOfMonth()->toDateString());

@@ -22,6 +22,8 @@ class EquipoController extends Controller
      */
     public function index(): View
     {
+        $this->authorize('viewAny', Equipo::class);
+
         $equipos = Equipo::latest()->paginate(15);
 
         return view('equipos.index', compact('equipos'));
@@ -32,6 +34,8 @@ class EquipoController extends Controller
      */
     public function create(): View
     {
+        $this->authorize('create', Equipo::class);
+
         return view('equipos.create');
     }
 
@@ -40,6 +44,8 @@ class EquipoController extends Controller
      */
     public function store(StoreEquipoRequest $request): RedirectResponse
     {
+        $this->authorize('create', Equipo::class);
+
         Equipo::create($request->validated());
 
         return redirect()
@@ -52,6 +58,8 @@ class EquipoController extends Controller
      */
     public function show(Equipo $equipo): View
     {
+        $this->authorize('view', $equipo);
+
         return view('equipos.show', compact('equipo'));
     }
 
@@ -60,6 +68,8 @@ class EquipoController extends Controller
      */
     public function edit(Equipo $equipo): View
     {
+        $this->authorize('update', $equipo);
+
         return view('equipos.edit', compact('equipo'));
     }
 
@@ -68,6 +78,8 @@ class EquipoController extends Controller
      */
     public function update(UpdateEquipoRequest $request, Equipo $equipo): RedirectResponse
     {
+        $this->authorize('update', $equipo);
+
         $equipo->update($request->validated());
 
         return redirect()
@@ -80,6 +92,8 @@ class EquipoController extends Controller
      */
     public function destroy(Equipo $equipo): RedirectResponse
     {
+        $this->authorize('delete', $equipo);
+
         $equipo->delete();
 
         return redirect()

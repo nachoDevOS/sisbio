@@ -26,6 +26,8 @@ class PersonaController extends Controller
      */
     public function index(Request $request): View
     {
+        $this->authorize('viewAny', Persona::class);
+
         $busqueda = trim((string) $request->query('q', ''));
 
         $funcionarios = Persona::query()
@@ -46,6 +48,8 @@ class PersonaController extends Controller
      */
     public function create(): View
     {
+        $this->authorize('create', Persona::class);
+
         return view('funcionarios.create', $this->datosDeFormulario());
     }
 
@@ -56,6 +60,8 @@ class PersonaController extends Controller
      */
     public function store(StorePersonaRequest $request): RedirectResponse
     {
+        $this->authorize('create', Persona::class);
+
         Persona::create($request->validated() + ['MarcaDirecta' => false]);
 
         return redirect()
@@ -68,6 +74,8 @@ class PersonaController extends Controller
      */
     public function show(Persona $persona): View
     {
+        $this->authorize('view', $persona);
+
         $persona->loadMissing('profesion');
 
         return view('funcionarios.show', compact('persona'));
@@ -78,6 +86,8 @@ class PersonaController extends Controller
      */
     public function edit(Persona $persona): View
     {
+        $this->authorize('update', $persona);
+
         return view('funcionarios.edit', ['persona' => $persona] + $this->datosDeFormulario());
     }
 
@@ -87,6 +97,8 @@ class PersonaController extends Controller
      */
     public function update(UpdatePersonaRequest $request, Persona $persona): RedirectResponse
     {
+        $this->authorize('update', $persona);
+
         $persona->update($request->validated());
 
         return redirect()

@@ -23,6 +23,8 @@ class UserController extends Controller
      */
     public function index(): View
     {
+        $this->authorize('viewAny', User::class);
+
         $usuarios = User::with('roles')->latest()->paginate(15);
 
         return view('usuarios.index', compact('usuarios'));
@@ -33,6 +35,8 @@ class UserController extends Controller
      */
     public function create(): View
     {
+        $this->authorize('create', User::class);
+
         return view('usuarios.create', ['roles' => Role::orderBy('name')->get()]);
     }
 
@@ -41,6 +45,8 @@ class UserController extends Controller
      */
     public function store(StoreUserRequest $request): RedirectResponse
     {
+        $this->authorize('create', User::class);
+
         $datos = $request->safe()->except(['roles', 'avatar']);
 
         if ($request->hasFile('avatar')) {
@@ -60,6 +66,8 @@ class UserController extends Controller
      */
     public function edit(User $usuario): View
     {
+        $this->authorize('update', $usuario);
+
         return view('usuarios.edit', [
             'usuario' => $usuario->load('roles'),
             'roles' => Role::orderBy('name')->get(),
@@ -71,6 +79,8 @@ class UserController extends Controller
      */
     public function update(UpdateUserRequest $request, User $usuario): RedirectResponse
     {
+        $this->authorize('update', $usuario);
+
         $datos = $request->safe()->except(['roles', 'avatar', 'password']);
 
         // Solo cambia la contraseña si el formulario trajo una.
@@ -95,6 +105,8 @@ class UserController extends Controller
      */
     public function destroy(User $usuario): RedirectResponse
     {
+        $this->authorize('delete', $usuario);
+
         if ($usuario->avatar_path) {
             Storage::disk('public')->delete($usuario->avatar_path);
         }
