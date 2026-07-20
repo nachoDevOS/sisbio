@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Sia\Asistencia;
 use App\Models\Sia\Persona;
 use App\Models\Sia\Profesion;
 use App\Models\User;
@@ -155,4 +156,64 @@ test('un usuario sin permiso no puede entrar al listado', function () {
     $this->actingAs(User::factory()->create());
 
     $this->get(route('funcionarios.index'))->assertForbidden();
+});
+
+test('la ficha muestra las marcaciones del funcionario dentro del rango por defecto', function () {
+    $persona = Persona::factory()->create(['IdPersona' => '7778888']);
+
+    Asistencia::factory()->create([
+        'IdPersona' => $persona->IdPersona,
+        'Fecha' => today(),
+        'Hora' => '1899-12-30 08:15:00',
+        'Tipo' => Asistencia::TIPO_RELOJ,
+    ]);
+
+    $this->get(route('funcionarios.show', $persona))
+        ->assertOk()
+        ->assertSee('08:15:00');
+});
+
+test('la ficha no mezcla marcaciones de otro funcionario', function () {
+    $persona = Persona::factory()->create(['IdPersona' => '7778888']);
+    $otro = Persona::factory()->create(['IdPersona' => '1112222']);
+
+    Asistencia::factory()->create(['IdPersona' => $persona->IdPersona, 'Fecha' => today(), 'Hora' => '1899-12-30 08:00:00']);
+    Asistencia::factory()->create(['IdPersona' => $otro->IdPersona, 'Fecha' => today(), 'Hora' => '1899-12-30 09:00:00']);
+
+    $this->get(route('funcionarios.show', $persona))
+        ->assertOk()
+        ->assertSee('08:00:00')
+        ->assertDontSee('09:00:00');
+});
+
+test('la ficha filtra las marcaciones por rango de fechas y tipo', function () {
+    $persona = Persona::factory()->create(['IdPersona' => '7778888']);
+
+    Asistencia::factory()->create([
+        'IdPersona' => $persona->IdPersona,
+        'Fecha' => today()->subMonths(3),
+        'Hora' => '1899-12-30 07:00:00',
+        'Tipo' => Asistencia::TIPO_MANUAL,
+    ]);
+    Asistencia::factory()->create([
+        'IdPersona' => $persona->IdPersona,
+        'Fecha' => today(),
+        'Hora' => '1899-12-30 08:00:00',
+        'Tipo' => Asistencia::TIPO_RELOJ,
+    ]);
+
+    $this->get(route('funcionarios.show', $persona))
+        ->assertOk()
+        ->assertSee('08:00:00')
+        ->assertDontSee('07:00:00');
+
+    $this->get(route('funcionarios.show', [
+        'persona' => $persona,
+        'desde' => today()->subMonths(4)->toDateString(),
+        'hasta' => today()->toDateString(),
+        'tipo' => Asistencia::TIPO_MANUAL,
+    ]))
+        ->assertOk()
+        ->assertSee('07:00:00')
+        ->assertDontSee('08:00:00');
 });

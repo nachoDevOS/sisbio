@@ -70,15 +70,30 @@ class PersonaController extends Controller
     }
 
     /**
-     * Ficha de detalle de un funcionario.
+     * Ficha de detalle de un funcionario, con sus marcaciones del SIA
+     * filtradas por rango de fechas y tipo (mismo criterio de solo lectura
+     * que MarcacionController).
      */
-    public function show(Persona $persona): View
+    public function show(Request $request, Persona $persona): View
     {
         $this->authorize('view', $persona);
 
         $persona->loadMissing('profesion');
 
-        return view('funcionarios.show', compact('persona'));
+        $desde = $request->query('desde', now()->startOfMonth()->toDateString());
+        $hasta = $request->query('hasta', now()->toDateString());
+        $tipo = $request->query('tipo', '');
+
+        $marcaciones = $persona->marcaciones()
+            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('Fecha', '>=', $d))
+            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('Fecha', '<=', $h))
+            ->when($tipo !== '', fn (Builder $query) => $query->where('Tipo', $tipo))
+            ->orderByDesc('Fecha')
+            ->orderByDesc('Hora')
+            ->paginate(25, pageName: 'marcaciones_page')
+            ->withQueryString();
+
+        return view('funcionarios.show', compact('persona', 'marcaciones', 'desde', 'hasta', 'tipo'));
     }
 
     /**
