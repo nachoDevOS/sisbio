@@ -12,10 +12,6 @@ use Illuminate\View\View;
 
 /**
  * CRUD clásico (MVC) de los equipos biométricos.
- *
- * Convive con el recurso Filament (que vive en /admin): este controlador
- * expone el mismo modelo `Equipo` como páginas Blade tradicionales en /equipos,
- * con controlador, FormRequests y vistas propias.
  */
 class EquipoController extends Controller
 {

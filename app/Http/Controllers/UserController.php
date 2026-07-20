@@ -11,10 +11,10 @@ use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
 
 /**
- * CRUD clásico (MVC) de los usuarios del panel.
+ * CRUD clásico (MVC) de los usuarios del sistema.
  *
- * Convive con el recurso Filament de /admin. La contraseña se hashea sola por
- * el cast 'hashed' del modelo User; los roles se asignan con spatie/permission.
+ * La contraseña se hashea sola por el cast 'hashed' del modelo User; los
+ * roles se asignan con spatie/permission.
  */
 class UserController extends Controller
 {

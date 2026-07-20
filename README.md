@@ -1,13 +1,13 @@
 # SISBIO
 
 Sistema de Sincronización de Biométricos — Gobierno Autónomo Departamental
-del Beni. Panel administrativo en **Laravel 13 + Filament 5** que administra
-los equipos biométricos ZKTeco de la institución (vía un microservicio
-Python) y consulta la asistencia registrada en la base institucional **SIA**
+del Beni. Aplicación **Laravel 13** (MVC clásico) que administra los equipos
+biométricos ZKTeco de la institución (vía un microservicio Python) y
+consulta la asistencia registrada en la base institucional **SIA**
 (SQL Server 2008 R2 remoto).
 
 ```
-Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-Token--> Laravel/Filament
+Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-Token--> Laravel
                                                                                           |
                                                               SQL Server 2008 R2 (SIA) <--+  (conexión 'sia', pdo_sqlsrv)
                                                               MySQL local (sisbio)     <--+  (conexión por defecto)
@@ -44,22 +44,18 @@ Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-T
 - **Funcionarios:** personal registrado en el SIA con su PIN de reloj.
 
 ### Usuarios, roles y permisos
-- Usuarios del panel con **foto de perfil** (recorte circular; sin foto se
-  muestran las iniciales), correo y contraseña.
-- **Roles y permisos** con Filament Shield (Spatie Permission): cada recurso,
-  página y widget tiene permisos granulares; Usuarios y Roles conviven en el
-  mismo bloque del menú.
+- Usuarios del sistema con **foto de perfil** (correo y contraseña).
+- **Roles y permisos** propios (spatie/laravel-permission): matriz de
+  checkboxes por recurso y habilidad (ver/crear/editar/eliminar) en `/roles`.
+  Cada controlador exige el permiso correspondiente vía `$this->authorize()`.
 
 ### Experiencia de uso
-- Identidad institucional estilo SISCOR/AdminLTE: sidebar carbón con el logo
-  y el nombre del sistema (`APP_NAME`), topbar verde delgado, tablas con
-  cabecera verde, filas cebra y paginación con la página activa en verde.
-- Selector «por página» arriba de cada tabla, a la izquierda; números de
-  página abajo a la derecha.
-- Tras crear un registro se vuelve al listado (sin «crear y crear otro»).
-- Notificaciones toast en español para crear/guardar/eliminar y para errores
-  (los errores como toast aplican con `APP_DEBUG=false`).
-- La raíz `/` redirige al panel (`/admin`); login si no hay sesión.
+- Identidad institucional: sidebar petróleo con el logo y el nombre del
+  sistema (`APP_NAME`), topbar blanco, tablas con cabecera a juego y
+  paginación con la página activa resaltada.
+- Tras crear un registro se vuelve al listado.
+- Mensajes flash en español para crear/guardar/eliminar y para errores.
+- La raíz `/` muestra el Escritorio si hay sesión; si no, pide login.
 
 ---
 
@@ -67,18 +63,17 @@ Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-T
 
 | Pieza | Rol |
 |---|---|
-| **Laravel 13 + Filament 5** | Panel web, lógica de negocio, base local MySQL `sisbio` (usuarios, roles, equipos). |
+| **Laravel 13 (MVC)** | Controladores + Blade, lógica de negocio, base local MySQL `sisbio` (usuarios, roles, equipos). |
 | **device-service (Python/FastAPI + pyzk)** | Única pieza que habla TCP 4370 con los ZKTeco. Laravel lo consume por REST con token `X-Auth-Token` (`app/Services/DeviceService.php`). |
 | **Conexión `sia` (pdo_sqlsrv)** | Lectura de la base institucional `SIA_DEV` en SQL Server 2008 R2. Modelos de solo lectura en `app/Models/Sia/` y grammar `SqlServer2008Grammar` para paginación compatible. |
 
 Puntos clave:
 
 - Laravel **nunca** abre sockets a los equipos; si el microservicio está
-  caído, el panel sigue funcionando (solo fallan las acciones de equipos).
+  caído, el sistema sigue funcionando (solo fallan las acciones de equipos).
 - Las consultas al SIA se cachean 5 minutos y toleran caída del servidor.
-- El tema visual es CSS inyectado por render hook
-  (`resources/views/filament/theme.blade.php`); no requiere build de Vite
-  para cambiar estilos del panel.
+- El tema visual vive en `resources/views/layouts/app.blade.php` (CSS
+  embebido); no requiere build de Vite para cambiar estilos.
 
 ---
 
@@ -240,7 +235,6 @@ php artisan storage:link
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
-php artisan filament:optimize      # cachea componentes e íconos de Filament
 ```
 
 `.env` de producción (diferencias clave):
@@ -264,10 +258,16 @@ autorestart=true
 
 ### Primer usuario y permisos
 
+`php artisan db:seed` corre `RolesAndPermissionsSeeder` (genera los permisos
+y el rol `super_admin`) y crea el usuario de prueba `test@example.com`. En
+producción, cambiar la contraseña de ese usuario o crear el propio con
+`php artisan tinker` y asignarle el rol:
+
 ```bash
-php artisan make:filament-user            # crea el primer usuario del panel
-php artisan shield:generate --all         # genera permisos de recursos/páginas/widgets
-php artisan shield:super-admin            # asigna rol super_admin a un usuario
+php artisan tinker --execute '
+$u = App\Models\User::factory()->create(["name" => "Admin", "email" => "admin@beni.gob.bo"]);
+$u->assignRole("super_admin");
+'
 ```
 
 ### Checklist de seguridad
@@ -287,7 +287,6 @@ composer install --no-dev --optimize-autoloader
 npm ci && npm run build
 php artisan migrate --force
 php artisan config:cache && php artisan route:cache && php artisan view:cache
-php artisan filament:optimize
 php artisan up
 ```
 

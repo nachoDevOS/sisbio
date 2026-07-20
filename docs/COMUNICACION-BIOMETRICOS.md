@@ -142,30 +142,28 @@ En la tabla de equipos, el botón **"Probar conexión"** usa `DeviceService::inf
 para verificar que el reloj responde y guardar su estado.
 
 ```php
-// app/Filament/Resources/Equipos/Tables/EquiposTable.php  (acción "probar_conexion")
+// app/Http/Controllers/EquipoController.php  (método probarConexion)
 
-Action::make('probar_conexion')
-    ->label('Probar conexión')
-    ->action(function (Equipo $record): void {
-        $deviceService = app(DeviceService::class);
+public function probarConexion(Equipo $equipo, DeviceService $deviceService): RedirectResponse
+{
+    try {
+        $info = $deviceService->info($equipo); // Llama al reloj vía microservicio.
 
-        try {
-            $info = $deviceService->info($record); // Llama al reloj vía microservicio.
+        // Éxito: guarda que está en línea, el algoritmo detectado y la hora.
+        $equipo->update([
+            'en_linea' => true,
+            'algoritmo' => $info['algoritmo'] ?? $equipo->algoritmo,
+            'ultima_sync' => now(),
+        ]);
 
-            // Éxito: guarda que está en línea, el algoritmo detectado y la hora.
-            $record->update([
-                'en_linea'    => true,
-                'algoritmo'   => $info['algoritmo'] ?? $record->algoritmo,
-                'ultima_sync' => now(),
-            ]);
+        return back()->with('estado', "Conectado a «{$equipo->nombre}»...");
+    } catch (DeviceServiceException $e) {
+        // Falla: marca el equipo fuera de línea y muestra el motivo.
+        $equipo->update(['en_linea' => false]);
 
-            Notification::make()->title('Equipo en línea')->success()->send();
-        } catch (DeviceServiceException $e) {
-            // Falla: marca el equipo fuera de línea y muestra el motivo.
-            $record->update(['en_linea' => false]);
-            Notification::make()->title('No se pudo conectar')->body($e->getMessage())->danger()->send();
-        }
-    }),
+        return back()->with('error', "No se pudo conectar: {$e->getMessage()}");
+    }
+}
 ```
 
 Flujo completo:
@@ -188,24 +186,25 @@ Microservicio Python  → habla TCP con el reloj
 ## 5. Operación "Ver marcaciones"
 
 El botón **"Ver marcaciones"** usa `DeviceService::attendance()` para leer en vivo las
-marcaciones guardadas en el equipo y mostrarlas en un modal.
+marcaciones guardadas en el equipo y mostrarlas en una página propia.
 
 ```php
-// EquiposTable.php  (acción "ver_marcaciones", resumen)
+// app/Http/Controllers/EquipoController.php  (método marcaciones, resumen)
 
-->modalContent(function (Equipo $record) {
+public function marcaciones(Equipo $equipo, DeviceService $deviceService): View
+{
     try {
-        $respuesta = app(DeviceService::class)->attendance($record); // Lee del reloj.
-
-        return view('filament.equipos.marcaciones', [
-            'marcaciones' => $respuesta['marcaciones'] ?? [],
-            'error'       => null,
-        ]);
+        $respuesta = $deviceService->attendance($equipo); // Lee del reloj.
+        $marcaciones = $respuesta['marcaciones'] ?? [];
+        $error = null;
     } catch (DeviceServiceException $e) {
-        // Si el equipo no responde, el modal muestra el motivo en vez de la lista.
-        return view('filament.equipos.marcaciones', ['marcaciones' => [], 'error' => $e->getMessage()]);
+        // Si el equipo no responde, la página muestra el motivo en vez de la lista.
+        $marcaciones = [];
+        $error = $e->getMessage();
     }
-}),
+
+    return view('equipos.marcaciones', compact('equipo', 'marcaciones', 'error'));
+}
 ```
 
 ---
@@ -262,6 +261,6 @@ Actualizar ultima_sync de cada equipo replicado
 | `config/services.php` | Guarda la URL y el token del microservicio. |
 | `app/Services/DeviceService.php` | Único cliente que habla con el microservicio (info, users, attendance). |
 | `app/Exceptions/DeviceServiceException.php` | Error con mensaje en español para el usuario. |
-| `app/Filament/Resources/Equipos/Tables/EquiposTable.php` | Acciones "Probar conexión" y "Ver marcaciones". |
-| `resources/views/filament/equipos/marcaciones.blade.php` | Modal que muestra las marcaciones leídas del equipo. |
+| `app/Http/Controllers/EquipoController.php` | Acciones "Probar conexión" y "Ver marcaciones". |
+| `resources/views/equipos/_marcaciones_lista.blade.php` | Parcial que muestra las marcaciones leídas del equipo. |
 | *(pendiente)* microservicio Python | Habla el protocolo ZKTeco por TCP con los relojes. |

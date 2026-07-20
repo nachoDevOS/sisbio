@@ -7,7 +7,7 @@ use RuntimeException;
 /**
  * Error al comunicarse con el microservicio de dispositivos o con un equipo.
  *
- * Lleva un mensaje en español apto para mostrar directamente al usuario en una
- * notificación de Filament.
+ * Lleva un mensaje en español apto para mostrar directamente al usuario
+ * (mensaje flash o notificación).
  */
 class DeviceServiceException extends RuntimeException {}

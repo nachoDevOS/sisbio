@@ -14,10 +14,7 @@ use Illuminate\View\View;
 
 /**
  * CRUD clásico (MVC) de los funcionarios del SIA (SQL Server 2008 remoto).
- *
- * Convive con el recurso Filament (que vive en /admin): mismo modelo
- * `Persona`, pero con controlador, FormRequests y vistas Blade propias y
- * personalizables. Sin borrado: eso sigue siendo del sistema de escritorio.
+ * Sin borrado: eso sigue siendo del sistema de escritorio.
  */
 class PersonaController extends Controller
 {

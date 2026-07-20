@@ -11,7 +11,6 @@
     </div>
 
     <div class="tarjeta">
-        {{-- Vista compartida con la acción "Ver marcaciones" del recurso Filament: mismo look, misma lógica. --}}
-        @include('filament.equipos.marcaciones', ['marcaciones' => $marcaciones, 'error' => $error])
+        @include('equipos._marcaciones_lista', ['marcaciones' => $marcaciones, 'error' => $error])
     </div>
 @endsection
