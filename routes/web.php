@@ -14,6 +14,10 @@ Route::redirect('/', '/admin');
 Route::middleware('auth')->group(function (): void {
     // CRUD completo (base local).
     Route::resource('equipos', EquipoController::class);
+    // Habla en vivo con el microservicio Python: mismo criterio que las
+    // acciones "Probar conexión"/"Ver marcaciones" del recurso Filament.
+    Route::post('equipos/{equipo}/probar-conexion', [EquipoController::class, 'probarConexion'])->name('equipos.probar-conexion');
+    Route::get('equipos/{equipo}/marcaciones', [EquipoController::class, 'marcaciones'])->name('equipos.marcaciones');
     Route::resource('usuarios', UserController::class)
         ->parameters(['usuarios' => 'usuario'])
         ->except('show');

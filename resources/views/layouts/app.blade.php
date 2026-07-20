@@ -123,6 +123,7 @@
         .dropdown-menu svg { width: 1rem; height: 1rem; flex-shrink: 0; }
         .aviso { background: #dcfce7; color: #166534; padding: .65rem .9rem; border-radius: .5rem;
             margin-bottom: 1.1rem; font-size: .85rem; }
+        .aviso--error { background: #fee2e2; color: #991b1b; }
 
         /* ===== Barra de herramientas: buscador y filtros en caja, con etiqueta arriba ===== */
         .toolbar { display: flex; gap: .9rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem;
@@ -208,6 +209,9 @@
         <main class="contenedor">
             @if (session('estado'))
                 <div class="aviso">{{ session('estado') }}</div>
+            @endif
+            @if (session('error'))
+                <div class="aviso aviso--error">{{ session('error') }}</div>
             @endif
 
             @yield('contenido')

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\DeviceServiceException;
 use App\Http\Requests\StoreEquipoRequest;
 use App\Http\Requests\UpdateEquipoRequest;
 use App\Models\Equipo;
+use App\Services\DeviceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -99,5 +101,52 @@ class EquipoController extends Controller
         return redirect()
             ->route('equipos.index')
             ->with('estado', 'Equipo eliminado.');
+    }
+
+    /**
+     * Se conecta al equipo real vía el microservicio y actualiza su estado
+     * (en línea, algoritmo detectado, última conexión). Mismo criterio que
+     * la acción "Probar conexión" del recurso Filament.
+     */
+    public function probarConexion(Equipo $equipo, DeviceService $deviceService): RedirectResponse
+    {
+        $this->authorize('update', $equipo);
+
+        try {
+            $info = $deviceService->info($equipo);
+
+            $equipo->update([
+                'en_linea' => true,
+                'algoritmo' => $info['algoritmo'] ?? $equipo->algoritmo,
+                'ultima_sync' => now(),
+            ]);
+
+            return back()->with('estado', "Conectado a «{$equipo->nombre}». Algoritmo: ".($info['algoritmo'] ?? 'N/D'));
+        } catch (DeviceServiceException $e) {
+            $equipo->update(['en_linea' => false]);
+
+            return back()->with('error', "No se pudo conectar: {$e->getMessage()}");
+        }
+    }
+
+    /**
+     * Lee en vivo las marcaciones guardadas en el equipo (vía el
+     * microservicio) y las muestra. Mismo criterio que la acción "Ver
+     * marcaciones" del recurso Filament: nunca se escribe nada aquí.
+     */
+    public function marcaciones(Equipo $equipo, DeviceService $deviceService): View
+    {
+        $this->authorize('view', $equipo);
+
+        try {
+            $respuesta = $deviceService->attendance($equipo);
+            $marcaciones = $respuesta['marcaciones'] ?? [];
+            $error = null;
+        } catch (DeviceServiceException $e) {
+            $marcaciones = [];
+            $error = $e->getMessage();
+        }
+
+        return view('equipos.marcaciones', compact('equipo', 'marcaciones', 'error'));
     }
 }

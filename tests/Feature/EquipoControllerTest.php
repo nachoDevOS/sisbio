@@ -3,11 +3,15 @@
 use App\Models\Equipo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->actingAs(asSuperAdmin());
+
+    config()->set('services.device_service.url', 'http://microservicio.test');
+    config()->set('services.device_service.token', 'token-de-prueba');
 });
 
 test('el listado muestra los equipos registrados', function () {
@@ -120,4 +124,72 @@ test('un usuario sin permiso no puede entrar al listado', function () {
     $this->actingAs(User::factory()->create());
 
     $this->get(route('equipos.index'))->assertForbidden();
+});
+
+test('probar conexión marca el equipo en línea y guarda el algoritmo', function () {
+    Http::fake([
+        'microservicio.test/device/info*' => Http::response([
+            'en_linea' => true,
+            'algoritmo' => 'ZLM60_TFT | Ver 6.60',
+        ], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create(['en_linea' => false, 'algoritmo' => null]);
+
+    $this->post(route('equipos.probar-conexion', $equipo))
+        ->assertRedirect()
+        ->assertSessionHas('estado');
+
+    expect($equipo->refresh())
+        ->en_linea->toBeTrue()
+        ->algoritmo->toBe('ZLM60_TFT | Ver 6.60');
+
+    expect($equipo->ultima_sync)->not->toBeNull();
+});
+
+test('probar conexión marca fuera de línea si el equipo no responde', function () {
+    Http::fake([
+        'microservicio.test/device/info*' => Http::response([
+            'detail' => 'No se pudo conectar con el equipo 192.168.1.201:4370',
+        ], 503),
+    ]);
+
+    $equipo = Equipo::factory()->create(['en_linea' => true]);
+
+    $this->post(route('equipos.probar-conexion', $equipo))
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect($equipo->refresh()->en_linea)->toBeFalse();
+});
+
+test('la página de marcaciones muestra el nombre y el id del empleado', function () {
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response([
+            'marcaciones' => [
+                ['uid' => 188, 'user_id' => '7633685', 'nombre' => 'Ignacio Molina Guzman', 'timestamp' => '2026-07-09T21:05:48'],
+            ],
+        ], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->get(route('equipos.marcaciones', $equipo))
+        ->assertOk()
+        ->assertSee('Ignacio Molina Guzman')
+        ->assertSee('7633685');
+});
+
+test('la página de marcaciones muestra el error cuando el equipo no responde', function () {
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response([
+            'detail' => 'No se pudo conectar con el equipo',
+        ], 503),
+    ]);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->get(route('equipos.marcaciones', $equipo))
+        ->assertOk()
+        ->assertSee('No se pudo conectar con el equipo');
 });
