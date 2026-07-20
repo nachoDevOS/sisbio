@@ -4,6 +4,8 @@ use App\Filament\Resources\Personas\Pages\CreatePersona;
 use App\Filament\Resources\Personas\Pages\EditPersona;
 use App\Filament\Resources\Personas\Pages\ListPersonas;
 use App\Filament\Resources\Personas\Pages\VerPersona;
+use App\Filament\Resources\Personas\RelationManagers\MarcacionesRelationManager;
+use App\Models\Sia\Asistencia;
 use App\Models\Sia\Persona;
 use App\Models\Sia\Profesion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -155,4 +157,42 @@ test('edita un funcionario desde el panel sin tocar el carnet', function () {
     expect($persona->Paterno)->toBe('Cambiado')
         ->and($persona->Nombres)->toBe('Nuevo Nombre')
         ->and(trim($persona->IdPersona))->toBe('5551234');
+});
+
+test('la ficha de detalle incluye las marcaciones del funcionario', function () {
+    $persona = Persona::factory()->create(['IdPersona' => '3334444']);
+
+    Livewire::test(VerPersona::class, ['record' => '3334444'])
+        ->assertSuccessful()
+        ->assertSeeLivewire(MarcacionesRelationManager::class);
+});
+
+test('la tabla de marcaciones de la ficha solo muestra las del funcionario', function () {
+    $persona = Persona::factory()->create(['IdPersona' => '3334444', 'Paterno' => 'Dueño']);
+    $otro = Persona::factory()->create(['IdPersona' => '9998888', 'Paterno' => 'Ajeno']);
+
+    Asistencia::factory()->create(['IdPersona' => $persona->IdPersona, 'Fecha' => today()]);
+    Asistencia::factory()->create(['IdPersona' => $otro->IdPersona, 'Fecha' => today()]);
+
+    Livewire::test(MarcacionesRelationManager::class, [
+        'ownerRecord' => $persona,
+        'pageClass' => VerPersona::class,
+    ])
+        ->assertSuccessful()
+        ->assertCanSeeTableRecords($persona->marcaciones)
+        ->assertCanNotSeeTableRecords($otro->marcaciones);
+});
+
+test('filtra las marcaciones de la ficha por rango de fechas', function () {
+    $persona = Persona::factory()->create(['IdPersona' => '3334444']);
+
+    $vigente = Asistencia::factory()->create(['IdPersona' => $persona->IdPersona, 'Fecha' => today()]);
+    $anterior = Asistencia::factory()->create(['IdPersona' => $persona->IdPersona, 'Fecha' => today()->subMonths(3)]);
+
+    Livewire::test(MarcacionesRelationManager::class, [
+        'ownerRecord' => $persona,
+        'pageClass' => VerPersona::class,
+    ])
+        ->filterTable('rango', ['desde' => null, 'hasta' => null])
+        ->assertCanSeeTableRecords([$vigente, $anterior]);
 });

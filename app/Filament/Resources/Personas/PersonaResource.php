@@ -6,6 +6,7 @@ use App\Filament\Resources\Personas\Pages\CreatePersona;
 use App\Filament\Resources\Personas\Pages\EditPersona;
 use App\Filament\Resources\Personas\Pages\ListPersonas;
 use App\Filament\Resources\Personas\Pages\VerPersona;
+use App\Filament\Resources\Personas\RelationManagers\MarcacionesRelationManager;
 use App\Filament\Resources\Personas\Schemas\PersonaForm;
 use App\Filament\Resources\Personas\Schemas\PersonaInfolist;
 use App\Filament\Resources\Personas\Tables\PersonasTable;
@@ -51,6 +52,13 @@ class PersonaResource extends Resource
     public static function table(Table $table): Table
     {
         return PersonasTable::configure($table);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            MarcacionesRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
