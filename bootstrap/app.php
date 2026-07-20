@@ -12,8 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Los invitados a rutas protegidas van al login del panel Filament.
-        $middleware->redirectGuestsTo(fn () => route('filament.admin.auth.login'));
+        // Login propio del sitio Blade/MVC (routes/web.php). Reemplaza al
+        // login de Filament: ambos conviven hasta que se retire el panel.
+        $middleware->redirectGuestsTo(fn () => route('login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

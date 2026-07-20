@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\MarcacionController;
@@ -7,9 +8,18 @@ use App\Http\Controllers\PersonaController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
+// Login propio (guard 'web' estándar), convive con el de Filament
+// (admin/login) hasta que el panel se retire por completo.
+Route::middleware('guest')->group(function (): void {
+    Route::get('login', [LoginController::class, 'create'])->name('login');
+    Route::post('login', [LoginController::class, 'store']);
+});
+
 // CRUD clásico (MVC) protegido con la misma sesión del panel Filament.
 // Conviven con los recursos de /admin: mismo modelo, otra interfaz.
 Route::middleware('auth')->group(function (): void {
+    Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
+
     // Escritorio: mismo resumen que el Dashboard de Filament (equipos,
     // asistencia SIA, gráfico de marcaciones).
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');

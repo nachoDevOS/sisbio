@@ -225,7 +225,13 @@
                 <x-heroicon-o-bars-3 />
             </button>
             <span></span>
-            <a href="/admin" class="topbar__vol">Volver al panel →</a>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <a href="/admin" class="topbar__vol">Volver al panel →</a>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit" class="topbar__vol" style="background: none; border: 0; cursor: pointer; font-family: inherit;">Salir</button>
+                </form>
+            </div>
         </header>
 
         <main class="contenedor">
