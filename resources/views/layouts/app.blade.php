@@ -89,6 +89,8 @@
         .pill { display: inline-block; padding: .2rem .6rem; border-radius: 9999px; font-size: .7rem; font-weight: 700; }
         .pill--ok { background: #dcfce7; color: #166534; }
         .pill--no { background: #fee2e2; color: #991b1b; }
+        .pill--advertencia { background: #fef3c7; color: #92400e; }
+        .pill--info { background: #dbeafe; color: #1e40af; }
 
         .acciones { display: flex; gap: .35rem; align-items: center; }
 
