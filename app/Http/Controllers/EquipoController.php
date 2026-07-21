@@ -10,7 +10,6 @@ use App\Services\DeviceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -132,37 +131,12 @@ class EquipoController extends Controller
     }
 
     /**
-     * Lee en vivo las marcaciones guardadas en el equipo (vía el
-     * microservicio) y las muestra. Nunca se escribe nada aquí.
-     *
-     * El equipo devuelve todo el historial en una sola respuesta (el
-     * protocolo ZK no pagina), así que la paginación se arma acá, sobre el
-     * array ya recibido.
+     * Descarga el historial de marcaciones del equipo en CSV, opcionalmente
+     * acotado a un rango de fechas (parámetros `desde`/`hasta`). Se lee en vivo
+     * del equipo vía el microservicio; nunca se muestra en pantalla (el
+     * historial es grande y renderizarlo es lento), solo se baja el archivo.
      */
-    public function marcaciones(Request $request, Equipo $equipo, DeviceService $deviceService): View
-    {
-        $this->authorize('view', $equipo);
-
-        [$todas, $error] = $this->marcacionesDelEquipo($equipo, $deviceService);
-
-        $porPagina = 15;
-        $pagina = LengthAwarePaginator::resolveCurrentPage();
-
-        $marcaciones = new LengthAwarePaginator(
-            array_slice($todas, ($pagina - 1) * $porPagina, $porPagina),
-            count($todas),
-            $porPagina,
-            $pagina,
-            ['path' => $request->url(), 'query' => $request->query()],
-        );
-
-        return view('equipos.marcaciones', compact('equipo', 'marcaciones', 'error'));
-    }
-
-    /**
-     * Descarga el mismo historial de marcaciones en CSV (todo, sin paginar).
-     */
-    public function exportarMarcaciones(Equipo $equipo, DeviceService $deviceService): Response|RedirectResponse
+    public function exportarMarcaciones(Request $request, Equipo $equipo, DeviceService $deviceService): Response|RedirectResponse
     {
         $this->authorize('view', $equipo);
 
@@ -171,6 +145,8 @@ class EquipoController extends Controller
         if ($error) {
             return back()->with('error', $error);
         }
+
+        $todas = $this->filtrarPorRango($todas, $request->query('desde', ''), $request->query('hasta', ''));
 
         $csv = "\u{FEFF}CI/ID,Nombre,Fecha,Hora\n";
 
@@ -195,9 +171,11 @@ class EquipoController extends Controller
     }
 
     /**
-     * Trae (y cachea 2 minutos) el historial completo de marcaciones del
-     * equipo. Sin la caché, cada página o exportación repetiría la lectura
-     * completa del reloj (miles de registros) para el mismo dato.
+     * Trae (y cachea 15 minutos) el historial completo de marcaciones del
+     * equipo. La lectura del reloj por el protocolo ZK trae todo el buffer de
+     * una (miles de registros, es lenta por naturaleza); con la caché solo la
+     * primera carga la paga, y después filtrar por rango, paginar o descargar
+     * el CSV usan el mismo dato ya en memoria sin volver a pegarle al equipo.
      *
      * @return array{0: array<int, array<string, mixed>>, 1: ?string}
      */
@@ -206,7 +184,7 @@ class EquipoController extends Controller
         try {
             $todas = Cache::remember(
                 "equipos.{$equipo->id}.marcaciones",
-                now()->addMinutes(2),
+                now()->addMinutes(15),
                 fn (): array => $deviceService->attendance($equipo)['marcaciones'] ?? [],
             );
 
@@ -214,5 +192,33 @@ class EquipoController extends Controller
         } catch (DeviceServiceException $e) {
             return [[], $e->getMessage()];
         }
+    }
+
+    /**
+     * Filtra el array de marcaciones ya traídas del equipo por rango de
+     * fechas (inclusive). `$desde`/`$hasta` vacíos no filtran ese extremo.
+     *
+     * @param  array<int, array<string, mixed>>  $todas
+     * @return array<int, array<string, mixed>>
+     */
+    private function filtrarPorRango(array $todas, string $desde, string $hasta): array
+    {
+        if ($desde === '' && $hasta === '') {
+            return $todas;
+        }
+
+        $inicio = $desde !== '' ? Carbon::parse($desde)->startOfDay() : null;
+        $fin = $hasta !== '' ? Carbon::parse($hasta)->endOfDay() : null;
+
+        return array_values(array_filter($todas, function (array $marcacion) use ($inicio, $fin): bool {
+            if (blank($marcacion['timestamp'] ?? null)) {
+                return false;
+            }
+
+            $fecha = Carbon::parse($marcacion['timestamp']);
+
+            return (! $inicio || $fecha->greaterThanOrEqualTo($inicio))
+                && (! $fin || $fecha->lessThanOrEqualTo($fin));
+        }));
     }
 }

@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
@@ -121,4 +122,112 @@ test('una marcación manual no se pinta con el color de reloj', function () {
     $this->get(route('marcaciones.index'))
         ->assertOk()
         ->assertSee('<span class="pill pill--advertencia">M</span>', escape: false);
+});
+
+test('importa un csv nuevo y crea la marcación en Asistencia', function () {
+    DB::connection('sia')->table('Personas')->insert([
+        'IdPersona' => '4176235', 'Paterno' => 'Perez', 'Materno' => null, 'Nombres' => 'Juan', 'PinReloj' => '4176235', 'MarcaDirecta' => false,
+    ]);
+
+    $csv = "\u{FEFF}CI/ID,Nombre,Fecha,Hora\n4176235,\"Perez Juan\",15/07/2026,08:05:00\n";
+    $archivo = UploadedFile::fake()->createWithContent('marcaciones.csv', $csv);
+
+    $this->post(route('marcaciones.importar'), ['archivo' => $archivo])
+        ->assertRedirect()
+        ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '1 marcación(es) nueva(s)'));
+
+    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '4176235')->count())->toBe(1);
+});
+
+test('no duplica una marcación que ya existe en Asistencia', function () {
+    DB::connection('sia')->table('Personas')->insert([
+        'IdPersona' => '555', 'Paterno' => 'Gomez', 'Materno' => null, 'Nombres' => 'Ana', 'PinReloj' => '555', 'MarcaDirecta' => false,
+    ]);
+    DB::connection('sia')->table('Asistencia')->insert([
+        'IdPersona' => '555',
+        'Fecha' => '2026-07-15 00:00:00',
+        'Hora' => '1899-12-30 08:05:00',
+        'Tipo' => 'R',
+    ]);
+
+    $csv = "CI/ID,Nombre,Fecha,Hora\n555,\"Gomez Ana\",15/07/2026,08:05:00\n";
+    $archivo = UploadedFile::fake()->createWithContent('marcaciones.csv', $csv);
+
+    $this->post(route('marcaciones.importar'), ['archivo' => $archivo])
+        ->assertRedirect()
+        ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '0 marcación(es) nueva(s)') && str_contains($mensaje, '1 ya existían'));
+
+    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '555')->count())->toBe(1);
+});
+
+test('una fila sin funcionario vinculado no se inserta y queda contada', function () {
+    $csv = "CI/ID,Nombre,Fecha,Hora\n999999,\"Sin Registro\",15/07/2026,08:05:00\n";
+    $archivo = UploadedFile::fake()->createWithContent('marcaciones.csv', $csv);
+
+    $this->post(route('marcaciones.importar'), ['archivo' => $archivo])
+        ->assertRedirect()
+        ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '1 sin funcionario vinculado'));
+
+    expect(DB::connection('sia')->table('Asistencia')->count())->toBe(0);
+});
+
+test('importa un csv reguardado desde Excel con separador punto y coma', function () {
+    DB::connection('sia')->table('Personas')->insert([
+        'IdPersona' => '4176235', 'Paterno' => 'Perez', 'Materno' => null, 'Nombres' => 'Juan', 'PinReloj' => '4176235', 'MarcaDirecta' => false,
+    ]);
+
+    $csv = "CI/ID;Nombre;Fecha;Hora\n4176235;\"Perez Juan\";15/07/2026;08:05:00\n";
+    $archivo = UploadedFile::fake()->createWithContent('marcaciones.csv', $csv);
+
+    $this->post(route('marcaciones.importar'), ['archivo' => $archivo])
+        ->assertRedirect()
+        ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '1 marcación(es) nueva(s)'));
+
+    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '4176235')->count())->toBe(1);
+});
+
+test('importa filas con la hora sin segundos', function () {
+    DB::connection('sia')->table('Personas')->insert([
+        'IdPersona' => '999', 'Paterno' => 'Sinseg', 'Materno' => null, 'Nombres' => 'Test', 'PinReloj' => '999', 'MarcaDirecta' => false,
+    ]);
+
+    $csv = "CI/ID,Nombre,Fecha,Hora\n999,\"Sinseg Test\",15/07/2026,08:05\n";
+    $archivo = UploadedFile::fake()->createWithContent('marcaciones.csv', $csv);
+
+    $this->post(route('marcaciones.importar'), ['archivo' => $archivo])
+        ->assertRedirect()
+        ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '1 marcación(es) nueva(s)'));
+
+    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '999')->count())->toBe(1);
+});
+
+test('una fila con fecha basura futura del reloj (RTC) se descarta y no rompe el import', function () {
+    DB::connection('sia')->table('Personas')->insert([
+        'IdPersona' => '7655482', 'Paterno' => 'Torrez', 'Materno' => null, 'Nombres' => 'Rene', 'PinReloj' => '7655482', 'MarcaDirecta' => false,
+    ]);
+
+    $csv = "CI/ID,Nombre,Fecha,Hora\n7655482,\"Torrez Rene\",19/08/2103,02:52:58\n";
+    $archivo = UploadedFile::fake()->createWithContent('marcaciones.csv', $csv);
+
+    $this->post(route('marcaciones.importar'), ['archivo' => $archivo])
+        ->assertRedirect()
+        ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '0 marcación(es) nueva(s)') && str_contains($mensaje, '1 fila(s) inválida(s)'));
+
+    expect(DB::connection('sia')->table('Asistencia')->count())->toBe(0);
+});
+
+test('un usuario sin permiso de crear marcaciones no puede importar', function () {
+    $this->actingAs(User::factory()->create());
+
+    $archivo = UploadedFile::fake()->createWithContent('marcaciones.csv', "CI/ID,Nombre,Fecha,Hora\n");
+
+    $this->post(route('marcaciones.importar'), ['archivo' => $archivo])->assertForbidden();
+});
+
+test('un invitado no puede importar marcaciones', function () {
+    auth()->logout();
+
+    $archivo = UploadedFile::fake()->createWithContent('marcaciones.csv', "CI/ID,Nombre,Fecha,Hora\n");
+
+    $this->post(route('marcaciones.importar'), ['archivo' => $archivo])->assertRedirect();
 });

@@ -49,22 +49,44 @@
                                     @csrf
                                     <button type="submit" class="btn-icon" title="Probar conexión" aria-label="Probar conexión"><x-heroicon-o-signal /></button>
                                 </form>
-                                {{-- Oculto por el momento, no borrar:
-                                <a href="{{ route('equipos.marcaciones', $equipo) }}" class="btn-icon" title="Ver marcaciones" aria-label="Ver marcaciones"><x-heroicon-o-clock /></a>
-                                --}}
                                 <a href="{{ route('equipos.edit', $equipo) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
-                                <div class="dropdown" x-data="{ open: false }" x-on:click.outside="open = false">
+                                <div class="dropdown" x-data="{ open: false, modal: false }" x-on:click.outside="open = false">
                                     <button type="button" class="dropdown-toggle" x-on:click="open = !open" aria-haspopup="true" :aria-expanded="open">
                                         Mas <x-heroicon-o-chevron-down />
                                     </button>
                                     <div class="dropdown-menu" x-show="open" x-cloak x-transition.opacity.duration.100ms>
-                                        <a href="{{ route('equipos.marcaciones.exportar', $equipo) }}"><x-heroicon-o-arrow-down-tray />Descargar CSV</a>
+                                        <button type="button" x-on:click="modal = true; open = false"><x-heroicon-o-arrow-down-tray />Descargar CSV (con rango)</button>
                                         <form action="{{ route('equipos.destroy', $equipo) }}" method="POST"
                                               onsubmit="return confirm('¿Eliminar el equipo «{{ $equipo->nombre }}»?');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="peligro"><x-heroicon-o-trash />Eliminar</button>
                                         </form>
+                                    </div>
+
+                                    {{-- Modal para elegir el rango y descargar el CSV sin pasar por la
+                                         vista en vivo (que renderiza la tabla y es más lenta). --}}
+                                    <div class="modal-fondo" x-show="modal" x-cloak
+                                         x-on:click.self="modal = false" x-on:keydown.escape.window="modal = false">
+                                        <div class="modal-caja">
+                                            <h2>Descargar marcaciones de «{{ $equipo->nombre }}»</h2>
+                                            <form method="GET" action="{{ route('equipos.marcaciones.exportar', $equipo) }}" x-on:submit="modal = false">
+                                                <div class="grid-2">
+                                                    <div class="campo">
+                                                        <label for="desde-{{ $equipo->id }}">Desde</label>
+                                                        <input type="date" id="desde-{{ $equipo->id }}" name="desde" value="{{ now()->startOfMonth()->toDateString() }}">
+                                                    </div>
+                                                    <div class="campo">
+                                                        <label for="hasta-{{ $equipo->id }}">Hasta</label>
+                                                        <input type="date" id="hasta-{{ $equipo->id }}" name="hasta" value="{{ now()->toDateString() }}">
+                                                    </div>
+                                                </div>
+                                                <div class="modal-acciones">
+                                                    <button type="button" class="btn btn--gris" x-on:click="modal = false">Cancelar</button>
+                                                    <button type="submit" class="btn"><x-heroicon-o-arrow-down-tray />Descargar</button>
+                                                </div>
+                                            </form>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

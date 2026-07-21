@@ -15,6 +15,16 @@
             <span class="cabecera__icono"><x-heroicon-o-finger-print /></span>
             <h1>Marcaciones (SIA)</h1>
         </div>
+        @can('create', \App\Models\Sia\Asistencia::class)
+            <form method="POST" action="{{ route('marcaciones.importar') }}" enctype="multipart/form-data" style="display: flex; align-items: flex-start; gap: .5rem;">
+                @csrf
+                <div>
+                    <input type="file" name="archivo" accept=".csv,text/csv" required class="input" style="width: auto;">
+                    @error('archivo') <div class="error">{{ $message }}</div> @enderror
+                </div>
+                <button type="submit" class="btn"><x-heroicon-o-arrow-up-tray />Importar CSV</button>
+            </form>
+        @endcan
     </div>
 
     <form method="GET" action="{{ route('marcaciones.index') }}" class="toolbar">

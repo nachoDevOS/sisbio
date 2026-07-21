@@ -30,7 +30,6 @@ Route::middleware('auth')->group(function (): void {
     // Habla en vivo con el microservicio Python: mismo criterio que las
     // acciones "Probar conexión"/"Ver marcaciones" del recurso Filament.
     Route::post('equipos/{equipo}/probar-conexion', [EquipoController::class, 'probarConexion'])->name('equipos.probar-conexion');
-    Route::get('equipos/{equipo}/marcaciones', [EquipoController::class, 'marcaciones'])->name('equipos.marcaciones');
     Route::get('equipos/{equipo}/marcaciones/exportar', [EquipoController::class, 'exportarMarcaciones'])->name('equipos.marcaciones.exportar');
     Route::resource('usuarios', UserController::class)
         ->parameters(['usuarios' => 'usuario'])
@@ -45,6 +44,8 @@ Route::middleware('auth')->group(function (): void {
         ->parameters(['funcionarios' => 'persona'])
         ->except(['destroy']);
 
-    // Solo lectura: las marcaciones nunca se escriben desde aquí.
+    // El listado es de solo lectura; la única escritura es importar el CSV
+    // que ya exporta "Equipos > Marcaciones > Exportar".
     Route::get('marcaciones', [MarcacionController::class, 'index'])->name('marcaciones.index');
+    Route::post('marcaciones/importar', [MarcacionController::class, 'importar'])->name('marcaciones.importar');
 });
