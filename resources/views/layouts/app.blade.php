@@ -222,6 +222,12 @@
             <a href="{{ route('dashboard') }}" class="sidebar__link {{ request()->routeIs('dashboard') ? 'activo' : '' }}">
                 <x-heroicon-o-home />Escritorio
             </a>
+            <a href="{{ route('funcionarios.index') }}" class="sidebar__link {{ request()->routeIs('funcionarios.*') ? 'activo' : '' }}">
+                <x-heroicon-o-user-group />Funcionarios
+            </a>
+            <a href="{{ route('marcaciones.index') }}" class="sidebar__link {{ request()->routeIs('marcaciones.*') ? 'activo' : '' }}">
+                <x-heroicon-o-finger-print />Marcaciones
+            </a>
             <a href="{{ route('equipos.index') }}" class="sidebar__link {{ request()->routeIs('equipos.*') ? 'activo' : '' }}">
                 <x-heroicon-o-computer-desktop />Equipos
             </a>
@@ -230,12 +236,6 @@
             </a>
             <a href="{{ route('roles.index') }}" class="sidebar__link {{ request()->routeIs('roles.*') ? 'activo' : '' }}">
                 <x-heroicon-o-shield-check />Roles
-            </a>
-            <a href="{{ route('funcionarios.index') }}" class="sidebar__link {{ request()->routeIs('funcionarios.*') ? 'activo' : '' }}">
-                <x-heroicon-o-user-group />Funcionarios
-            </a>
-            <a href="{{ route('marcaciones.index') }}" class="sidebar__link {{ request()->routeIs('marcaciones.*') ? 'activo' : '' }}">
-                <x-heroicon-o-finger-print />Marcaciones
             </a>
         </nav>
     </aside>
