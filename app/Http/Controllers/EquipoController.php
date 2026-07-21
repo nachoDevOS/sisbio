@@ -8,6 +8,12 @@ use App\Http\Requests\UpdateEquipoRequest;
 use App\Models\Equipo;
 use App\Services\DeviceService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -127,22 +133,86 @@ class EquipoController extends Controller
 
     /**
      * Lee en vivo las marcaciones guardadas en el equipo (vía el
-     * microservicio) y las muestra. Mismo criterio que la acción "Ver
-     * marcaciones" del recurso Filament: nunca se escribe nada aquí.
+     * microservicio) y las muestra. Nunca se escribe nada aquí.
+     *
+     * El equipo devuelve todo el historial en una sola respuesta (el
+     * protocolo ZK no pagina), así que la paginación se arma acá, sobre el
+     * array ya recibido.
      */
-    public function marcaciones(Equipo $equipo, DeviceService $deviceService): View
+    public function marcaciones(Request $request, Equipo $equipo, DeviceService $deviceService): View
     {
         $this->authorize('view', $equipo);
 
-        try {
-            $respuesta = $deviceService->attendance($equipo);
-            $marcaciones = $respuesta['marcaciones'] ?? [];
-            $error = null;
-        } catch (DeviceServiceException $e) {
-            $marcaciones = [];
-            $error = $e->getMessage();
-        }
+        [$todas, $error] = $this->marcacionesDelEquipo($equipo, $deviceService);
+
+        $porPagina = 15;
+        $pagina = LengthAwarePaginator::resolveCurrentPage();
+
+        $marcaciones = new LengthAwarePaginator(
+            array_slice($todas, ($pagina - 1) * $porPagina, $porPagina),
+            count($todas),
+            $porPagina,
+            $pagina,
+            ['path' => $request->url(), 'query' => $request->query()],
+        );
 
         return view('equipos.marcaciones', compact('equipo', 'marcaciones', 'error'));
+    }
+
+    /**
+     * Descarga el mismo historial de marcaciones en CSV (todo, sin paginar).
+     */
+    public function exportarMarcaciones(Equipo $equipo, DeviceService $deviceService): Response|RedirectResponse
+    {
+        $this->authorize('view', $equipo);
+
+        [$todas, $error] = $this->marcacionesDelEquipo($equipo, $deviceService);
+
+        if ($error) {
+            return back()->with('error', $error);
+        }
+
+        $csv = "\u{FEFF}CI/ID,Nombre,Fecha,Hora\n";
+
+        foreach ($todas as $marcacion) {
+            $fecha = $marcacion['timestamp'] ? Carbon::parse($marcacion['timestamp']) : null;
+            $nombre = filled($marcacion['nombre'] ?? null) ? $marcacion['nombre'] : 'Sin nombre';
+
+            $csv .= implode(',', [
+                $marcacion['user_id'],
+                '"'.str_replace('"', '""', $nombre).'"',
+                $fecha?->format('d/m/Y') ?? '',
+                $fecha?->format('H:i:s') ?? '',
+            ])."\n";
+        }
+
+        $archivo = 'marcaciones-'.Str::slug($equipo->nombre).'-'.now()->format('Y-m-d').'.csv';
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$archivo}\"",
+        ]);
+    }
+
+    /**
+     * Trae (y cachea 2 minutos) el historial completo de marcaciones del
+     * equipo. Sin la caché, cada página o exportación repetiría la lectura
+     * completa del reloj (miles de registros) para el mismo dato.
+     *
+     * @return array{0: array<int, array<string, mixed>>, 1: ?string}
+     */
+    private function marcacionesDelEquipo(Equipo $equipo, DeviceService $deviceService): array
+    {
+        try {
+            $todas = Cache::remember(
+                "equipos.{$equipo->id}.marcaciones",
+                now()->addMinutes(2),
+                fn (): array => $deviceService->attendance($equipo)['marcaciones'] ?? [],
+            );
+
+            return [$todas, null];
+        } catch (DeviceServiceException $e) {
+            return [[], $e->getMessage()];
+        }
     }
 }

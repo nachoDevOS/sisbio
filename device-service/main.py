@@ -11,15 +11,58 @@ El token se comparte con Laravel a través del .env de ambos lados.
 """
 
 import os
+from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
+from fastapi.responses import JSONResponse
 from zk import ZK
+from zk.exception import ZKErrorConnection, ZKErrorResponse, ZKNetworkError
+
+
+def cargar_env(ruta: Path) -> None:
+    """Carga variables del archivo .env al entorno del proceso, sin pisar las
+    que ya estén seteadas (por ejemplo, en un servicio de systemd).
+
+    Evita depender de que quien arranca `uvicorn` haya exportado las
+    variables a mano en la terminal antes: si se le olvida (o reinicia el
+    proceso en una ventana nueva sin volver a cargarlas), el servicio queda
+    sin token y rechaza todo. Sin dependencias nuevas: no hace falta
+    python-dotenv para esto.
+    """
+    if not ruta.is_file():
+        return
+
+    for linea in ruta.read_text(encoding="utf-8").splitlines():
+        linea = linea.strip()
+        if not linea or linea.startswith("#") or "=" not in linea:
+            continue
+        clave, _, valor = linea.partition("=")
+        clave = clave.strip()
+        valor = valor.strip().strip('"').strip("'")
+        os.environ.setdefault(clave, valor)
+
+
+cargar_env(Path(__file__).resolve().parent / ".env")
 
 app = FastAPI(
     title="SISBIO device-service",
     description="Puente HTTP hacia los equipos biométricos ZKTeco.",
     version="1.0.0",
 )
+
+
+@app.exception_handler(Exception)
+async def error_no_controlado(request: Request, exc: Exception) -> JSONResponse:
+    """Red de seguridad: cualquier excepción que se escape de un endpoint
+    vuelve como JSON con el motivo real, en vez de un 500 vacío. Sin esto,
+    diagnosticar por qué un equipo puntual no conecta exige mirar la consola
+    del proceso en vez del mensaje que ya llega a Laravel/al usuario.
+    """
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {exc}"},
+    )
+
 
 # Token compartido con Laravel. Se lee del entorno del proceso.
 AUTH_TOKEN = os.environ.get("DEVICE_SERVICE_TOKEN", "")
@@ -46,13 +89,40 @@ def verificar_token(x_auth_token: str = Header(default="")) -> None:
         )
 
 
-def conectar(ip: str, port: int, password: int) -> ZK:
+def conectar(ip: str, port: int, password: int, force_udp: bool = False) -> ZK:
     """Crea el objeto de conexión ZK hacia un equipo.
 
     No abre la conexión todavía; solo prepara los parámetros. La conexión real
     se abre con .connect() dentro de cada endpoint para poder cerrarla siempre.
+
+    ommit_ping=True: algunos equipos (sobre todo los de reconocimiento facial,
+    más nuevos que los relojes clásicos tipo iClock) tienen el ping ICMP
+    deshabilitado aunque el puerto 4370 esté abierto y respondiendo. Sin esto,
+    pyzk los da por caídos antes de intentar la conexión real.
     """
-    return ZK(ip, port=port, timeout=CONNECT_TIMEOUT, password=password)
+    return ZK(
+        ip,
+        port=port,
+        timeout=CONNECT_TIMEOUT,
+        password=password,
+        force_udp=force_udp,
+        ommit_ping=True,
+    )
+
+
+def conectar_con_reintento(ip: str, port: int, password: int) -> ZK:
+    """Conecta por TCP y, si falla por un error de red/protocolo, reintenta
+    una vez por UDP antes de rendirse.
+
+    Algunos equipos ZKTeco más nuevos (terminales de reconocimiento facial,
+    a diferencia de los relojes clásicos tipo iClock) solo hablan bien el
+    protocolo ZK por UDP. Si el primer intento por TCP falla, vale la pena
+    probar UDP antes de reportar el equipo como inalcanzable.
+    """
+    try:
+        return conectar(ip, port, password, force_udp=False).connect()
+    except (ZKErrorConnection, ZKErrorResponse, ZKNetworkError, OSError):
+        return conectar(ip, port, password, force_udp=True).connect()
 
 
 @app.get("/health")
@@ -78,7 +148,7 @@ def device_info(
     """
     conn = None
     try:
-        conn = conectar(ip, port, password).connect()
+        conn = conectar_con_reintento(ip, port, password)
         # Se deshabilita el equipo mientras se lee, para que nadie marque.
         conn.disable_device()
 
@@ -121,7 +191,7 @@ def device_users(
     """
     conn = None
     try:
-        conn = conectar(ip, port, password).connect()
+        conn = conectar_con_reintento(ip, port, password)
         conn.disable_device()
 
         usuarios = [
@@ -165,7 +235,7 @@ def device_attendance(
     """
     conn = None
     try:
-        conn = conectar(ip, port, password).connect()
+        conn = conectar_con_reintento(ip, port, password)
         conn.disable_device()
 
         # Mapa user_id -> nombre, para mostrar el nombre en cada marcación.

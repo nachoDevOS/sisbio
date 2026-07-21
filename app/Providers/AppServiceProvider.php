@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Database\SqlServer2008Connection;
 use App\Policies\RolePolicy;
 use Illuminate\Database\Connection;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Role;
@@ -37,5 +38,11 @@ class AppServiceProvider extends ServiceProvider
         // super_admin puede todo, sin permisos individuales asignados. Antes
         // lo resolvía Shield (config('filament-shield.super_admin')).
         Gate::before(fn ($user): ?bool => $user->hasRole('super_admin') ? true : null);
+
+        // La vista de paginación por defecto de Laravel usa clases Tailwind
+        // que este layout no compila; se reemplaza por una vista propia
+        // (resources/views/vendor/pagination/custom.blade.php) acorde al
+        // estilo del sitio, aplicada a todas las tablas paginadas.
+        Paginator::defaultView('vendor.pagination.custom');
     }
 }

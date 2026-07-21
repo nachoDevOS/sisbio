@@ -2,7 +2,7 @@
 
 Microservicio en Python (FastAPI + pyzk) que habla el protocolo ZKTeco con los
 equipos biométricos por TCP 4370. Es la **única** pieza del sistema que abre
-sockets a los equipos; el panel de Laravel/Filament se comunica con él por HTTP.
+sockets a los equipos; Laravel se comunica con él por HTTP.
 
 ```
 Equipos ZKTeco  <--TCP 4370-->  device-service (este)  <--REST + X-Auth-Token-->  Laravel
@@ -19,6 +19,8 @@ Equipos ZKTeco  <--TCP 4370-->  device-service (este)  <--REST + X-Auth-Token-->
 
 Requiere Python 3.10+.
 
+**Linux/macOS:**
+
 ```bash
 cd device-service
 python3 -m venv .venv
@@ -34,6 +36,22 @@ usuario sin entorno virtual:
 pip3 install --user -r requirements.txt
 ```
 
+**Windows:** el comando es `python`, no `python3` (el alias `python3.exe` de
+Windows solo abre la Microsoft Store). En PowerShell:
+
+```powershell
+cd device-service
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+Sin entorno virtual (más simple para desarrollo local):
+
+```powershell
+pip install --user -r requirements.txt
+```
+
 ## Configuración
 
 Copiar el ejemplo y pegar el mismo token que Laravel:
@@ -45,25 +63,34 @@ cp .env.example .env
 
 ## Levantar el servicio
 
-El microservicio lee el token desde las variables de entorno. Cargá el `.env` y
-arrancá uvicorn en el puerto 9001 (el que espera Laravel por defecto):
+El microservicio lee el `.env` solo (no hace falta exportar las variables a
+mano en la terminal). Arrancá uvicorn en el puerto 9001 (el que espera Laravel
+por defecto):
+
+**Linux/macOS:**
 
 ```bash
-set -a && source .env && set +a
 python3 -m uvicorn main:app --host 127.0.0.1 --port 9001
+```
+
+**Windows** (PowerShell o cmd, comando `python` sin el `3`):
+
+```powershell
+python -m uvicorn main:app --host 127.0.0.1 --port 9001
 ```
 
 En desarrollo podés añadir `--reload` para recarga automática.
 
 ## Endpoints
 
-| Método | Ruta             | Token | Descripción                                              |
-|--------|------------------|-------|----------------------------------------------------------|
-| GET    | `/health`        | No    | Chequeo de vida.                                         |
-| GET    | `/device/info`   | Sí    | Info del equipo: nombre, serial, plataforma, firmware y firma de algoritmo. |
-| GET    | `/device/users`  | Sí    | Lista de usuarios registrados en el equipo.             |
+| Método | Ruta                | Token | Descripción                                              |
+|--------|---------------------|-------|----------------------------------------------------------|
+| GET    | `/health`           | No    | Chequeo de vida.                                         |
+| GET    | `/device/info`      | Sí    | Info del equipo: nombre, serial, plataforma, firmware y firma de algoritmo. |
+| GET    | `/device/users`     | Sí    | Lista de usuarios registrados en el equipo.              |
+| GET    | `/device/attendance`| Sí    | Marcaciones guardadas en el equipo (más recientes primero), con el nombre resuelto contra `/device/users`. |
 
-Parámetros de `/device/info` y `/device/users`:
+Parámetros de `/device/info`, `/device/users` y `/device/attendance`:
 
 - `ip` (obligatorio) — IP del equipo en la LAN.
 - `port` (opcional, por defecto `4370`) — puerto TCP.

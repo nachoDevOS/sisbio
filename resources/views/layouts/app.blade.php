@@ -76,12 +76,16 @@
 
         /* ===== Cajas ===== */
         .card { background: var(--card); border: 1px solid var(--border); border-radius: .625rem;
-            overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+            box-shadow: 0 1px 2px rgba(0,0,0,.05); }
         .card--padded { padding: 1.25rem; }
 
         table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
         thead th { text-align: left; background: var(--thead); color: var(--thead-fg); font-size: .7rem;
             text-transform: uppercase; letter-spacing: .04em; padding: .6rem .75rem; }
+        thead tr:first-child th:first-child { border-top-left-radius: .625rem; }
+        thead tr:first-child th:last-child { border-top-right-radius: .625rem; }
+        tbody tr:last-child td:first-child { border-bottom-left-radius: .625rem; }
+        tbody tr:last-child td:last-child { border-bottom-right-radius: .625rem; }
         tbody td { padding: .5rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
         tbody tr:last-child td { border-bottom: 0; }
         tbody tr:hover { background: #f9fafb; }
@@ -167,6 +171,20 @@
 
         .vacio { padding: 2.5rem; text-align: center; color: var(--muted); }
         .paginacion { margin-top: 1rem; }
+
+        /* ===== Paginación: misma pinta en todas las tablas (vendor/pagination/custom) ===== */
+        .pag { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+            flex-wrap: wrap; font-size: .8125rem; color: var(--muted); }
+        .pag__info strong { color: var(--fg); font-weight: 600; }
+        .pag__nav { display: flex; gap: .3rem; align-items: center; flex-wrap: wrap; }
+        .pag__link { display: inline-flex; align-items: center; justify-content: center;
+            min-width: 2rem; height: 2rem; padding: 0 .5rem; border-radius: .4rem;
+            font-size: .8125rem; font-weight: 600; border: 1px solid var(--border);
+            background: #fff; color: var(--fg); }
+        a.pag__link:hover { background: #f3f4f6; }
+        .pag__link--activo { background: var(--thead); border-color: var(--thead); color: #fff; }
+        .pag__link--disabled { color: #c1c7cf; cursor: not-allowed; }
+        .pag__link--puntos { border-color: transparent; background: none; color: var(--muted); }
 
         /* ===== Escritorio: tarjetas de estadística y mini gráfico ===== */
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }

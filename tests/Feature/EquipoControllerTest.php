@@ -24,6 +24,14 @@ test('el listado muestra los equipos registrados', function () {
         ->assertSee('iClock Entrada');
 });
 
+test('el listado tiene un link para descargar el CSV de cada equipo', function () {
+    $equipo = Equipo::factory()->create();
+
+    $this->get(route('equipos.index'))
+        ->assertOk()
+        ->assertSee(route('equipos.marcaciones.exportar', $equipo), escape: false);
+});
+
 test('muestra el formulario de alta', function () {
     $this->get(route('equipos.create'))
         ->assertOk()
@@ -204,4 +212,85 @@ test('la página de marcaciones muestra el error cuando el equipo no responde', 
     $this->get(route('equipos.marcaciones', $equipo))
         ->assertOk()
         ->assertSee('No se pudo conectar con el equipo');
+});
+
+test('las marcaciones del equipo se paginan de a 15', function () {
+    $marcaciones = collect(range(1, 40))->map(fn (int $i) => [
+        'uid' => $i,
+        'user_id' => (string) (1000 + $i),
+        'nombre' => "Empleado {$i}",
+        'timestamp' => now()->subMinutes($i)->toIso8601String(),
+    ])->all();
+
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response(['marcaciones' => $marcaciones], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->get(route('equipos.marcaciones', $equipo))
+        ->assertOk()
+        ->assertSee('Empleado 1')
+        ->assertSee('de <strong>40</strong>', escape: false)
+        ->assertDontSee('Empleado 16');
+
+    $this->get(route('equipos.marcaciones', ['equipo' => $equipo, 'page' => 2]))
+        ->assertOk()
+        ->assertSee('Empleado 16')
+        ->assertDontSee('Empleado 1<');
+});
+
+test('vuelve a paginar sin pegarle de nuevo al equipo, gracias a la caché', function () {
+    $marcaciones = collect(range(1, 20))->map(fn (int $i) => [
+        'uid' => $i,
+        'user_id' => (string) (1000 + $i),
+        'nombre' => "Empleado {$i}",
+        'timestamp' => now()->subMinutes($i)->toIso8601String(),
+    ])->all();
+
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response(['marcaciones' => $marcaciones], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->get(route('equipos.marcaciones', $equipo))->assertOk();
+    $this->get(route('equipos.marcaciones', ['equipo' => $equipo, 'page' => 2]))->assertOk();
+
+    Http::assertSentCount(1);
+});
+
+test('descarga las marcaciones del equipo en CSV', function () {
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response([
+            'marcaciones' => [
+                ['uid' => 1, 'user_id' => '7633685', 'nombre' => 'Ignacio Molina Guzman', 'timestamp' => '2026-07-09T21:05:48'],
+            ],
+        ], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create(['nombre' => 'iClock Prueba']);
+
+    $response = $this->get(route('equipos.marcaciones.exportar', $equipo))
+        ->assertOk()
+        ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+
+    expect($response->headers->get('content-disposition'))->toContain('marcaciones-iclock-prueba-');
+    expect($response->getContent())
+        ->toContain('CI/ID,Nombre,Fecha,Hora')
+        ->toContain('7633685,"Ignacio Molina Guzman",09/07/2026,21:05:48');
+});
+
+test('la descarga CSV redirige con error si el equipo no responde', function () {
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response([
+            'detail' => 'No se pudo conectar con el equipo',
+        ], 503),
+    ]);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->get(route('equipos.marcaciones.exportar', $equipo))
+        ->assertRedirect()
+        ->assertSessionHas('error', 'No se pudo conectar con el equipo');
 });

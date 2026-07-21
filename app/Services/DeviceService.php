@@ -83,7 +83,7 @@ class DeviceService
         try {
             $response = Http::withHeaders(['X-Auth-Token' => $this->token])
                 ->connectTimeout(5) // El microservicio debe estar arriba en la red interna.
-                ->timeout(20) // Margen para que el equipo responda por TCP.
+                ->timeout(60) // Leer usuarios + marcaciones de equipos con historial largo puede tardar.
                 ->get($this->baseUrl.$path, [
                     'ip' => $equipo->ip,
                     'port' => $equipo->puerto,

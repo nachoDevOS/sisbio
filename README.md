@@ -33,7 +33,10 @@ Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-T
   ubicación, algoritmo, maestro/esclavo, activo.
 - **Probar conexión:** consulta el equipo real vía el microservicio y guarda
   estado en línea, algoritmo y hora del aparato.
-- **Ver marcaciones:** lee las marcaciones directamente del equipo, en vivo.
+- **Ver marcaciones:** lee las marcaciones directamente del equipo, en vivo,
+  paginado (15 por página) y cacheado 2 minutos (el protocolo ZK no pagina:
+  sin caché, cada página repetiría la lectura completa del historial).
+- **Descargar CSV:** exporta todo el historial de marcaciones del equipo.
 
 ### Asistencia SIA (solo lectura)
 - **Marcaciones:** listado paginado con filtro por rango de fechas y tipo,

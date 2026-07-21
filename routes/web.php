@@ -31,6 +31,7 @@ Route::middleware('auth')->group(function (): void {
     // acciones "Probar conexión"/"Ver marcaciones" del recurso Filament.
     Route::post('equipos/{equipo}/probar-conexion', [EquipoController::class, 'probarConexion'])->name('equipos.probar-conexion');
     Route::get('equipos/{equipo}/marcaciones', [EquipoController::class, 'marcaciones'])->name('equipos.marcaciones');
+    Route::get('equipos/{equipo}/marcaciones/exportar', [EquipoController::class, 'exportarMarcaciones'])->name('equipos.marcaciones.exportar');
     Route::resource('usuarios', UserController::class)
         ->parameters(['usuarios' => 'usuario'])
         ->except('show');

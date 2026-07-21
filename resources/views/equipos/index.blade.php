@@ -49,13 +49,16 @@
                                     @csrf
                                     <button type="submit" class="btn-icon" title="Probar conexión" aria-label="Probar conexión"><x-heroicon-o-signal /></button>
                                 </form>
+                                {{-- Oculto por el momento, no borrar:
                                 <a href="{{ route('equipos.marcaciones', $equipo) }}" class="btn-icon" title="Ver marcaciones" aria-label="Ver marcaciones"><x-heroicon-o-clock /></a>
+                                --}}
                                 <a href="{{ route('equipos.edit', $equipo) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
                                 <div class="dropdown" x-data="{ open: false }" x-on:click.outside="open = false">
                                     <button type="button" class="dropdown-toggle" x-on:click="open = !open" aria-haspopup="true" :aria-expanded="open">
                                         Mas <x-heroicon-o-chevron-down />
                                     </button>
                                     <div class="dropdown-menu" x-show="open" x-cloak x-transition.opacity.duration.100ms>
+                                        <a href="{{ route('equipos.marcaciones.exportar', $equipo) }}"><x-heroicon-o-arrow-down-tray />Descargar CSV</a>
                                         <form action="{{ route('equipos.destroy', $equipo) }}" method="POST"
                                               onsubmit="return confirm('¿Eliminar el equipo «{{ $equipo->nombre }}»?');">
                                             @csrf
