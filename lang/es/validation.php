@@ -8,7 +8,7 @@ return [
     |--------------------------------------------------------------------------
     |
     | Mensajes de error de validación en español, usados por el validador de
-    | Laravel y por los formularios de Filament.
+    | Laravel y por los formularios del sistema.
     |
     */
 

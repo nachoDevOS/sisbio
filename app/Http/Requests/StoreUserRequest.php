@@ -5,10 +5,8 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 
 /**
- * Reglas de validación para crear un usuario del panel.
- *
- * Espejan el formulario de Filament (UserForm): contraseña obligatoria al
- * crear, correo único y roles opcionales.
+ * Reglas de validación para crear un usuario del sistema: contraseña
+ * obligatoria al crear, correo único y roles opcionales.
  */
 class StoreUserRequest extends FormRequest
 {

@@ -10,8 +10,7 @@ use Illuminate\View\View;
 
 /**
  * Login/logout propios del sitio Blade/MVC, guardia 'web' estándar contra
- * App\Models\User (config/auth.php). Reemplaza al login de Filament
- * (admin/login), que se retira junto con el resto del panel.
+ * App\Models\User (config/auth.php).
  */
 class LoginController extends Controller
 {

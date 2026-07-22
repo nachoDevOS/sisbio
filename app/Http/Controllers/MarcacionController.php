@@ -4,9 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ImportarMarcacionesRequest;
 use App\Models\Sia\Asistencia;
-use App\Models\Sia\Persona;
+use App\Services\RegistroAsistenciaSia;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -64,7 +63,7 @@ class MarcacionController extends Controller
      * matchea un funcionario o ya existe en Asistencia (misma
      * IdPersona+Fecha+Hora) se cuenta pero no se inserta.
      */
-    public function importar(ImportarMarcacionesRequest $request): RedirectResponse
+    public function importar(ImportarMarcacionesRequest $request, RegistroAsistenciaSia $registro): RedirectResponse
     {
         $this->authorize('create', Asistencia::class);
 
@@ -72,87 +71,42 @@ class MarcacionController extends Controller
         $separador = $this->detectarSeparador($ruta);
         $manejador = fopen($ruta, 'r');
 
-        $insertadas = 0;
-        $existentes = 0;
-        $sinFuncionario = 0;
-        $invalidas = 0;
+        $filas = [];
         $esPrimeraFila = true;
 
-        while (($fila = fgetcsv($manejador, 0, $separador)) !== false) {
+        while (($columnas = fgetcsv($manejador, 0, $separador)) !== false) {
             // Salta las líneas en blanco que suele dejar Excel al final.
-            if (count(array_filter($fila, fn ($celda): bool => trim((string) $celda) !== '')) === 0) {
+            if (count(array_filter($columnas, fn ($celda): bool => trim((string) $celda) !== '')) === 0) {
                 continue;
             }
 
-            [$ci, , $fechaCsv, $horaCsv] = array_pad($fila, 4, null);
+            [$ci, , $fechaCsv, $horaCsv] = array_pad($columnas, 4, null);
 
             $fecha = $this->parsearFecha(trim((string) $fechaCsv));
             $hora = $this->parsearHora(trim((string) $horaCsv));
 
-            if (! $fecha || ! $hora) {
-                // La primera fila que no parsea como fecha/hora es el encabezado.
-                if ($esPrimeraFila) {
-                    $esPrimeraFila = false;
-
-                    continue;
-                }
-
-                $invalidas++;
+            // La primera fila que no parsea como fecha/hora es el encabezado: se
+            // descarta sin contarla. El resto de filas ilegibles van como
+            // inválidas (momento nulo) para que el servicio las cuente.
+            if ((! $fecha || ! $hora) && $esPrimeraFila) {
+                $esPrimeraFila = false;
 
                 continue;
             }
 
             $esPrimeraFila = false;
 
-            // El reloj a veces arrastra fecha basura por la batería del RTC
-            // (años tipo 2064/2103, mismo problema que filtra el listado por
-            // defecto). Esas filas desbordan la columna Fecha del SIA y
-            // tiran abajo el insert si se dejan pasar.
-            if ($fecha->isFuture()) {
-                $invalidas++;
-
-                continue;
-            }
-
-            $persona = (new Persona)->resolveRouteBinding(trim((string) $ci));
-
-            if (! $persona) {
-                $sinFuncionario++;
-
-                continue;
-            }
-
-            $yaExiste = Asistencia::query()
-                ->where('IdPersona', $persona->IdPersona)
-                ->whereDate('Fecha', $fecha->toDateString())
-                ->whereTime('Hora', $hora->format('H:i:s'))
-                ->exists();
-
-            if ($yaExiste) {
-                $existentes++;
-
-                continue;
-            }
-
-            try {
-                Asistencia::create([
-                    'IdPersona' => $persona->IdPersona,
-                    'Fecha' => $fecha,
-                    'Hora' => '1899-12-30 '.$hora->format('H:i:s'),
-                    'Tipo' => Asistencia::TIPO_RELOJ,
-                ]);
-
-                $insertadas++;
-            } catch (QueryException) {
-                // Dato legado que el SIA rechaza (ej. otro campo fuera de rango
-                // que esta fila no anticipó): se cuenta y se sigue con el resto.
-                $invalidas++;
-            }
+            $filas[] = [
+                'ci' => $ci,
+                'momento' => $fecha && $hora ? $fecha->copy()->setTime($hora->hour, $hora->minute, $hora->second) : null,
+            ];
         }
 
         fclose($manejador);
 
-        return back()->with('estado', "Importación completa: {$insertadas} marcación(es) nueva(s), {$existentes} ya existían, {$sinFuncionario} sin funcionario vinculado, {$invalidas} fila(s) inválida(s).");
+        $conteo = $registro->registrar($filas);
+
+        return back()->with('estado', $registro->mensaje($conteo));
     }
 
     /**

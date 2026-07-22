@@ -6,10 +6,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Reglas de validación para dar de alta un equipo biométrico.
- *
- * Espejan las del formulario de Filament (EquipoForm) para que ambas puertas
- * de entrada guarden datos consistentes en la tabla `equipos`.
+ * Reglas de validación para dar de alta un equipo biométrico, consistentes
+ * con la estructura de la tabla `equipos`.
  */
 class StoreEquipoRequest extends FormRequest
 {

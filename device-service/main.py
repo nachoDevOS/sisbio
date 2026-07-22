@@ -2,7 +2,7 @@
 Microservicio de dispositivos de SISBIO.
 
 Es la ÚNICA pieza del sistema que habla el protocolo ZKTeco con los equipos
-biométricos (usando la librería pyzk sobre TCP 4370). El panel de Laravel/Filament
+biométricos (usando la librería pyzk sobre TCP 4370). La aplicación Laravel
 nunca abre sockets a los equipos: le pide todo a este servicio por HTTP.
 
 Seguridad: este servicio NUNCA debe exponerse a internet. Escucha solo en la red

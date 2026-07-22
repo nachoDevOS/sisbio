@@ -8,10 +8,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Reglas de validación para crear un rol.
- *
- * Espejan la matriz de permisos de Filament Shield: nombre único y una
- * lista de permisos, cada uno validado contra RolePolicy::nombresDePermiso().
+ * Reglas de validación para crear un rol: nombre único y una lista de
+ * permisos, cada uno validado contra RolePolicy::nombresDePermiso().
  */
 class StoreRoleRequest extends FormRequest
 {

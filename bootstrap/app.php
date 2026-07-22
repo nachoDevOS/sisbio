@@ -12,8 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Login propio del sitio Blade/MVC (routes/web.php). Reemplaza al
-        // login de Filament: ambos conviven hasta que se retire el panel.
+        // Los invitados van al login propio del sitio (routes/web.php).
         $middleware->redirectGuestsTo(fn () => route('login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {

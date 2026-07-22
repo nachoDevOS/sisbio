@@ -68,7 +68,7 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - Always use `search-docs` before making code changes. Do not skip this step. It returns version-specific docs based on installed packages automatically.
 - Pass a `packages` array to scope results when you know which packages are relevant.
 - Use multiple broad, topic-based queries: `['rate limiting', 'routing rate limiting', 'routing']`. Expect the most relevant results first.
-- Do not add package names to queries because package info is already shared. Use `test resource table`, not `filament 4 test resource table`.
+- Do not add package names to queries because package info is already shared. Use `test resource table`, not `laravel 13 test resource table`.
 
 ### Search Syntax
 

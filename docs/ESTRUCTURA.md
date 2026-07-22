@@ -7,10 +7,8 @@ ver el [README](../README.md); para la historia día a día, [sesiones/](sesione
 
 ## Idea clave: MVC clásico de Laravel
 
-El sistema corrió durante un tiempo con Filament (panel en `/admin`) en
-paralelo a un sitio Blade/MVC propio. Filament se retiró por completo: hoy
-todo es MVC clásico — controladores, FormRequests, vistas Blade y rutas en
-`routes/web.php`.
+Todo el sistema es MVC clásico de Laravel — controladores, FormRequests,
+vistas Blade y rutas en `routes/web.php`.
 
 | Pieza | Qué define | Ejemplo (Usuarios) |
 |---|---|---|

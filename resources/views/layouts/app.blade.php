@@ -137,7 +137,8 @@
         .modal-caja { background: var(--card); border-radius: .625rem; width: 100%; max-width: 24rem;
             padding: 1.25rem; box-shadow: 0 20px 45px rgba(0,0,0,.28); text-align: left; }
         .modal-caja h2 { font-size: 1rem; margin: 0 0 1rem; }
-        .modal-acciones { display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1.25rem; }
+        .modal-acciones { display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1.25rem; flex-wrap: wrap; }
+        .modal-acciones form { margin: 0; }
 
         /* ===== Barra de herramientas: buscador y filtros en caja, con etiqueta arriba ===== */
         .toolbar { display: flex; gap: .9rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem;

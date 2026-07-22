@@ -8,7 +8,7 @@ beforeEach(function () {
     $this->actingAs(asSuperAdmin());
 });
 
-test('el sitio Blade usa la misma paleta petróleo que el panel Filament', function () {
+test('el sitio Blade usa la paleta petróleo institucional', function () {
     $response = $this->get(route('equipos.index'));
 
     $response->assertSuccessful();

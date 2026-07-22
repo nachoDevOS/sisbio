@@ -9,32 +9,31 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-// Login propio (guard 'web' estándar), convive con el de Filament
-// (admin/login) hasta que el panel se retire por completo.
+// Login propio del sitio (guard 'web' estándar).
 Route::middleware('guest')->group(function (): void {
     Route::get('login', [LoginController::class, 'create'])->name('login');
     Route::post('login', [LoginController::class, 'store']);
 });
 
-// CRUD clásico (MVC) protegido con la misma sesión del panel Filament.
-// Conviven con los recursos de /admin: mismo modelo, otra interfaz.
+// CRUD clásico (MVC) protegido con la sesión del sitio.
 Route::middleware('auth')->group(function (): void {
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
 
-    // Escritorio: mismo resumen que el Dashboard de Filament (equipos,
-    // asistencia SIA, gráfico de marcaciones).
+    // Escritorio: resumen general (equipos, asistencia SIA, gráfico de
+    // marcaciones).
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     // CRUD completo (base local).
     Route::resource('equipos', EquipoController::class);
-    // Habla en vivo con el microservicio Python: mismo criterio que las
-    // acciones "Probar conexión"/"Ver marcaciones" del recurso Filament.
+    // Habla en vivo con el microservicio Python (probar conexión, exportar y
+    // sincronizar marcaciones del equipo).
     Route::post('equipos/{equipo}/probar-conexion', [EquipoController::class, 'probarConexion'])->name('equipos.probar-conexion');
     Route::get('equipos/{equipo}/marcaciones/exportar', [EquipoController::class, 'exportarMarcaciones'])->name('equipos.marcaciones.exportar');
+    Route::post('equipos/{equipo}/marcaciones/sincronizar', [EquipoController::class, 'sincronizarMarcaciones'])->name('equipos.marcaciones.sincronizar');
     Route::resource('usuarios', UserController::class)
         ->parameters(['usuarios' => 'usuario'])
         ->except('show');
-    // Roles y su matriz de permisos, reemplazo de la pantalla de Shield.
+    // Roles y su matriz de permisos.
     Route::resource('roles', RoleController::class)->except('show');
 
     // Funcionarios del SIA (SQL Server remoto): listado, ficha (con sus

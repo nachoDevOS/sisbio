@@ -30,13 +30,11 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // El modelo Role de Spatie vive fuera de app/Models: la convención
-        // de autodescubrimiento de policies de Laravel no lo encuentra sola.
-        // Hasta ahora este registro lo hacía Filament Shield; se declara acá
-        // para no depender del panel.
+        // de autodescubrimiento de policies de Laravel no lo encuentra sola,
+        // por eso se registra su policy a mano.
         Gate::policy(Role::class, RolePolicy::class);
 
-        // super_admin puede todo, sin permisos individuales asignados. Antes
-        // lo resolvía Shield (config('filament-shield.super_admin')).
+        // super_admin puede todo, sin permisos individuales asignados.
         Gate::before(fn ($user): ?bool => $user->hasRole('super_admin') ? true : null);
 
         // La vista de paginación por defecto de Laravel usa clases Tailwind

@@ -34,7 +34,7 @@ pest()->extend(TestCase::class)
 */
 
 /**
- * Crea un usuario con el rol super_admin de Shield (acceso total al panel).
+ * Crea un usuario con el rol super_admin (acceso total al sistema).
  */
 function asSuperAdmin(): User
 {

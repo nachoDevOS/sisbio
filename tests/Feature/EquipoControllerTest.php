@@ -3,6 +3,7 @@
 use App\Models\Equipo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -255,4 +256,79 @@ test('la descarga CSV redirige con error si el equipo no responde', function () 
     $this->get(route('equipos.marcaciones.exportar', $equipo))
         ->assertRedirect()
         ->assertSessionHas('error', 'No se pudo conectar con el equipo');
+});
+
+test('sincroniza las marcaciones del equipo directo a la BD del SIA', function () {
+    fakeSiaDatabase();
+    DB::connection('sia')->table('Personas')->insert([
+        'IdPersona' => '7633685', 'Paterno' => 'Molina', 'Materno' => null, 'Nombres' => 'Ignacio', 'PinReloj' => '7633685', 'MarcaDirecta' => false,
+    ]);
+
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response([
+            'marcaciones' => [
+                ['uid' => 1, 'user_id' => '7633685', 'nombre' => 'NN', 'timestamp' => '2026-07-10T08:00:00'],
+            ],
+        ], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->post(route('equipos.marcaciones.sincronizar', $equipo), ['desde' => '2026-07-01', 'hasta' => '2026-07-15'])
+        ->assertRedirect()
+        ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '1 marcación(es) nueva(s)'));
+
+    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '7633685')->count())->toBe(1);
+});
+
+test('la sincronización a la BD respeta el rango de fechas', function () {
+    fakeSiaDatabase();
+    DB::connection('sia')->table('Personas')->insert([
+        'IdPersona' => '5', 'Paterno' => 'Test', 'Materno' => null, 'Nombres' => 'Uno', 'PinReloj' => '5', 'MarcaDirecta' => false,
+    ]);
+
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response([
+            'marcaciones' => [
+                ['uid' => 1, 'user_id' => '5', 'nombre' => 'NN', 'timestamp' => '2026-07-10T08:00:00'],
+                ['uid' => 2, 'user_id' => '5', 'nombre' => 'NN', 'timestamp' => '2026-07-20T08:00:00'],
+            ],
+        ], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->post(route('equipos.marcaciones.sincronizar', $equipo), ['desde' => '2026-07-01', 'hasta' => '2026-07-15'])
+        ->assertRedirect();
+
+    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '5')->count())->toBe(1);
+});
+
+test('la sincronización redirige con error si el equipo no responde', function () {
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response(['detail' => 'No se pudo conectar con el equipo'], 503),
+    ]);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->post(route('equipos.marcaciones.sincronizar', $equipo))
+        ->assertRedirect()
+        ->assertSessionHas('error', 'No se pudo conectar con el equipo');
+});
+
+test('un usuario sin permiso no puede sincronizar a la BD', function () {
+    $this->actingAs(User::factory()->create());
+
+    $equipo = Equipo::factory()->create();
+
+    $this->post(route('equipos.marcaciones.sincronizar', $equipo))->assertForbidden();
+});
+
+test('el modal del listado ofrece descargar y enviar a la BD por rango', function () {
+    $equipo = Equipo::factory()->create();
+
+    $this->get(route('equipos.index'))
+        ->assertOk()
+        ->assertSee(route('equipos.marcaciones.sincronizar', $equipo), escape: false)
+        ->assertSee('Enviar a la BD');
 });

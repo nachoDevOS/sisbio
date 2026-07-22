@@ -6,7 +6,9 @@ use App\Exceptions\DeviceServiceException;
 use App\Http\Requests\StoreEquipoRequest;
 use App\Http\Requests\UpdateEquipoRequest;
 use App\Models\Equipo;
+use App\Models\Sia\Asistencia;
 use App\Services\DeviceService;
+use App\Services\RegistroAsistenciaSia;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -106,8 +108,7 @@ class EquipoController extends Controller
 
     /**
      * Se conecta al equipo real vía el microservicio y actualiza su estado
-     * (en línea, algoritmo detectado, última conexión). Mismo criterio que
-     * la acción "Probar conexión" del recurso Filament.
+     * (en línea, algoritmo detectado, última conexión).
      */
     public function probarConexion(Equipo $equipo, DeviceService $deviceService): RedirectResponse
     {
@@ -168,6 +169,34 @@ class EquipoController extends Controller
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$archivo}\"",
         ]);
+    }
+
+    /**
+     * Lee las marcaciones del equipo (opcionalmente acotadas por rango) y las
+     * registra directo en Asistencia del SIA, sin pasar por descargar/reimportar
+     * el CSV. Aplica las mismas reglas que el import (cruce por funcionario, sin
+     * duplicar, descartando fecha basura del reloj).
+     */
+    public function sincronizarMarcaciones(Request $request, Equipo $equipo, DeviceService $deviceService, RegistroAsistenciaSia $registro): RedirectResponse
+    {
+        $this->authorize('create', Asistencia::class);
+
+        [$todas, $error] = $this->marcacionesDelEquipo($equipo, $deviceService);
+
+        if ($error) {
+            return back()->with('error', $error);
+        }
+
+        $todas = $this->filtrarPorRango($todas, $request->input('desde', ''), $request->input('hasta', ''));
+
+        $filas = array_map(fn (array $marcacion): array => [
+            'ci' => $marcacion['user_id'] ?? null,
+            'momento' => filled($marcacion['timestamp'] ?? null) ? Carbon::parse($marcacion['timestamp']) : null,
+        ], $todas);
+
+        $conteo = $registro->registrar($filas);
+
+        return back()->with('estado', $registro->mensaje($conteo, "Sincronización de «{$equipo->nombre}»"));
     }
 
     /**

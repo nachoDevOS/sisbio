@@ -10,10 +10,10 @@ use Illuminate\View\View;
 use Throwable;
 
 /**
- * Escritorio: tablero de inicio con el mismo resumen que el Dashboard de
- * Filament (equipos, equipos fuera de línea, asistencia SIA y su gráfico).
- * Las consultas al SIA (SQL Server 2008 remoto) se cachean 5 minutos, igual
- * que los widgets originales, para no castigar esa base con cada visita.
+ * Escritorio: tablero de inicio con el resumen general (equipos, equipos
+ * fuera de línea, asistencia SIA y su gráfico). Las consultas al SIA
+ * (SQL Server 2008 remoto) se cachean 5 minutos para no castigar esa base
+ * con cada visita.
  */
 class DashboardController extends Controller
 {

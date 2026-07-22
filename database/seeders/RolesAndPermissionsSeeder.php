@@ -9,9 +9,8 @@ use Spatie\Permission\Models\Role;
 
 /**
  * Reproduce en cualquier entorno (dev, staging, CI) los permisos y el rol
- * super_admin que hoy solo existen porque alguien corrió `shield:generate`
- * y `shield:super-admin` a mano contra la base de desarrollo. Sin este
- * seeder, un `migrate:fresh --seed` no deja el panel usable.
+ * super_admin. Sin este seeder, un `migrate:fresh --seed` deja el sistema sin
+ * accesos configurados.
  *
  * La lista de permisos vive en RolePolicy::nombresDePermiso() (misma fuente
  * que usa RoleController para la matriz de checkboxes).

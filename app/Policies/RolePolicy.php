@@ -13,9 +13,9 @@ class RolePolicy
     use HandlesAuthorization;
 
     /**
-     * Fuente única de la convención de nombres de permiso ("Habilidad:Modelo"),
-     * heredada de Filament Shield (separador ':', case pascal). La usan el
-     * seeder de roles/permisos y RoleController (matriz de checkboxes).
+     * Fuente única de la convención de nombres de permiso ("Habilidad:Modelo",
+     * separador ':', case pascal). La usan el seeder de roles/permisos y
+     * RoleController (matriz de checkboxes).
      *
      * @var array<string, string> modelo => etiqueta legible
      */

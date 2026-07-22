@@ -9,9 +9,8 @@ use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
 
 /**
- * CRUD clásico (MVC) de roles y su matriz de permisos, reemplazo de la
- * pantalla de Roles que traía Filament Shield. Mismo modelo Spatie
- * (roles/permissions), autorización vía RolePolicy.
+ * CRUD clásico (MVC) de roles y su matriz de permisos. Usa el modelo Spatie
+ * (roles/permissions) y la autorización vía RolePolicy.
  */
 class RoleController extends Controller
 {

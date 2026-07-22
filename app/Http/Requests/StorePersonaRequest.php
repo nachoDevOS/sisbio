@@ -9,9 +9,8 @@ use Illuminate\Validation\Rule;
  * Reglas de validación para dar de alta un funcionario en la tabla Personas
  * del SIA (SQL Server 2008 R2 remoto).
  *
- * Espejan las del formulario de Filament (PersonaForm) y los tamaños/NOT NULL
- * de la tabla legada, para que ambas puertas de entrada guarden datos
- * consistentes con el sistema de escritorio del SIA.
+ * Respetan los tamaños y campos NOT NULL de la tabla legada, para guardar
+ * datos consistentes con el sistema de escritorio del SIA.
  */
 class StorePersonaRequest extends FormRequest
 {
