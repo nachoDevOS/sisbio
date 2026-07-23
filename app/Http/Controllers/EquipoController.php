@@ -141,13 +141,16 @@ class EquipoController extends Controller
     {
         $this->authorize('view', $equipo);
 
-        [$todas, $error] = $this->marcacionesDelEquipo($equipo, $deviceService);
+        $desde = (string) $request->query('desde', '');
+        $hasta = (string) $request->query('hasta', '');
+
+        [$todas, $error] = $this->marcacionesDelEquipo($equipo, $deviceService, $desde, $hasta, fresco: true);
 
         if ($error) {
             return back()->with('error', $error);
         }
 
-        $todas = $this->filtrarPorRango($todas, $request->query('desde', ''), $request->query('hasta', ''));
+        $todas = $this->filtrarPorRango($todas, $desde, $hasta);
 
         $csv = "\u{FEFF}CI/ID,Nombre,Fecha,Hora\n";
 
@@ -181,13 +184,16 @@ class EquipoController extends Controller
     {
         $this->authorize('create', Asistencia::class);
 
-        [$todas, $error] = $this->marcacionesDelEquipo($equipo, $deviceService);
+        $desde = (string) $request->input('desde', '');
+        $hasta = (string) $request->input('hasta', '');
+
+        [$todas, $error] = $this->marcacionesDelEquipo($equipo, $deviceService, $desde, $hasta, fresco: true);
 
         if ($error) {
             return back()->with('error', $error);
         }
 
-        $todas = $this->filtrarPorRango($todas, $request->input('desde', ''), $request->input('hasta', ''));
+        $todas = $this->filtrarPorRango($todas, $desde, $hasta);
 
         $filas = array_map(fn (array $marcacion): array => [
             'ci' => $marcacion['user_id'] ?? null,
@@ -200,21 +206,30 @@ class EquipoController extends Controller
     }
 
     /**
-     * Trae (y cachea 15 minutos) el historial completo de marcaciones del
-     * equipo. La lectura del reloj por el protocolo ZK trae todo el buffer de
-     * una (miles de registros, es lenta por naturaleza); con la caché solo la
-     * primera carga la paga, y después filtrar por rango, paginar o descargar
-     * el CSV usan el mismo dato ya en memoria sin volver a pegarle al equipo.
+     * Trae las marcaciones del equipo para el rango pedido, leyéndolas en vivo
+     * del reloj vía el microservicio. El rango se pasa al microservicio, que lo
+     * aplica antes de responder: así, en equipos con historial largo, Laravel
+     * recibe y parsea mucho menos.
+     *
+     * Con `$fresco` se ignora la caché y se relee siempre (para exportar/enviar,
+     * que deben traer lo del momento). La caché de 15 min por rango solo evita
+     * repetir la MISMA lectura dentro de la ventana cuando no se fuerza fresco.
      *
      * @return array{0: array<int, array<string, mixed>>, 1: ?string}
      */
-    private function marcacionesDelEquipo(Equipo $equipo, DeviceService $deviceService): array
+    private function marcacionesDelEquipo(Equipo $equipo, DeviceService $deviceService, string $desde = '', string $hasta = '', bool $fresco = false): array
     {
+        $clave = "equipos.{$equipo->id}.marcaciones.{$desde}.{$hasta}";
+
+        if ($fresco) {
+            Cache::forget($clave);
+        }
+
         try {
             $todas = Cache::remember(
-                "equipos.{$equipo->id}.marcaciones",
+                $clave,
                 now()->addMinutes(15),
-                fn (): array => $deviceService->attendance($equipo)['marcaciones'] ?? [],
+                fn (): array => $deviceService->attendance($equipo, $desde ?: null, $hasta ?: null)['marcaciones'] ?? [],
             );
 
             return [$todas, null];

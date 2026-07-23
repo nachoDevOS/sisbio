@@ -207,6 +207,41 @@ public function marcaciones(Equipo $equipo, DeviceService $deviceService): View
 }
 ```
 
+### 5.1 Exportar / Enviar a la BD: lectura en vivo y rendimiento
+
+Desde el listado, el modal de cada equipo permite **Descargar CSV** o **Enviar a la
+BD** las marcaciones de un rango de fechas. Ambas leen **en vivo** del reloj
+(`marcacionesDelEquipo(..., fresco: true)` ignora la caché), así una marcación
+recién hecha aparece al instante.
+
+**Piso de lentitud (limitación del protocolo ZK):** el reloj no deja pedir "solo
+tal rango". `get_attendance()` **siempre vuelca todo** el buffer por TCP; ese
+volcado es el costo fijo de cada lectura y no se puede recortar desde Laravel.
+
+Optimizaciones aplicadas para que la exportación sea lo más rápida posible sin
+dejar de ser en vivo:
+
+1. **Caché del mapa de nombres en el microservicio.** Antes, cada lectura de
+   marcaciones hacía *dos* lecturas TCP del reloj: `get_users()` (para el nombre)
+   + `get_attendance()`. Como los usuarios cambian poco, el mapa `user_id → nombre`
+   se cachea en memoria del microservicio (`mapa_nombres`, TTL `DEVICE_SERVICE_USERS_TTL`,
+   300 s por defecto; `0` lo desactiva). Las marcaciones se siguen leyendo 100% en
+   vivo; se ahorra la segunda lectura. Consultar `GET /device/users` refresca ese
+   caché (invalidación manual si se cambian nombres en el reloj).
+
+2. **Filtro por rango en origen.** `GET /device/attendance` acepta `desde`/`hasta`
+   (`YYYY-MM-DD`) y descarta en el microservicio lo que cae fuera del rango, antes
+   de responder. En equipos con historial largo, Laravel recibe y parsea mucho
+   menos (el volcado del reloj sigue siendo completo, pero baja el payload HTTP, el
+   `Carbon::parse` por fila y el armado del CSV). Laravel reenvía el rango del modal
+   vía `DeviceService::attendance($equipo, $desde, $hasta)` y, por las dudas, vuelve
+   a filtrar con `filtrarPorRango()` (así sigue andando aunque el microservicio sea
+   una versión vieja que ignore los parámetros).
+
+> Pendiente si se necesitara aún más velocidad en equipos enormes: lectura
+> incremental (guardar el último `uid` sincronizado y traer solo lo nuevo). Hoy no
+> es posible con `pyzk` sin leer el buffer completo.
+
 ---
 
 ## 6. Sincronización de huellas (PENDIENTE — trabajo futuro)
@@ -263,4 +298,4 @@ Actualizar ultima_sync de cada equipo replicado
 | `app/Exceptions/DeviceServiceException.php` | Error con mensaje en español para el usuario. |
 | `app/Http/Controllers/EquipoController.php` | Acciones "Probar conexión" y "Ver marcaciones". |
 | `resources/views/equipos/_marcaciones_lista.blade.php` | Parcial que muestra las marcaciones leídas del equipo. |
-| *(pendiente)* microservicio Python | Habla el protocolo ZKTeco por TCP con los relojes. |
+| `device-service/main.py` | Microservicio Python/FastAPI: habla el protocolo ZKTeco por TCP con los relojes (info, users, attendance con rango + caché de nombres). |

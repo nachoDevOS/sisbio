@@ -62,23 +62,31 @@ class DeviceService
      * Trae las marcaciones (registros de asistencia) guardadas en el equipo,
      * de la más reciente a la más antigua.
      *
+     * Si se pasan `$desde`/`$hasta` (YYYY-MM-DD), el microservicio filtra por
+     * rango antes de responder: en equipos con historial largo, Laravel recibe
+     * y parsea mucho menos. Las marcaciones se leen en vivo en cada llamada.
+     *
      * @return array<string, mixed>
      *
      * @throws DeviceServiceException
      */
-    public function attendance(Equipo $equipo): array
+    public function attendance(Equipo $equipo, ?string $desde = null, ?string $hasta = null): array
     {
-        return $this->get('/device/attendance', $equipo);
+        return $this->get('/device/attendance', $equipo, array_filter([
+            'desde' => $desde,
+            'hasta' => $hasta,
+        ], fn (?string $valor): bool => filled($valor)));
     }
 
     /**
      * Ejecuta un GET autenticado contra el microservicio para un equipo dado.
      *
+     * @param  array<string, mixed>  $extra  Parámetros de query adicionales.
      * @return array<string, mixed>
      *
      * @throws DeviceServiceException
      */
-    private function get(string $path, Equipo $equipo): array
+    private function get(string $path, Equipo $equipo, array $extra = []): array
     {
         try {
             $response = Http::withHeaders(['X-Auth-Token' => $this->token])
@@ -88,6 +96,7 @@ class DeviceService
                     'ip' => $equipo->ip,
                     'port' => $equipo->puerto,
                     'password' => $equipo->comm_key,
+                    ...$extra,
                 ]);
         } catch (ConnectionException $e) {
             // No se pudo ni contactar al microservicio (apagado o URL mal configurada).

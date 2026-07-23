@@ -28,11 +28,7 @@ class PersonaController extends Controller
         $busqueda = trim((string) $request->query('q', ''));
 
         $funcionarios = Persona::query()
-            ->when($busqueda !== '', fn (Builder $query) => $query->where(fn (Builder $sub) => $sub
-                ->where('IdPersona', 'like', "%{$busqueda}%")
-                ->orWhere('Nombres', 'like', "%{$busqueda}%")
-                ->orWhere('Paterno', 'like', "%{$busqueda}%")
-                ->orWhere('Materno', 'like', "%{$busqueda}%")))
+            ->when($busqueda !== '', fn (Builder $query) => $query->buscar($busqueda))
             ->orderBy('Paterno')
             ->paginate(25)
             ->withQueryString();
@@ -91,6 +87,30 @@ class PersonaController extends Controller
             ->withQueryString();
 
         return view('funcionarios.show', compact('persona', 'marcaciones', 'desde', 'hasta', 'tipo'));
+    }
+
+    /**
+     * Reporte imprimible de las marcaciones «sin procesar» del funcionario:
+     * todas las marcaciones crudas del rango (sin paginar, en orden
+     * cronológico), con el formato del sistema de escritorio viejo.
+     */
+    public function reporteMarcaciones(Request $request, Persona $persona): View
+    {
+        $this->authorize('view', $persona);
+
+        $desde = $request->query('desde', now()->startOfMonth()->toDateString());
+        $hasta = $request->query('hasta', now()->toDateString());
+        $tipo = $request->query('tipo', '');
+
+        $marcaciones = $persona->marcaciones()
+            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('Fecha', '>=', $d))
+            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('Fecha', '<=', $h))
+            ->when($tipo !== '', fn (Builder $query) => $query->where('Tipo', $tipo))
+            ->orderBy('Fecha')
+            ->orderBy('Hora')
+            ->get();
+
+        return view('reportes.marcaciones.sinProcesar.print', compact('persona', 'marcaciones', 'desde', 'hasta', 'tipo'));
     }
 
     /**

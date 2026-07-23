@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DiaTurnoController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\MarcacionController;
 use App\Http\Controllers\PersonaController;
+use App\Http\Controllers\ReporteMarcacionController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -43,8 +45,22 @@ Route::middleware('auth')->group(function (): void {
         ->parameters(['funcionarios' => 'persona'])
         ->except(['destroy']);
 
+    // Horarios (turnos) del SIA: «Administrador de horarios» del escritorio.
+    Route::resource('horarios', DiaTurnoController::class)
+        ->parameters(['horarios' => 'horario']);
+    // Reporte imprimible de marcaciones «sin procesar» (todo lo marcado por el
+    // funcionario en un rango), con el formato del sistema de escritorio viejo.
+    Route::get('funcionarios/{persona}/reporte-marcaciones', [PersonaController::class, 'reporteMarcaciones'])->name('funcionarios.reporte');
+
     // El listado es de solo lectura; la única escritura es importar el CSV
     // que ya exporta "Equipos > Marcaciones > Exportar".
     Route::get('marcaciones', [MarcacionController::class, 'index'])->name('marcaciones.index');
     Route::post('marcaciones/importar', [MarcacionController::class, 'importar'])->name('marcaciones.importar');
+
+    // Reportes: selección de funcionario + generación (pantalla, imprimible o
+    // CSV). «Sin procesar» = todas las marcaciones crudas del rango.
+    Route::get('reportes/marcaciones/sin-procesar', [ReporteMarcacionController::class, 'sinProcesar'])->name('reportes.marcaciones.sin-procesar');
+    Route::get('reportes/marcaciones/sin-procesar/generar', [ReporteMarcacionController::class, 'sinProcesarList'])->name('reportes.marcaciones.sin-procesar.generar');
+    // Búsqueda JSON de funcionarios para el combo (select2) del reporte.
+    Route::get('reportes/marcaciones/funcionarios', [ReporteMarcacionController::class, 'buscarFuncionarios'])->name('reportes.marcaciones.funcionarios');
 });

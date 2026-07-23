@@ -25,6 +25,7 @@ class RolePolicy
         'Role' => 'Roles',
         'Persona' => 'Funcionarios',
         'Asistencia' => 'Marcaciones',
+        'DiaTurno' => 'Horarios',
     ];
 
     /**

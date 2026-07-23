@@ -74,6 +74,24 @@ test('busca marcaciones por apellido del funcionario', function () {
         ->assertDontSee('Quiroga');
 });
 
+test('busca marcaciones por nombre y apellido combinados', function () {
+    DB::connection('sia')->table('Personas')->insert([
+        ['IdPersona' => '1', 'Paterno' => 'Molina', 'Materno' => 'Guzman', 'Nombres' => 'Ignacio', 'PinReloj' => null, 'MarcaDirecta' => false],
+        ['IdPersona' => '2', 'Paterno' => 'Perez', 'Materno' => 'Rojas', 'Nombres' => 'Ignacio', 'PinReloj' => null, 'MarcaDirecta' => false],
+    ]);
+    DB::connection('sia')->table('Asistencia')->insert([
+        ['IdPersona' => '1', 'Fecha' => now()->toDateString(), 'Hora' => now()->toDateTimeString(), 'Tipo' => 'R'],
+        ['IdPersona' => '2', 'Fecha' => now()->toDateString(), 'Hora' => now()->toDateTimeString(), 'Tipo' => 'R'],
+    ]);
+
+    // "ignacio m" cruza Nombres + Paterno: encuentra a Ignacio Molina y deja
+    // fuera a Ignacio Perez.
+    $this->get(route('marcaciones.index', ['buscar' => 'ignacio m']))
+        ->assertOk()
+        ->assertSee('Molina')
+        ->assertDontSee('Perez');
+});
+
 test('busca marcaciones por CI del funcionario', function () {
     DB::connection('sia')->table('Personas')->insert([
         ['IdPersona' => '111', 'Paterno' => 'Rocabado', 'Materno' => null, 'Nombres' => 'Ana', 'PinReloj' => null, 'MarcaDirecta' => false],

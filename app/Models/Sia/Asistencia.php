@@ -3,6 +3,7 @@
 namespace App\Models\Sia;
 
 use Database\Factories\Sia\AsistenciaFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -71,5 +72,23 @@ class Asistencia extends Model
     public function persona(): BelongsTo
     {
         return $this->belongsTo(Persona::class, 'IdPersona', 'IdPersona');
+    }
+
+    /**
+     * Filtra por CI o por nombre del funcionario. Cada palabra del texto debe
+     * aparecer en el CI de la marcación o en algún nombre del funcionario, así
+     * "ignacio molina" cruza Nombres + Paterno aunque estén en columnas
+     * distintas (antes una búsqueda de dos palabras no devolvía nada).
+     */
+    public function scopeBuscar(Builder $query, string $texto): Builder
+    {
+        foreach (Persona::terminos($texto) as $termino) {
+            $query->where(fn (Builder $sub) => $sub
+                ->where('IdPersona', 'like', "%{$termino}%")
+                ->orWhereHas('persona', fn (Builder $persona) => $persona
+                    ->where(fn (Builder $nombre) => $nombre->coincideNombre($termino))));
+        }
+
+        return $query;
     }
 }

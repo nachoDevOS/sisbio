@@ -42,6 +42,20 @@ test('la búsqueda filtra por nombre', function () {
         ->assertDontSee('Beta');
 });
 
+test('la búsqueda por varias palabras cruza nombre y apellido', function () {
+    DB::connection('sia')->table('Personas')->insert([
+        ['IdPersona' => '10', 'Paterno' => 'Molina', 'Materno' => 'Guzman', 'Nombres' => 'Ignacio', 'PinReloj' => null, 'MarcaDirecta' => false],
+        ['IdPersona' => '20', 'Paterno' => 'Perez', 'Materno' => 'Rojas', 'Nombres' => 'Ignacio', 'PinReloj' => null, 'MarcaDirecta' => false],
+    ]);
+
+    // "ignacio m" debe encontrar a Ignacio Molina (Nombres + Paterno en
+    // columnas distintas) y dejar fuera a Ignacio Perez.
+    $this->get(route('funcionarios.index', ['q' => 'ignacio m']))
+        ->assertOk()
+        ->assertSee('Molina')
+        ->assertDontSee('Perez');
+});
+
 test('un invitado no puede ver funcionarios', function () {
     auth()->logout();
 
@@ -216,4 +230,42 @@ test('la ficha filtra las marcaciones por rango de fechas y tipo', function () {
         ->assertOk()
         ->assertSee('07:00:00')
         ->assertDontSee('08:00:00');
+});
+
+test('el reporte imprimible lista las marcaciones crudas del rango', function () {
+    $persona = Persona::factory()->create([
+        'IdPersona' => '7633685',
+        'Paterno' => 'Molina',
+        'Materno' => 'Guzman',
+        'Nombres' => 'Ignacio',
+        'PinReloj' => '7633685',
+    ]);
+
+    Asistencia::factory()->create([
+        'IdPersona' => $persona->IdPersona,
+        'Fecha' => today(),
+        'Hora' => '1899-12-30 08:15:00',
+        'Tipo' => Asistencia::TIPO_RELOJ,
+    ]);
+    Asistencia::factory()->create([
+        'IdPersona' => $persona->IdPersona,
+        'Fecha' => today()->subYear(),
+        'Hora' => '1899-12-30 07:00:00',
+        'Tipo' => Asistencia::TIPO_RELOJ,
+    ]);
+
+    $this->get(route('funcionarios.reporte', [
+        'persona' => $persona,
+        'desde' => today()->startOfMonth()->toDateString(),
+        'hasta' => today()->toDateString(),
+    ]))
+        ->assertOk()
+        ->assertSee('REPORTE DE MARCACIONES')
+        ->assertSee('GOBIERNO AUTONOMO DEPARTAMENTAL DEL BENI')
+        ->assertSee('Molina Guzman Ignacio')
+        ->assertSeeText('PIN Reloj: 7633685')
+        ->assertSee('08:15:00')
+        ->assertDontSee('07:00:00')
+        ->assertSee('Total registros:')
+        ->assertSee('descarga directa desde reloj');
 });

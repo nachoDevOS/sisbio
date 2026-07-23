@@ -94,4 +94,20 @@ function fakeSiaDatabase(): void
         $tabla->dateTime('Hora');
         $tabla->string('Tipo', 1);
     });
+
+    Schema::connection('sia')->create('DiaTurnos', function (Blueprint $tabla): void {
+        $tabla->string('IdTurno', 3)->primary();
+        $tabla->string('Dia', 1);
+        $tabla->string('NombreTurno', 25);
+        $tabla->dateTime('HEntrada');
+        $tabla->dateTime('HSalida');
+        $tabla->dateTime('HTolerancia');
+        $tabla->dateTime('EMinima');
+        $tabla->dateTime('EMaxima');
+        $tabla->dateTime('SMinima');
+        $tabla->dateTime('SMaxima');
+        $tabla->dateTime('STolerancia');
+        $tabla->decimal('HTrabajadas', 19, 4);
+        $tabla->boolean('SiguienteDia');
+    });
 }

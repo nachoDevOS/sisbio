@@ -131,6 +131,10 @@
                 </select>
             </div>
             <button type="submit" class="btn"><x-heroicon-o-funnel />Filtrar</button>
+            <a class="btn btn--gris" target="_blank" rel="noopener"
+               href="{{ route('funcionarios.reporte', ['persona' => $persona, 'desde' => $desde, 'hasta' => $hasta, 'tipo' => $tipo]) }}">
+                <x-heroicon-o-printer />Imprimir reporte
+            </a>
         </form>
 
         <table>

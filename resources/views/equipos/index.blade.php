@@ -51,7 +51,42 @@
                                 </form>
                                 <a href="{{ route('equipos.edit', $equipo) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
                                 <div class="dropdown"
-                                     x-data="{ open: false, modal: false, desde: '{{ now()->startOfMonth()->toDateString() }}', hasta: '{{ now()->toDateString() }}' }"
+                                     x-data="{
+                                         open: false,
+                                         modal: false,
+                                         enviando: false,
+                                         exportando: false,
+                                         errorCsv: '',
+                                         desde: '{{ now()->startOfMonth()->toDateString() }}',
+                                         hasta: '{{ now()->toDateString() }}',
+                                         async descargarCsv() {
+                                             if (this.exportando) { return; }
+                                             this.exportando = true;
+                                             this.errorCsv = '';
+                                             try {
+                                                 const url = `{{ route('equipos.marcaciones.exportar', $equipo) }}?desde=${this.desde}&hasta=${this.hasta}`;
+                                                 const resp = await fetch(url, { headers: { 'Accept': 'text/csv' } });
+                                                 const tipo = resp.headers.get('Content-Type') || '';
+                                                 if (! resp.ok || ! tipo.includes('csv')) {
+                                                     this.errorCsv = 'No se pudo leer el equipo. Revisá que esté en línea e intentá de nuevo.';
+                                                     return;
+                                                 }
+                                                 const blob = await resp.blob();
+                                                 const enlace = document.createElement('a');
+                                                 enlace.href = URL.createObjectURL(blob);
+                                                 enlace.download = `marcaciones-{{ str($equipo->nombre)->slug() }}-${this.hasta || new Date().toISOString().slice(0, 10)}.csv`;
+                                                 document.body.appendChild(enlace);
+                                                 enlace.click();
+                                                 enlace.remove();
+                                                 URL.revokeObjectURL(enlace.href);
+                                                 this.modal = false;
+                                             } catch (e) {
+                                                 this.errorCsv = 'No se pudo descargar. Revisá la conexión y probá otra vez.';
+                                             } finally {
+                                                 this.exportando = false;
+                                             }
+                                         },
+                                     }"
                                      x-on:click.outside="open = false">
                                     <button type="button" class="dropdown-toggle" x-on:click="open = !open" aria-haspopup="true" :aria-expanded="open">
                                         Mas <x-heroicon-o-chevron-down />
@@ -84,18 +119,24 @@
                                                 </div>
                                             </div>
                                             <div class="modal-acciones">
-                                                <button type="button" class="btn btn--gris" x-on:click="modal = false">Cancelar</button>
-                                                <a class="btn btn--gris"
-                                                   :href="`{{ route('equipos.marcaciones.exportar', $equipo) }}?desde=${desde}&hasta=${hasta}`"
-                                                   x-on:click="modal = false"><x-heroicon-o-arrow-down-tray />Descargar CSV</a>
+                                                <button type="button" class="btn btn--gris" x-on:click="modal = false" :disabled="exportando || enviando">Cancelar</button>
+                                                <button type="button" class="btn btn--gris" x-on:click="descargarCsv()" :disabled="exportando">
+                                                    <span class="btn__contenido" x-show="! exportando"><x-heroicon-o-arrow-down-tray />Descargar CSV</span>
+                                                    <span class="btn__contenido" x-show="exportando" x-cloak><span class="spinner-anillo"></span>Exportando…</span>
+                                                </button>
                                                 <form method="POST" action="{{ route('equipos.marcaciones.sincronizar', $equipo) }}"
-                                                      onsubmit="return confirm('¿Enviar las marcaciones del rango a la base del SIA?');">
+                                                      x-on:submit="if (! confirm('¿Enviar las marcaciones del rango a la base del SIA?')) { $event.preventDefault(); return; } enviando = true">
                                                     @csrf
                                                     <input type="hidden" name="desde" :value="desde">
                                                     <input type="hidden" name="hasta" :value="hasta">
-                                                    <button type="submit" class="btn"><x-heroicon-o-arrow-up-tray />Enviar a la BD</button>
+                                                    <button type="submit" class="btn" :disabled="enviando">
+                                                        <span class="btn__contenido" x-show="! enviando"><x-heroicon-o-arrow-up-tray />Enviar a la BD</span>
+                                                        <span class="btn__contenido" x-show="enviando" x-cloak><span class="spinner-anillo"></span>Enviando…</span>
+                                                    </button>
                                                 </form>
                                             </div>
+                                            <p x-show="errorCsv" x-cloak x-text="errorCsv"
+                                               style="margin: .75rem 0 0; color: #dc2626; font-size: .8125rem;"></p>
                                         </div>
                                     </div>
                                 </div>

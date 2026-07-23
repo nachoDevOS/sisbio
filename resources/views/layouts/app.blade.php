@@ -73,6 +73,11 @@
         .btn--peligro:hover { background: #dc2626; }
         .btn--sm { padding: .3rem .6rem; font-size: .75rem; }
         .btn--sm svg { width: 1rem; height: 1rem; }
+        .btn:disabled { opacity: .7; cursor: default; }
+        .btn__contenido { display: inline-flex; align-items: center; gap: .4rem; }
+        .spinner-anillo { width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,.4);
+            border-top-color: #fff; border-radius: 50%; animation: girar .6s linear infinite; flex-shrink: 0; }
+        @keyframes girar { to { transform: rotate(360deg); } }
 
         /* ===== Cajas ===== */
         .card { background: var(--card); border: 1px solid var(--border); border-radius: .625rem;
@@ -131,6 +136,20 @@
             margin-bottom: 1.1rem; font-size: .85rem; }
         .aviso--error { background: #fee2e2; color: #991b1b; }
 
+        /* ===== Toaster (avisos flotantes) ===== */
+        .toaster { position: fixed; top: 1rem; right: 1rem; z-index: 80; display: flex;
+            flex-direction: column; gap: .5rem; max-width: min(24rem, calc(100vw - 2rem)); }
+        .toast { display: flex; align-items: flex-start; gap: .6rem; padding: .7rem .85rem;
+            border-radius: .55rem; font-size: .85rem; line-height: 1.35; color: #fff;
+            box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+        .toast--ok { background: var(--verde); }
+        .toast--error { background: var(--danger); }
+        .toast__cuerpo { flex: 1; }
+        .toast__cerrar { background: none; border: 0; color: inherit; cursor: pointer;
+            font-size: 1.05rem; line-height: 1; opacity: .85; padding: 0; }
+        .toast__cerrar:hover { opacity: 1; }
+        .toast svg { width: 1.1rem; height: 1.1rem; flex-shrink: 0; margin-top: .05rem; }
+
         /* ===== Modal (rango de fechas para descargar, etc.) ===== */
         .modal-fondo { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 50;
             display: flex; align-items: center; justify-content: center; padding: 1rem; }
@@ -150,12 +169,13 @@
         .campo { margin-bottom: .9rem; }
         .campo label { display: block; font-weight: 600; font-size: .8rem; margin-bottom: .3rem; }
         .campo input[type=text], .campo input[type=number], .campo input[type=date],
-        .campo input[type=email], .campo input[type=password], .campo select,
+        .campo input[type=email], .campo input[type=password], .campo input[type=time], .campo select,
         .input { width: 100%; padding: .5rem .7rem;
             border: 1px solid var(--border); border-radius: .5rem; font-size: .85rem;
             background: #fff; color: var(--fg); font-family: inherit; }
         .campo input:focus, .campo select:focus, .input:focus { outline: none;
             border-color: var(--verde); box-shadow: 0 0 0 2px rgba(0, 166, 90, .35); }
+        .campo input[readonly] { background: var(--bg); color: var(--muted); cursor: default; }
         .campo .req { color: var(--danger); }
 
         /* Formulario tipo panel: cards por sección en grilla de dos columnas. */
@@ -237,6 +257,12 @@
             <a href="{{ route('marcaciones.index') }}" class="sidebar__link {{ request()->routeIs('marcaciones.*') ? 'activo' : '' }}">
                 <x-heroicon-o-finger-print />Marcaciones
             </a>
+            <a href="{{ route('horarios.index') }}" class="sidebar__link {{ request()->routeIs('horarios.*') ? 'activo' : '' }}">
+                <x-heroicon-o-clock />Horarios
+            </a>
+            <a href="{{ route('reportes.marcaciones.sin-procesar') }}" class="sidebar__link {{ request()->routeIs('reportes.*') ? 'activo' : '' }}">
+                <x-heroicon-o-document-chart-bar />Reportes
+            </a>
             <a href="{{ route('equipos.index') }}" class="sidebar__link {{ request()->routeIs('equipos.*') ? 'activo' : '' }}">
                 <x-heroicon-o-computer-desktop />Equipos
             </a>
@@ -265,15 +291,33 @@
         </header>
 
         <main class="contenedor">
-            @if (session('estado'))
-                <div class="aviso">{{ session('estado') }}</div>
-            @endif
-            @if (session('error'))
-                <div class="aviso aviso--error">{{ session('error') }}</div>
-            @endif
-
             @yield('contenido')
         </main>
     </div>
+
+    {{-- Toaster global: cualquier acción que redirija con flash 'estado'
+         (éxito) o 'error' aparece aquí. El éxito se oculta solo; el error
+         queda hasta que el usuario lo cierra. --}}
+    @if (session('estado') || session('error'))
+        <div class="toaster" aria-live="polite">
+            @if (session('estado'))
+                <div class="toast toast--ok" x-data="{ show: true }" x-show="show" x-cloak
+                     x-init="setTimeout(() => show = false, 5000)"
+                     x-transition.opacity.duration.200ms>
+                    <x-heroicon-o-check-circle />
+                    <div class="toast__cuerpo">{{ session('estado') }}</div>
+                    <button type="button" class="toast__cerrar" x-on:click="show = false" aria-label="Cerrar">&times;</button>
+                </div>
+            @endif
+            @if (session('error'))
+                <div class="toast toast--error" x-data="{ show: true }" x-show="show" x-cloak
+                     x-transition.opacity.duration.200ms>
+                    <x-heroicon-o-exclamation-triangle />
+                    <div class="toast__cuerpo">{{ session('error') }}</div>
+                    <button type="button" class="toast__cerrar" x-on:click="show = false" aria-label="Cerrar">&times;</button>
+                </div>
+            @endif
+        </div>
+    @endif
 </body>
 </html>

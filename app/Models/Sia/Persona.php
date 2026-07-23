@@ -3,6 +3,7 @@
 namespace App\Models\Sia;
 
 use Database\Factories\Sia\PersonaFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -75,6 +76,47 @@ class Persona extends Model
     public function marcaciones(): HasMany
     {
         return $this->hasMany(Asistencia::class, 'IdPersona', 'IdPersona');
+    }
+
+    /**
+     * Filtra por CI o nombre. Parte el texto en palabras y exige que cada una
+     * aparezca en el CI o en alguno de los nombres; así "ignacio molina" cruza
+     * Nombres + Paterno aunque estén en columnas distintas. (Antes se buscaba
+     * el texto entero contra una sola columna y una búsqueda de dos palabras
+     * nunca daba resultados.)
+     */
+    public function scopeBuscar(Builder $query, string $texto): Builder
+    {
+        foreach (self::terminos($texto) as $termino) {
+            $query->where(fn (Builder $sub) => $sub
+                ->where('IdPersona', 'like', "%{$termino}%")
+                ->orWhere('Nombres', 'like', "%{$termino}%")
+                ->orWhere('Paterno', 'like', "%{$termino}%")
+                ->orWhere('Materno', 'like', "%{$termino}%"));
+        }
+
+        return $query;
+    }
+
+    /**
+     * Un término (una palabra) contra las tres columnas de nombre. Pensado para
+     * usarse dentro de whereHas('persona') al buscar marcaciones por nombre.
+     */
+    public function scopeCoincideNombre(Builder $query, string $termino): Builder
+    {
+        return $query->where('Nombres', 'like', "%{$termino}%")
+            ->orWhere('Paterno', 'like', "%{$termino}%")
+            ->orWhere('Materno', 'like', "%{$termino}%");
+    }
+
+    /**
+     * Parte el texto de búsqueda en palabras no vacías.
+     *
+     * @return list<string>
+     */
+    public static function terminos(string $texto): array
+    {
+        return preg_split('/\s+/', trim($texto), -1, PREG_SPLIT_NO_EMPTY) ?: [];
     }
 
     public function profesion(): BelongsTo

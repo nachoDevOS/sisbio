@@ -186,7 +186,7 @@ test('probar conexión marca fuera de línea si el equipo no responde', function
     expect($equipo->refresh()->en_linea)->toBeFalse();
 });
 
-test('descarga dos veces sin pegarle de nuevo al equipo, gracias a la caché', function () {
+test('cada descarga lee el equipo en vivo, saltando la caché de 15 min', function () {
     Http::fake([
         'microservicio.test/device/attendance*' => Http::response([
             'marcaciones' => [
@@ -200,7 +200,7 @@ test('descarga dos veces sin pegarle de nuevo al equipo, gracias a la caché', f
     $this->get(route('equipos.marcaciones.exportar', $equipo))->assertOk();
     $this->get(route('equipos.marcaciones.exportar', ['equipo' => $equipo, 'desde' => '2026-07-05', 'hasta' => '2026-07-15']))->assertOk();
 
-    Http::assertSentCount(1);
+    Http::assertSentCount(2);
 });
 
 test('descarga las marcaciones del equipo en CSV', function () {
@@ -242,6 +242,20 @@ test('exporta el csv filtrado por rango de fechas', function () {
     expect($response->getContent())
         ->toContain('Dentro del rango')
         ->not->toContain('Fuera del rango');
+});
+
+test('la exportación le reenvía el rango al microservicio para que filtre en origen', function () {
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response(['marcaciones' => []], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->get(route('equipos.marcaciones.exportar', ['equipo' => $equipo, 'desde' => '2026-07-01', 'hasta' => '2026-07-23']))
+        ->assertOk();
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), 'desde=2026-07-01')
+        && str_contains($request->url(), 'hasta=2026-07-23'));
 });
 
 test('la descarga CSV redirige con error si el equipo no responde', function () {

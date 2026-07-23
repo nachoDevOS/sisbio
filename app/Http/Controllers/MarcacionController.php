@@ -38,14 +38,7 @@ class MarcacionController extends Controller
             ->with('persona')
             ->when($desde, fn (Builder $query, string $d) => $query->whereDate('Fecha', '>=', $d))
             ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('Fecha', '<=', $h))
-            ->when($buscar !== '', fn (Builder $query) => $query
-                ->where(fn (Builder $condiciones) => $condiciones
-                    ->where('IdPersona', 'like', "%{$buscar}%")
-                    ->orWhereHas('persona', fn (Builder $subCondiciones) => $subCondiciones
-                        ->where(fn (Builder $nombreCondiciones) => $nombreCondiciones
-                            ->where('Nombres', 'like', "%{$buscar}%")
-                            ->orWhere('Paterno', 'like', "%{$buscar}%")
-                            ->orWhere('Materno', 'like', "%{$buscar}%")))))
+            ->when($buscar !== '', fn (Builder $query) => $query->buscar($buscar))
             ->when($tipo !== '', fn (Builder $query) => $query->where('Tipo', $tipo))
             ->orderByDesc('Fecha')
             ->orderByDesc('Hora')

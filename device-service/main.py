@@ -11,6 +11,8 @@ El token se comparte con Laravel a través del .env de ambos lados.
 """
 
 import os
+import time
+from datetime import date
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
@@ -69,6 +71,44 @@ AUTH_TOKEN = os.environ.get("DEVICE_SERVICE_TOKEN", "")
 
 # Segundos de espera al conectar con un equipo antes de darlo por caído.
 CONNECT_TIMEOUT = int(os.environ.get("DEVICE_SERVICE_TIMEOUT", "5"))
+
+# Segundos que se cachea en memoria el mapa de nombres de cada equipo.
+# Leer los usuarios del reloj (get_users) es una lectura TCP completa; antes se
+# hacía en CADA consulta de marcaciones solo para ponerle el nombre a cada una.
+# Como los usuarios cambian poco, se cachea: las marcaciones se siguen leyendo
+# 100% en vivo, pero se ahorra la segunda lectura del equipo en cada llamada.
+# Poner 0 desactiva la caché (vuelve a leer usuarios siempre).
+USERS_TTL = int(os.environ.get("DEVICE_SERVICE_USERS_TTL", "300"))
+
+# Caché en proceso: "ip:port" -> (expira_en_monotonic, {user_id: nombre}).
+_cache_nombres: dict[str, tuple[float, dict]] = {}
+
+
+def mapa_nombres(conn, ip: str, port: int) -> dict:
+    """Devuelve {user_id: nombre} del equipo, cacheado USERS_TTL segundos.
+
+    Si hay entrada vigente en caché, no le pega al reloj; si no, lee los
+    usuarios una vez y la guarda. Con USERS_TTL=0 nunca reutiliza.
+    """
+    clave = f"{ip}:{port}"
+    ahora = time.monotonic()
+    entrada = _cache_nombres.get(clave)
+    if entrada and entrada[0] > ahora:
+        return entrada[1]
+
+    nombres = {u.user_id: u.name for u in conn.get_users()}
+    _cache_nombres[clave] = (ahora + USERS_TTL, nombres)
+    return nombres
+
+
+def parse_fecha(valor: str | None) -> date | None:
+    """Parsea 'YYYY-MM-DD' a date; None si viene vacío o mal formado."""
+    if not valor:
+        return None
+    try:
+        return date.fromisoformat(valor)
+    except ValueError:
+        return None
 
 
 def verificar_token(x_auth_token: str = Header(default="")) -> None:
@@ -194,6 +234,15 @@ def device_users(
         conn = conectar_con_reintento(ip, port, password)
         conn.disable_device()
 
+        gente = conn.get_users()
+
+        # Refresca la caché de nombres de paso, así consultar usuarios sirve
+        # también para invalidarla a mano si alguien cambió nombres en el reloj.
+        _cache_nombres[f"{ip}:{port}"] = (
+            time.monotonic() + USERS_TTL,
+            {u.user_id: u.name for u in gente},
+        )
+
         usuarios = [
             {
                 "uid": u.uid,
@@ -201,7 +250,7 @@ def device_users(
                 "nombre": u.name,
                 "privilegio": u.privilege,
             }
-            for u in conn.get_users()
+            for u in gente
         ]
 
         return {"en_linea": True, "total": len(usuarios), "usuarios": usuarios}
@@ -224,12 +273,19 @@ def device_attendance(
     ip: str = Query(..., description="IP del equipo en la LAN"),
     port: int = Query(4370, description="Puerto TCP ZKTeco"),
     password: int = Query(0, description="COMM key del equipo"),
+    desde: str | None = Query(None, description="Fecha mínima YYYY-MM-DD (inclusive)"),
+    hasta: str | None = Query(None, description="Fecha máxima YYYY-MM-DD (inclusive)"),
 ) -> dict:
     """Devuelve las marcaciones (registros de asistencia) guardadas en el equipo.
 
     Cada marcación trae el usuario, la fecha/hora, el estado (entrada/salida según
     configuración del equipo) y el método de verificación (huella, tarjeta, clave).
     Se devuelven de la más reciente a la más antigua.
+
+    El protocolo ZK no permite pedirle al reloj solo un rango: get_attendance()
+    siempre vuelca todo el buffer. Pero si vienen `desde`/`hasta`, se filtra acá
+    antes de responder, así Laravel recibe (y parsea) mucho menos en equipos con
+    historial largo. Las marcaciones se leen en vivo en cada llamada.
 
     Mismo manejo de errores y cierre garantizado que el resto de endpoints.
     """
@@ -238,22 +294,34 @@ def device_attendance(
         conn = conectar_con_reintento(ip, port, password)
         conn.disable_device()
 
-        # Mapa user_id -> nombre, para mostrar el nombre en cada marcación.
-        nombres = {u.user_id: u.name for u in conn.get_users()}
+        # Mapa user_id -> nombre (cacheado; ver mapa_nombres).
+        nombres = mapa_nombres(conn, ip, port)
 
-        marcaciones = [
-            {
-                "uid": m.uid,
-                "user_id": m.user_id,
-                # Nombre del usuario si está registrado en el equipo.
-                "nombre": nombres.get(m.user_id) or "",
-                # Fecha/hora en formato ISO para que Laravel la parsee fácil.
-                "timestamp": m.timestamp.isoformat() if m.timestamp else None,
-                "estado": m.status,  # Código de estado del equipo (entrada/salida).
-                "verificacion": m.punch,  # Método: huella, tarjeta, clave, etc.
-            }
-            for m in conn.get_attendance()
-        ]
+        inicio = parse_fecha(desde)
+        fin = parse_fecha(hasta)
+
+        marcaciones = []
+        for m in conn.get_attendance():
+            dia = m.timestamp.date() if m.timestamp else None
+
+            # Con rango pedido, se descartan las de fecha fuera del rango (y las
+            # sin fecha, que no se pueden ubicar). Sin rango, entra todo.
+            if inicio or fin:
+                if dia is None or (inicio and dia < inicio) or (fin and dia > fin):
+                    continue
+
+            marcaciones.append(
+                {
+                    "uid": m.uid,
+                    "user_id": m.user_id,
+                    # Nombre del usuario si está registrado en el equipo.
+                    "nombre": nombres.get(m.user_id) or "",
+                    # Fecha/hora en formato ISO para que Laravel la parsee fácil.
+                    "timestamp": m.timestamp.isoformat() if m.timestamp else None,
+                    "estado": m.status,  # Código de estado (entrada/salida).
+                    "verificacion": m.punch,  # Método: huella, tarjeta, clave, etc.
+                }
+            )
 
         # Más recientes primero.
         marcaciones.sort(key=lambda x: x["timestamp"] or "", reverse=True)
