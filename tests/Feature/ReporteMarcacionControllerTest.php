@@ -1,38 +1,37 @@
 <?php
 
-use App\Models\Sia\Asistencia;
-use App\Models\Sia\Persona;
+use App\Models\Asistencia;
+use App\Models\Persona;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    fakeSiaDatabase();
     $this->actingAs(asSuperAdmin());
 });
 
 function funcionarioConMarcaciones(): Persona
 {
     $persona = Persona::factory()->create([
-        'IdPersona' => '7633685',
-        'Paterno' => 'Molina',
-        'Materno' => 'Guzman',
-        'Nombres' => 'Ignacio',
-        'PinReloj' => '7633685',
+        'ci' => '7633685',
+        'paterno' => 'Molina',
+        'materno' => 'Guzman',
+        'nombres' => 'Ignacio',
+        'pinReloj' => '7633685',
     ]);
 
     Asistencia::factory()->create([
-        'IdPersona' => $persona->IdPersona,
-        'Fecha' => today(),
-        'Hora' => '1899-12-30 08:15:00',
-        'Tipo' => Asistencia::TIPO_RELOJ,
+        'ci' => $persona->ci,
+        'fecha' => today(),
+        'hora' => '1899-12-30 08:15:00',
+        'tipo' => Asistencia::TIPO_RELOJ,
     ]);
     Asistencia::factory()->create([
-        'IdPersona' => $persona->IdPersona,
-        'Fecha' => today()->subYear(),
-        'Hora' => '1899-12-30 07:00:00',
-        'Tipo' => Asistencia::TIPO_RELOJ,
+        'ci' => $persona->ci,
+        'fecha' => today()->subYear(),
+        'hora' => '1899-12-30 07:00:00',
+        'tipo' => Asistencia::TIPO_RELOJ,
     ]);
 
     return $persona;
@@ -65,7 +64,7 @@ test('generar muestra el reporte en pantalla con el total del rango', function (
     $persona = funcionarioConMarcaciones();
 
     $this->get(route('reportes.marcaciones.sin-procesar.generar', [
-        'persona' => trim($persona->IdPersona),
+        'persona' => trim($persona->ci),
         'desde' => today()->startOfMonth()->toDateString(),
         'hasta' => today()->toDateString(),
     ]))
@@ -79,7 +78,7 @@ test('generar con print=1 devuelve la versión imprimible', function () {
     $persona = funcionarioConMarcaciones();
 
     $this->get(route('reportes.marcaciones.sin-procesar.generar', [
-        'persona' => trim($persona->IdPersona),
+        'persona' => trim($persona->ci),
         'desde' => today()->startOfMonth()->toDateString(),
         'hasta' => today()->toDateString(),
         'print' => 1,
@@ -95,7 +94,7 @@ test('generar con print=2 descarga el CSV', function () {
     $persona = funcionarioConMarcaciones();
 
     $response = $this->get(route('reportes.marcaciones.sin-procesar.generar', [
-        'persona' => trim($persona->IdPersona),
+        'persona' => trim($persona->ci),
         'desde' => today()->startOfMonth()->toDateString(),
         'hasta' => today()->toDateString(),
         'print' => 2,

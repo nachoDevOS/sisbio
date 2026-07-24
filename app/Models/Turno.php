@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use Database\Factories\TurnoFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -15,7 +17,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Turno extends Model
 {
-    use SoftDeletes;
+    /** @use HasFactory<TurnoFactory> */
+    use HasFactory, SoftDeletes;
 
     /**
      * Días de la semana según el número que guarda la columna `dia`

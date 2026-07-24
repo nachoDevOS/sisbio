@@ -6,11 +6,8 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 /**
- * Reglas de validación para dar de alta un funcionario en la tabla Personas
- * del SIA (SQL Server 2008 R2 remoto).
- *
- * Respetan los tamaños y campos NOT NULL de la tabla legada, para guardar
- * datos consistentes con el sistema de escritorio del SIA.
+ * Reglas de validación para dar de alta un funcionario en la tabla local
+ * `personas` (MySQL). Respetan los tamaños y campos NOT NULL de la tabla.
  */
 class StorePersonaRequest extends FormRequest
 {
@@ -34,8 +31,7 @@ class StorePersonaRequest extends FormRequest
     ];
 
     /**
-     * La autorización la resuelve el middleware `auth` de la ruta; aquí solo
-     * dejamos pasar la petición ya autenticada.
+     * La autorización la resuelve la policy en el controlador.
      */
     public function authorize(): bool
     {
@@ -48,31 +44,30 @@ class StorePersonaRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'IdPersona' => ['required', 'string', 'max:12', Rule::unique('sia.Personas', 'IdPersona')],
-            'OrigenId' => ['nullable', 'string', 'max:3'],
-            'Paterno' => ['required', 'string', 'max:25'],
-            'Materno' => ['nullable', 'string', 'max:25'],
-            'Nombres' => ['required', 'string', 'max:35'],
-            'FechaNacimiento' => ['required', 'date', 'before_or_equal:today'],
-            'LugarNacimiento' => ['nullable', 'string', 'max:25'],
-            'Sexo' => ['required', Rule::in(['F', 'M'])],
-            'EstadoCivil' => ['required', Rule::in(['S', 'C', 'D', 'V'])],
-            'CodigoProfesion' => ['required', Rule::exists('sia.Profesiones', 'CodigoProfesion')],
-            'NivelEstudio' => ['nullable', Rule::in(self::NIVELES_ESTUDIO)],
-            'Telefono' => ['nullable', 'string', 'max:20'],
-            'Direccion' => ['nullable', 'string', 'max:40'],
-            'CorreoE' => ['nullable', 'email', 'max:40'],
+            'ci' => ['required', 'string', 'max:12', Rule::unique('personas', 'ci')],
+            'origenId' => ['nullable', 'string', 'max:3'],
+            'paterno' => ['required', 'string', 'max:25'],
+            'materno' => ['nullable', 'string', 'max:25'],
+            'nombres' => ['required', 'string', 'max:35'],
+            'fechaNacimiento' => ['required', 'date', 'before_or_equal:today'],
+            'lugarNacimiento' => ['nullable', 'string', 'max:25'],
+            'sexo' => ['required', Rule::in(['F', 'M'])],
+            'estadoCivil' => ['required', Rule::in(['S', 'C', 'D', 'V'])],
+            'codigoProfesion' => ['required', Rule::exists('profesiones', 'codigoProfesion')],
+            'nivelEstudio' => ['nullable', Rule::in(self::NIVELES_ESTUDIO)],
+            'telefono' => ['nullable', 'string', 'max:20'],
+            'direccion' => ['nullable', 'string', 'max:40'],
+            'correo' => ['nullable', 'email', 'max:40'],
         ];
     }
 
     /**
-     * El CI llega a veces con espacios (la tabla legada usa char(12)):
-     * se normaliza antes de validar y guardar.
+     * El CI llega a veces con espacios: se normaliza antes de validar y guardar.
      */
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'IdPersona' => trim((string) $this->input('IdPersona')),
+            'ci' => trim((string) $this->input('ci')),
         ]);
     }
 
@@ -82,20 +77,20 @@ class StorePersonaRequest extends FormRequest
     public function attributes(): array
     {
         return [
-            'IdPersona' => 'carnet de identidad',
-            'OrigenId' => 'expedido en',
-            'Paterno' => 'apellido paterno',
-            'Materno' => 'apellido materno',
-            'Nombres' => 'nombres',
-            'FechaNacimiento' => 'fecha de nacimiento',
-            'LugarNacimiento' => 'lugar de nacimiento',
-            'Sexo' => 'sexo',
-            'EstadoCivil' => 'estado civil',
-            'CodigoProfesion' => 'profesión',
-            'NivelEstudio' => 'nivel de estudios',
-            'Telefono' => 'teléfonos',
-            'Direccion' => 'dirección',
-            'CorreoE' => 'e-mail',
+            'ci' => 'carnet de identidad',
+            'origenId' => 'expedido en',
+            'paterno' => 'apellido paterno',
+            'materno' => 'apellido materno',
+            'nombres' => 'nombres',
+            'fechaNacimiento' => 'fecha de nacimiento',
+            'lugarNacimiento' => 'lugar de nacimiento',
+            'sexo' => 'sexo',
+            'estadoCivil' => 'estado civil',
+            'codigoProfesion' => 'profesión',
+            'nivelEstudio' => 'nivel de estudios',
+            'telefono' => 'teléfonos',
+            'direccion' => 'dirección',
+            'correo' => 'e-mail',
         ];
     }
 
@@ -105,7 +100,7 @@ class StorePersonaRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'IdPersona.unique' => 'Ya existe un funcionario registrado con ese carnet.',
+            'ci.unique' => 'Ya existe un funcionario registrado con ese carnet.',
         ];
     }
 }

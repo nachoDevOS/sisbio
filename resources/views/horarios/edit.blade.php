@@ -4,7 +4,7 @@
 
 @section('contenido')
     <div class="cabecera">
-        <h1>Editar horario · {{ trim($horario->NombreTurno) }}</h1>
+        <h1>Editar horario · {{ trim($horario->nombreTurno) }}</h1>
         <a href="{{ route('horarios.index') }}" class="btn btn--gris"><x-heroicon-o-arrow-left />Volver</a>
     </div>
 

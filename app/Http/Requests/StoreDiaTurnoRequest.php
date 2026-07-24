@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Sia\DiaTurno;
+use App\Models\Turno;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -28,7 +28,7 @@ class StoreDiaTurnoRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'Dia' => ['required', Rule::in(array_map('strval', array_keys(DiaTurno::DIAS)))],
+            'Dia' => ['required', Rule::in(array_map('strval', array_keys(Turno::DIAS)))],
             'NombreTurno' => ['required', 'string', 'max:25'],
             'HEntrada' => ['required', 'date_format:H:i'],
             'HTolerancia' => ['required', 'date_format:H:i'],

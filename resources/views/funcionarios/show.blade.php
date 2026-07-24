@@ -1,24 +1,24 @@
 @extends('layouts.app')
 
-@section('titulo', 'Funcionario ' . trim($persona->IdPersona))
+@section('titulo', 'Funcionario ' . trim($persona->ci))
 
 @php
     $sexos = ['F' => 'Femenino', 'M' => 'Masculino'];
     $estadosCiviles = ['S' => 'Soltero(a)', 'C' => 'Casado(a)', 'D' => 'Divorciado(a)', 'V' => 'Viudo(a)'];
     $tiposMarcacion = [
-        \App\Models\Sia\Asistencia::TIPO_RELOJ => 'R',
-        \App\Models\Sia\Asistencia::TIPO_A => 'A',
-        \App\Models\Sia\Asistencia::TIPO_MANUAL => 'M',
+        \App\Models\Asistencia::TIPO_RELOJ => 'R',
+        \App\Models\Asistencia::TIPO_A => 'A',
+        \App\Models\Asistencia::TIPO_MANUAL => 'M',
     ];
     $pillPorTipo = [
-        \App\Models\Sia\Asistencia::TIPO_RELOJ => 'pill--ok',
-        \App\Models\Sia\Asistencia::TIPO_MANUAL => 'pill--advertencia',
+        \App\Models\Asistencia::TIPO_RELOJ => 'pill--ok',
+        \App\Models\Asistencia::TIPO_MANUAL => 'pill--advertencia',
     ];
 @endphp
 
 @section('contenido')
     <div class="cabecera">
-        <h1>{{ $persona->nombre_completo ?: 'Funcionario' }} · CI {{ trim($persona->IdPersona) }}</h1>
+        <h1>{{ $persona->nombre_completo ?: 'Funcionario' }} · CI {{ trim($persona->ci) }}</h1>
         <div class="acciones">
             <a href="{{ route('funcionarios.edit', $persona) }}" class="btn"><x-heroicon-o-pencil-square />Editar</a>
             <a href="{{ route('funcionarios.index') }}" class="btn btn--gris"><x-heroicon-o-arrow-left />Volver</a>
@@ -31,39 +31,39 @@
             <dl class="datos grid-2">
                 <div>
                     <dt>Nro. carnet de identidad</dt>
-                    <dd>{{ trim($persona->IdPersona) }}</dd>
+                    <dd>{{ trim($persona->ci) }}</dd>
                 </div>
                 <div>
                     <dt>Expedido en</dt>
-                    <dd>{{ trim((string) $persona->OrigenId) ?: '—' }}</dd>
+                    <dd>{{ trim((string) $persona->origenId) ?: '—' }}</dd>
                 </div>
                 <div>
                     <dt>Apellido paterno</dt>
-                    <dd>{{ trim((string) $persona->Paterno) ?: '—' }}</dd>
+                    <dd>{{ trim((string) $persona->paterno) ?: '—' }}</dd>
                 </div>
                 <div>
                     <dt>Apellido materno</dt>
-                    <dd>{{ trim((string) $persona->Materno) ?: '—' }}</dd>
+                    <dd>{{ trim((string) $persona->materno) ?: '—' }}</dd>
                 </div>
                 <div>
                     <dt>Nombres</dt>
-                    <dd>{{ trim((string) $persona->Nombres) ?: '—' }}</dd>
+                    <dd>{{ trim((string) $persona->nombres) ?: '—' }}</dd>
                 </div>
                 <div>
                     <dt>Fecha de nacimiento</dt>
-                    <dd>{{ $persona->FechaNacimiento?->format('d/m/Y') ?? '—' }}</dd>
+                    <dd>{{ $persona->fechaNacimiento?->format('d/m/Y') ?? '—' }}</dd>
                 </div>
                 <div>
                     <dt>Lugar de nacimiento</dt>
-                    <dd>{{ trim((string) $persona->LugarNacimiento) ?: '—' }}</dd>
+                    <dd>{{ trim((string) $persona->lugarNacimiento) ?: '—' }}</dd>
                 </div>
                 <div>
                     <dt>Sexo</dt>
-                    <dd>{{ $sexos[$persona->Sexo] ?? '—' }}</dd>
+                    <dd>{{ $sexos[$persona->sexo] ?? '—' }}</dd>
                 </div>
                 <div>
                     <dt>Estado civil</dt>
-                    <dd>{{ $estadosCiviles[$persona->EstadoCivil] ?? '—' }}</dd>
+                    <dd>{{ $estadosCiviles[$persona->estadoCivil] ?? '—' }}</dd>
                 </div>
             </dl>
         </div>
@@ -72,10 +72,10 @@
             <h2>Estudios</h2>
             <dl class="datos">
                 <dt>Profesión</dt>
-                <dd>{{ trim((string) $persona->profesion?->NombreProfesion) ?: '—' }}</dd>
+                <dd>{{ trim((string) $persona->profesion?->nombreProfesion) ?: '—' }}</dd>
 
                 <dt>Nivel</dt>
-                <dd>{{ trim((string) $persona->NivelEstudio) ?: '—' }}</dd>
+                <dd>{{ trim((string) $persona->nivelEstudio) ?: '—' }}</dd>
             </dl>
         </div>
 
@@ -83,13 +83,13 @@
             <h2>Contactos</h2>
             <dl class="datos">
                 <dt>Teléfonos</dt>
-                <dd>{{ trim((string) $persona->Telefono) ?: '—' }}</dd>
+                <dd>{{ trim((string) $persona->telefono) ?: '—' }}</dd>
 
                 <dt>Dirección</dt>
-                <dd>{{ trim((string) $persona->Direccion) ?: '—' }}</dd>
+                <dd>{{ trim((string) $persona->direccion) ?: '—' }}</dd>
 
                 <dt>E-mail</dt>
-                <dd>{{ trim((string) $persona->CorreoE) ?: '—' }}</dd>
+                <dd>{{ trim((string) $persona->correo) ?: '—' }}</dd>
             </dl>
         </div>
 
@@ -97,12 +97,12 @@
             <h2>Control de asistencia</h2>
             <dl class="datos">
                 <dt>PIN reloj lector de huellas</dt>
-                <dd>{{ trim((string) $persona->PinReloj) ?: 'Sin PIN' }}</dd>
+                <dd>{{ trim((string) $persona->pinReloj) ?: 'Sin PIN' }}</dd>
 
                 <dt>Puede marcar con contraseña</dt>
                 <dd>
-                    <span class="pill {{ $persona->MarcaDirecta ? 'pill--ok' : 'pill--no' }}">
-                        {{ $persona->MarcaDirecta ? 'Sí' : 'No' }}
+                    <span class="pill {{ $persona->marcaDirecta ? 'pill--ok' : 'pill--no' }}">
+                        {{ $persona->marcaDirecta ? 'Sí' : 'No' }}
                     </span>
                 </dd>
             </dl>
@@ -148,9 +148,9 @@
             <tbody>
                 @forelse ($marcaciones as $marcacion)
                     <tr>
-                        <td>{{ $marcacion->Fecha?->format('d/m/Y') }}</td>
-                        <td>{{ $marcacion->Hora?->format('H:i:s') }}</td>
-                        <td><span class="pill {{ $pillPorTipo[trim((string) $marcacion->Tipo)] ?? 'pill--info' }}">{{ trim((string) $marcacion->Tipo) }}</span></td>
+                        <td>{{ $marcacion->fecha?->format('d/m/Y') }}</td>
+                        <td>{{ $marcacion->hora?->format('H:i:s') }}</td>
+                        <td><span class="pill {{ $pillPorTipo[trim((string) $marcacion->tipo)] ?? 'pill--info' }}">{{ trim((string) $marcacion->tipo) }}</span></td>
                     </tr>
                 @empty
                     <tr><td colspan="3" class="vacio">Sin marcaciones en el rango seleccionado.</td></tr>

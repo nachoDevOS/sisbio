@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePersonaRequest;
 use App\Http\Requests\UpdatePersonaRequest;
-use App\Models\Sia\Persona;
-use App\Models\Sia\Profesion;
+use App\Models\Persona;
+use App\Models\Profesion;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,8 +13,8 @@ use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
- * CRUD clásico (MVC) de los funcionarios del SIA (SQL Server 2008 remoto).
- * Sin borrado: eso sigue siendo del sistema de escritorio.
+ * CRUD clásico (MVC) de los funcionarios, sobre la base local MySQL (tabla
+ * `personas`, migrada del SIA). Sin borrado desde la web.
  */
 class PersonaController extends Controller
 {
@@ -29,7 +29,7 @@ class PersonaController extends Controller
 
         $funcionarios = Persona::query()
             ->when($busqueda !== '', fn (Builder $query) => $query->buscar($busqueda))
-            ->orderBy('Paterno')
+            ->orderBy('paterno')
             ->paginate(25)
             ->withQueryString();
 
@@ -48,14 +48,13 @@ class PersonaController extends Controller
 
     /**
      * Guarda un funcionario nuevo. La validación la hace StorePersonaRequest.
-     * MarcaDirecta es NOT NULL sin default en el SQL Server y el formulario
-     * la tiene deshabilitada: el INSERT siempre la manda en falso.
+     * marcaDirecta es NOT NULL sin default: el INSERT siempre la manda en falso.
      */
     public function store(StorePersonaRequest $request): RedirectResponse
     {
         $this->authorize('create', Persona::class);
 
-        Persona::create($request->validated() + ['MarcaDirecta' => false]);
+        Persona::create($request->validated() + ['marcaDirecta' => false]);
 
         return redirect()
             ->route('funcionarios.index')
@@ -63,9 +62,8 @@ class PersonaController extends Controller
     }
 
     /**
-     * Ficha de detalle de un funcionario, con sus marcaciones del SIA
-     * filtradas por rango de fechas y tipo (mismo criterio de solo lectura
-     * que MarcacionController).
+     * Ficha de detalle de un funcionario, con sus marcaciones locales filtradas
+     * por rango de fechas y tipo.
      */
     public function show(Request $request, Persona $persona): View
     {
@@ -78,11 +76,11 @@ class PersonaController extends Controller
         $tipo = $request->query('tipo', '');
 
         $marcaciones = $persona->marcaciones()
-            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('Fecha', '>=', $d))
-            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('Fecha', '<=', $h))
-            ->when($tipo !== '', fn (Builder $query) => $query->where('Tipo', $tipo))
-            ->orderByDesc('Fecha')
-            ->orderByDesc('Hora')
+            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('fecha', '>=', $d))
+            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('fecha', '<=', $h))
+            ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
             ->paginate(25, pageName: 'marcaciones_page')
             ->withQueryString();
 
@@ -103,11 +101,11 @@ class PersonaController extends Controller
         $tipo = $request->query('tipo', '');
 
         $marcaciones = $persona->marcaciones()
-            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('Fecha', '>=', $d))
-            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('Fecha', '<=', $h))
-            ->when($tipo !== '', fn (Builder $query) => $query->where('Tipo', $tipo))
-            ->orderBy('Fecha')
-            ->orderBy('Hora')
+            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('fecha', '>=', $d))
+            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('fecha', '<=', $h))
+            ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
+            ->orderBy('fecha')
+            ->orderBy('hora')
             ->get();
 
         return view('reportes.marcaciones.sinProcesar.print', compact('persona', 'marcaciones', 'desde', 'hasta', 'tipo'));
@@ -125,7 +123,7 @@ class PersonaController extends Controller
 
     /**
      * Actualiza un funcionario. La validación la hace UpdatePersonaRequest;
-     * el carnet (clave primaria) y el control de asistencia no se tocan.
+     * el carnet (clave) y el control de asistencia no se tocan.
      */
     public function update(UpdatePersonaRequest $request, Persona $persona): RedirectResponse
     {
@@ -147,8 +145,8 @@ class PersonaController extends Controller
     {
         return [
             'profesiones' => Profesion::query()
-                ->orderBy('NombreProfesion')
-                ->pluck('NombreProfesion', 'CodigoProfesion'),
+                ->orderBy('nombreProfesion')
+                ->pluck('nombreProfesion', 'codigoProfesion'),
             'niveles' => StorePersonaRequest::NIVELES_ESTUDIO,
         ];
     }

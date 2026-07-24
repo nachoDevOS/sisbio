@@ -13,14 +13,14 @@ beforeEach(function () {
 });
 
 test('el listado muestra las marcaciones del rango por defecto', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '777', 'Paterno' => 'Diaz', 'Materno' => null, 'Nombres' => 'Eva', 'PinReloj' => null, 'MarcaDirecta' => false,
+    DB::table('personas')->insert([
+        'ci' => '777', 'paterno' => 'Diaz', 'materno' => null, 'nombres' => 'Eva', 'pinReloj' => null, 'marcaDirecta' => false,
     ]);
-    DB::connection('sia')->table('Asistencia')->insert([
-        'IdPersona' => '777',
-        'Fecha' => now()->startOfDay()->toDateTimeString(),
-        'Hora' => now()->toDateTimeString(),
-        'Tipo' => 'R',
+    DB::table('asistencias')->insert([
+        'ci' => '777',
+        'fecha' => now()->startOfDay()->toDateTimeString(),
+        'hora' => now()->toDateTimeString(),
+        'tipo' => 'R',
     ]);
 
     $this->get(route('marcaciones.index'))
@@ -30,14 +30,14 @@ test('el listado muestra las marcaciones del rango por defecto', function () {
 });
 
 test('el rango de fechas excluye lo que queda fuera', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '888', 'Paterno' => 'Vieja', 'Materno' => null, 'Nombres' => 'Marca', 'PinReloj' => null, 'MarcaDirecta' => false,
+    DB::table('personas')->insert([
+        'ci' => '888', 'paterno' => 'Vieja', 'materno' => null, 'nombres' => 'Marca', 'pinReloj' => null, 'marcaDirecta' => false,
     ]);
-    DB::connection('sia')->table('Asistencia')->insert([
-        'IdPersona' => '888',
-        'Fecha' => now()->subYears(2)->toDateTimeString(),
-        'Hora' => now()->toDateTimeString(),
-        'Tipo' => 'R',
+    DB::table('asistencias')->insert([
+        'ci' => '888',
+        'fecha' => now()->subYears(2)->toDateTimeString(),
+        'hora' => now()->toDateTimeString(),
+        'tipo' => 'R',
     ]);
 
     // El rango por defecto arranca en el mes actual: la marcación de hace 2 años queda fuera.
@@ -59,13 +59,13 @@ test('un usuario sin permiso no puede ver marcaciones', function () {
 });
 
 test('busca marcaciones por apellido del funcionario', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        ['IdPersona' => '1', 'Paterno' => 'Zabaleta', 'Materno' => null, 'Nombres' => 'Ana', 'PinReloj' => null, 'MarcaDirecta' => false],
-        ['IdPersona' => '2', 'Paterno' => 'Quiroga', 'Materno' => null, 'Nombres' => 'Beto', 'PinReloj' => null, 'MarcaDirecta' => false],
+    DB::table('personas')->insert([
+        ['ci' => '1', 'paterno' => 'Zabaleta', 'materno' => null, 'nombres' => 'Ana', 'pinReloj' => null, 'marcaDirecta' => false],
+        ['ci' => '2', 'paterno' => 'Quiroga', 'materno' => null, 'nombres' => 'Beto', 'pinReloj' => null, 'marcaDirecta' => false],
     ]);
-    DB::connection('sia')->table('Asistencia')->insert([
-        ['IdPersona' => '1', 'Fecha' => now()->toDateString(), 'Hora' => now()->toDateTimeString(), 'Tipo' => 'R'],
-        ['IdPersona' => '2', 'Fecha' => now()->toDateString(), 'Hora' => now()->toDateTimeString(), 'Tipo' => 'R'],
+    DB::table('asistencias')->insert([
+        ['ci' => '1', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'R'],
+        ['ci' => '2', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'R'],
     ]);
 
     $this->get(route('marcaciones.index', ['buscar' => 'Zabaleta']))
@@ -75,16 +75,16 @@ test('busca marcaciones por apellido del funcionario', function () {
 });
 
 test('busca marcaciones por nombre y apellido combinados', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        ['IdPersona' => '1', 'Paterno' => 'Molina', 'Materno' => 'Guzman', 'Nombres' => 'Ignacio', 'PinReloj' => null, 'MarcaDirecta' => false],
-        ['IdPersona' => '2', 'Paterno' => 'Perez', 'Materno' => 'Rojas', 'Nombres' => 'Ignacio', 'PinReloj' => null, 'MarcaDirecta' => false],
+    DB::table('personas')->insert([
+        ['ci' => '1', 'paterno' => 'Molina', 'materno' => 'Guzman', 'nombres' => 'Ignacio', 'pinReloj' => null, 'marcaDirecta' => false],
+        ['ci' => '2', 'paterno' => 'Perez', 'materno' => 'Rojas', 'nombres' => 'Ignacio', 'pinReloj' => null, 'marcaDirecta' => false],
     ]);
-    DB::connection('sia')->table('Asistencia')->insert([
-        ['IdPersona' => '1', 'Fecha' => now()->toDateString(), 'Hora' => now()->toDateTimeString(), 'Tipo' => 'R'],
-        ['IdPersona' => '2', 'Fecha' => now()->toDateString(), 'Hora' => now()->toDateTimeString(), 'Tipo' => 'R'],
+    DB::table('asistencias')->insert([
+        ['ci' => '1', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'R'],
+        ['ci' => '2', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'R'],
     ]);
 
-    // "ignacio m" cruza Nombres + Paterno: encuentra a Ignacio Molina y deja
+    // "ignacio m" cruza nombres + paterno: encuentra a Ignacio Molina y deja
     // fuera a Ignacio Perez.
     $this->get(route('marcaciones.index', ['buscar' => 'ignacio m']))
         ->assertOk()
@@ -93,13 +93,13 @@ test('busca marcaciones por nombre y apellido combinados', function () {
 });
 
 test('busca marcaciones por CI del funcionario', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        ['IdPersona' => '111', 'Paterno' => 'Rocabado', 'Materno' => null, 'Nombres' => 'Ana', 'PinReloj' => null, 'MarcaDirecta' => false],
-        ['IdPersona' => '222', 'Paterno' => 'Salvatierra', 'Materno' => null, 'Nombres' => 'Beto', 'PinReloj' => null, 'MarcaDirecta' => false],
+    DB::table('personas')->insert([
+        ['ci' => '111', 'paterno' => 'Rocabado', 'materno' => null, 'nombres' => 'Ana', 'pinReloj' => null, 'marcaDirecta' => false],
+        ['ci' => '222', 'paterno' => 'Salvatierra', 'materno' => null, 'nombres' => 'Beto', 'pinReloj' => null, 'marcaDirecta' => false],
     ]);
-    DB::connection('sia')->table('Asistencia')->insert([
-        ['IdPersona' => '111', 'Fecha' => now()->toDateString(), 'Hora' => now()->toDateTimeString(), 'Tipo' => 'R'],
-        ['IdPersona' => '222', 'Fecha' => now()->toDateString(), 'Hora' => now()->toDateTimeString(), 'Tipo' => 'R'],
+    DB::table('asistencias')->insert([
+        ['ci' => '111', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'R'],
+        ['ci' => '222', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'R'],
     ]);
 
     $this->get(route('marcaciones.index', ['buscar' => '111']))
@@ -109,13 +109,13 @@ test('busca marcaciones por CI del funcionario', function () {
 });
 
 test('filtra por tipo de marcación', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        ['IdPersona' => '1', 'Paterno' => 'Relojero', 'Materno' => null, 'Nombres' => 'Ana', 'PinReloj' => null, 'MarcaDirecta' => false],
-        ['IdPersona' => '2', 'Paterno' => 'Manualino', 'Materno' => null, 'Nombres' => 'Beto', 'PinReloj' => null, 'MarcaDirecta' => false],
+    DB::table('personas')->insert([
+        ['ci' => '1', 'paterno' => 'Relojero', 'materno' => null, 'nombres' => 'Ana', 'pinReloj' => null, 'marcaDirecta' => false],
+        ['ci' => '2', 'paterno' => 'Manualino', 'materno' => null, 'nombres' => 'Beto', 'pinReloj' => null, 'marcaDirecta' => false],
     ]);
-    DB::connection('sia')->table('Asistencia')->insert([
-        ['IdPersona' => '1', 'Fecha' => now()->toDateString(), 'Hora' => now()->toDateTimeString(), 'Tipo' => 'R'],
-        ['IdPersona' => '2', 'Fecha' => now()->toDateString(), 'Hora' => now()->toDateTimeString(), 'Tipo' => 'M'],
+    DB::table('asistencias')->insert([
+        ['ci' => '1', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'R'],
+        ['ci' => '2', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'M'],
     ]);
 
     $this->get(route('marcaciones.index', ['tipo' => 'R']))
@@ -125,14 +125,14 @@ test('filtra por tipo de marcación', function () {
 });
 
 test('una marcación manual no se pinta con el color de reloj', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '333', 'Paterno' => 'Manual', 'Materno' => null, 'Nombres' => 'Uno', 'PinReloj' => null, 'MarcaDirecta' => false,
+    DB::table('personas')->insert([
+        'ci' => '333', 'paterno' => 'Manual', 'materno' => null, 'nombres' => 'Uno', 'pinReloj' => null, 'marcaDirecta' => false,
     ]);
-    DB::connection('sia')->table('Asistencia')->insert([
-        'IdPersona' => '333',
-        'Fecha' => now()->toDateString(),
-        'Hora' => now()->toDateTimeString(),
-        'Tipo' => 'M',
+    DB::table('asistencias')->insert([
+        'ci' => '333',
+        'fecha' => now()->toDateString(),
+        'hora' => now()->toDateTimeString(),
+        'tipo' => 'M',
     ]);
 
     // El CSS estático del layout siempre define .pill--ok (regla, no dato);

@@ -22,7 +22,7 @@
                 <label for="dia">Día</label>
                 <select id="dia" name="dia" class="input">
                     <option value="">Todos los días</option>
-                    @foreach (\App\Models\Sia\DiaTurno::DIAS as $numero => $nombre)
+                    @foreach (\App\Models\Turno::DIAS as $numero => $nombre)
                         <option value="{{ $numero }}" @selected($dia === (string) $numero)>{{ $nombre }}</option>
                     @endforeach
                 </select>
@@ -53,15 +53,15 @@
                 @forelse ($horarios as $horario)
                     <tr>
                         <td><strong>{{ $horario->nombre_dia }}</strong></td>
-                        <td>{{ trim($horario->NombreTurno) }}</td>
-                        <td>{{ $horario->HEntrada?->format('H:i') }}</td>
-                        <td>{{ $horario->HSalida?->format('H:i') }}</td>
-                        <td>{{ $horario->HTolerancia?->format('H:i') }}</td>
-                        <td>{{ $horario->STolerancia?->format('H:i') }}</td>
-                        <td>{{ number_format((float) $horario->HTrabajadas, 2) }}</td>
+                        <td>{{ trim($horario->nombreTurno) }}</td>
+                        <td>{{ $horario->hEntrada?->format('H:i') }}</td>
+                        <td>{{ $horario->hSalida?->format('H:i') }}</td>
+                        <td>{{ $horario->hTolerancia?->format('H:i') }}</td>
+                        <td>{{ $horario->sTolerancia?->format('H:i') }}</td>
+                        <td>{{ number_format((float) $horario->hTrabajadas, 2) }}</td>
                         <td>
-                            <span class="pill {{ $horario->SiguienteDia ? 'pill--advertencia' : 'pill--no' }}">
-                                {{ $horario->SiguienteDia ? 'Sí' : 'No' }}
+                            <span class="pill {{ $horario->siguienteDia ? 'pill--advertencia' : 'pill--no' }}">
+                                {{ $horario->siguienteDia ? 'Sí' : 'No' }}
                             </span>
                         </td>
                         <td>
@@ -69,7 +69,7 @@
                                 <a href="{{ route('horarios.show', $horario) }}" class="btn-icon btn-icon--gris" title="Ver" aria-label="Ver"><x-heroicon-o-eye /></a>
                                 <a href="{{ route('horarios.edit', $horario) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
                                 <form action="{{ route('horarios.destroy', $horario) }}" method="POST"
-                                      onsubmit="return confirm('¿Eliminar el horario «{{ trim($horario->NombreTurno) }}»?');">
+                                      onsubmit="return confirm('¿Eliminar el horario «{{ trim($horario->nombreTurno) }}»?');">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn-icon btn-icon--peligro" title="Eliminar" aria-label="Eliminar"><x-heroicon-o-trash /></button>

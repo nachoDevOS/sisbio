@@ -4,8 +4,8 @@
 
 @php
     $pillPorTipo = [
-        \App\Models\Sia\Asistencia::TIPO_RELOJ => 'pill--ok',
-        \App\Models\Sia\Asistencia::TIPO_MANUAL => 'pill--advertencia',
+        \App\Models\Asistencia::TIPO_RELOJ => 'pill--ok',
+        \App\Models\Asistencia::TIPO_MANUAL => 'pill--advertencia',
     ];
 @endphp
 
@@ -13,9 +13,9 @@
     <div class="cabecera">
         <div class="cabecera__titulo">
             <span class="cabecera__icono"><x-heroicon-o-finger-print /></span>
-            <h1>Marcaciones (SIA)</h1>
+            <h1>Marcaciones</h1>
         </div>
-        @can('create', \App\Models\Sia\Asistencia::class)
+        @can('create', \App\Models\Asistencia::class)
             <form method="POST" action="{{ route('marcaciones.importar') }}" enctype="multipart/form-data" style="display: flex; align-items: flex-start; gap: .5rem;">
                 @csrf
                 <div>
@@ -44,9 +44,9 @@
             <label for="tipo">Tipo</label>
             <select id="tipo" name="tipo" class="input">
                 <option value="">Todos</option>
-                <option value="{{ \App\Models\Sia\Asistencia::TIPO_RELOJ }}" @selected($tipo === \App\Models\Sia\Asistencia::TIPO_RELOJ)>R</option>
-                <option value="{{ \App\Models\Sia\Asistencia::TIPO_A }}" @selected($tipo === \App\Models\Sia\Asistencia::TIPO_A)>A</option>
-                <option value="{{ \App\Models\Sia\Asistencia::TIPO_MANUAL }}" @selected($tipo === \App\Models\Sia\Asistencia::TIPO_MANUAL)>M</option>
+                <option value="{{ \App\Models\Asistencia::TIPO_RELOJ }}" @selected($tipo === \App\Models\Asistencia::TIPO_RELOJ)>R</option>
+                <option value="{{ \App\Models\Asistencia::TIPO_A }}" @selected($tipo === \App\Models\Asistencia::TIPO_A)>A</option>
+                <option value="{{ \App\Models\Asistencia::TIPO_MANUAL }}" @selected($tipo === \App\Models\Asistencia::TIPO_MANUAL)>M</option>
             </select>
         </div>
         <button type="submit" class="btn"><x-heroicon-o-funnel />Filtrar</button>
@@ -66,11 +66,11 @@
             <tbody>
                 @forelse ($marcaciones as $marcacion)
                     <tr>
-                        <td>{{ trim((string) $marcacion->IdPersona) }}</td>
+                        <td>{{ trim((string) $marcacion->ci) }}</td>
                         <td>{{ $marcacion->persona?->nombre_completo ?? '—' }}</td>
-                        <td>{{ $marcacion->Fecha?->format('d/m/Y') }}</td>
-                        <td>{{ $marcacion->Hora?->format('H:i:s') }}</td>
-                        <td><span class="pill {{ $pillPorTipo[trim((string) $marcacion->Tipo)] ?? 'pill--info' }}">{{ trim((string) $marcacion->Tipo) }}</span></td>
+                        <td>{{ $marcacion->fecha?->format('d/m/Y') }}</td>
+                        <td>{{ $marcacion->hora?->format('H:i:s') }}</td>
+                        <td><span class="pill {{ $pillPorTipo[trim((string) $marcacion->tipo)] ?? 'pill--info' }}">{{ trim((string) $marcacion->tipo) }}</span></td>
                     </tr>
                 @empty
                     <tr><td colspan="5" class="vacio">Sin marcaciones en el rango seleccionado.</td></tr>

@@ -1,17 +1,17 @@
 @php
-    $nombreEmpleado = collect([$persona->Paterno, $persona->Materno, $persona->Nombres])
+    $nombreEmpleado = collect([$persona->paterno, $persona->materno, $persona->nombres])
         ->map(fn ($parte) => trim((string) $parte))
         ->filter()
         ->implode(' ');
-    $parametros = ['persona' => trim($persona->IdPersona), 'desde' => $desde, 'hasta' => $hasta, 'tipo' => $tipo];
+    $parametros = ['persona' => trim($persona->ci), 'desde' => $desde, 'hasta' => $hasta, 'tipo' => $tipo];
 @endphp
 
 {{-- Partial: se inyecta bajo el filtro del reporte vía AJAX (no lleva layout). --}}
 <div class="card card--padded">
     <div class="cabecera" style="margin-bottom: 1rem;">
         <div>
-            <strong>{{ $nombreEmpleado ?: 'Funcionario' }}</strong> · CI {{ trim($persona->IdPersona) }} ·
-            PIN reloj {{ trim((string) $persona->PinReloj) ?: '—' }}<br>
+            <strong>{{ $nombreEmpleado ?: 'Funcionario' }}</strong> · CI {{ trim($persona->ci) }} ·
+            PIN reloj {{ trim((string) $persona->pinReloj) ?: '—' }}<br>
             <span style="color: var(--muted);">
                 Rango: {{ $desde ?: '—' }} a {{ $hasta ?: '—' }} · Total: {{ $marcaciones->count() }} registro(s)
             </span>
@@ -37,9 +37,9 @@
             @forelse ($marcaciones as $marcacion)
                 <tr>
                     <td>{{ $loop->iteration }}</td>
-                    <td>{{ $marcacion->Fecha?->format('d/m/Y') }}</td>
-                    <td>{{ $marcacion->Hora?->format('H:i:s') }}</td>
-                    <td>{{ trim((string) $marcacion->Tipo) }}</td>
+                    <td>{{ $marcacion->fecha?->format('d/m/Y') }}</td>
+                    <td>{{ $marcacion->hora?->format('H:i:s') }}</td>
+                    <td>{{ trim((string) $marcacion->tipo) }}</td>
                 </tr>
             @empty
                 <tr><td colspan="4" class="vacio">Sin marcaciones en el rango seleccionado.</td></tr>

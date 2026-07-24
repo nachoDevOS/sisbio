@@ -6,7 +6,7 @@
     <div class="cabecera">
         <div class="cabecera__titulo">
             <span class="cabecera__icono"><x-heroicon-o-user-group /></span>
-            <h1>Funcionarios (SIA)</h1>
+            <h1>Funcionarios</h1>
         </div>
         <a href="{{ route('funcionarios.create') }}" class="btn"><x-heroicon-o-plus />Nuevo funcionario</a>
     </div>
@@ -34,11 +34,11 @@
             <tbody>
                 @forelse ($funcionarios as $persona)
                     <tr>
-                        <td><strong>{{ trim($persona->IdPersona) }}</strong></td>
-                        <td>{{ trim($persona->Paterno) }}</td>
-                        <td>{{ trim($persona->Materno) ?: '—' }}</td>
-                        <td>{{ trim($persona->Nombres) }}</td>
-                        <td>{{ trim((string) $persona->PinReloj) ?: 'Sin PIN' }}</td>
+                        <td><strong>{{ trim($persona->ci) }}</strong></td>
+                        <td>{{ trim($persona->paterno) }}</td>
+                        <td>{{ trim((string) $persona->materno) ?: '—' }}</td>
+                        <td>{{ trim($persona->nombres) }}</td>
+                        <td>{{ trim((string) $persona->pinReloj) ?: 'Sin PIN' }}</td>
                         <td class="acciones">
                             <a href="{{ route('funcionarios.show', $persona) }}" class="btn-icon btn-icon--gris" title="Ver" aria-label="Ver"><x-heroicon-o-eye /></a>
                             <a href="{{ route('funcionarios.edit', $persona) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>

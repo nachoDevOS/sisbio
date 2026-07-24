@@ -23,11 +23,11 @@
 @php
     use Illuminate\Support\Carbon;
 
-    $nombreEmpleado = collect([$persona->Paterno, $persona->Materno, $persona->Nombres])
+    $nombreEmpleado = collect([$persona->paterno, $persona->materno, $persona->nombres])
         ->map(fn ($parte) => trim((string) $parte))
         ->filter()
         ->implode(' ');
-    $pin = trim((string) $persona->PinReloj) ?: '—';
+    $pin = trim((string) $persona->pinReloj) ?: '—';
     $desdeFmt = $desde ? Carbon::parse($desde)->format('j/n/Y') : '—';
     $hastaFmt = $hasta ? Carbon::parse($hasta)->format('j/n/Y') : '—';
 
@@ -35,7 +35,7 @@
     // prólogo XML del SVG para poder incrustarlo dentro del HTML.
     $qrTexto = "REPORTE DE MARCACIONES - GAD BENI\n"
         ."Funcionario: {$nombreEmpleado}\n"
-        .'CI: '.trim((string) $persona->IdPersona)." | PIN: {$pin}\n"
+        .'CI: '.trim((string) $persona->ci)." | PIN: {$pin}\n"
         ."Rango: {$desdeFmt} a {$hastaFmt}\n"
         .'Total: '.$marcaciones->count()."\n"
         .'Impreso: '.now()->format('d/m/Y H:i:s');
@@ -85,9 +85,9 @@
             @forelse ($marcaciones as $marcacion)
                 <tr>
                     <td style="text-align: center">{{ $loop->iteration }}</td>
-                    <td style="text-align: center">{{ $marcacion->Fecha?->format('j/n/Y') }}</td>
-                    <td style="text-align: center">{{ $marcacion->Hora?->format('H:i:s') }}</td>
-                    <td style="text-align: center">{{ trim((string) $marcacion->Tipo) }}</td>
+                    <td style="text-align: center">{{ $marcacion->fecha?->format('j/n/Y') }}</td>
+                    <td style="text-align: center">{{ $marcacion->hora?->format('H:i:s') }}</td>
+                    <td style="text-align: center">{{ trim((string) $marcacion->tipo) }}</td>
                 </tr>
             @empty
                 <tr>

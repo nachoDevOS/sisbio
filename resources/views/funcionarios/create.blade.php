@@ -4,7 +4,7 @@
 
 @section('contenido')
     <div class="cabecera">
-        <h1>Nuevo funcionario (SIA)</h1>
+        <h1>Nuevo funcionario</h1>
         <a href="{{ route('funcionarios.index') }}" class="btn btn--gris"><x-heroicon-o-arrow-left />Volver</a>
     </div>
 

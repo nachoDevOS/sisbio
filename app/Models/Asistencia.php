@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use Database\Factories\AsistenciaFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,7 +18,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Asistencia extends Model
 {
-    use SoftDeletes;
+    /** @use HasFactory<AsistenciaFactory> */
+    use HasFactory, SoftDeletes;
 
     public const TIPO_RELOJ = 'R';
 
@@ -49,5 +53,22 @@ class Asistencia extends Model
     public function persona(): BelongsTo
     {
         return $this->belongsTo(Persona::class, 'ci', 'ci');
+    }
+
+    /**
+     * Filtra por CI de la marcación o por nombre del funcionario. Cada palabra
+     * del texto debe aparecer en el CI o en algún nombre, así "ignacio molina"
+     * cruza nombres + paterno aunque estén en columnas distintas.
+     */
+    public function scopeBuscar(Builder $query, string $texto): Builder
+    {
+        foreach (Persona::terminos($texto) as $termino) {
+            $query->where(fn (Builder $sub) => $sub
+                ->where('ci', 'like', "%{$termino}%")
+                ->orWhereHas('persona', fn (Builder $persona) => $persona
+                    ->where(fn (Builder $nombre) => $nombre->coincideNombre($termino))));
+        }
+
+        return $query;
     }
 }

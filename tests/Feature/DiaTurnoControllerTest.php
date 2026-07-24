@@ -1,13 +1,12 @@
 <?php
 
-use App\Models\Sia\DiaTurno;
+use App\Models\Turno;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    fakeSiaDatabase();
     $this->actingAs(asSuperAdmin());
 });
 
@@ -30,7 +29,7 @@ function datosDeHorario(array $sobrescribir = []): array
 }
 
 test('el listado muestra los horarios registrados', function () {
-    DiaTurno::factory()->create(['NombreTurno' => 'Turno Mañana']);
+    Turno::factory()->create(['nombreTurno' => 'Turno Mañana']);
 
     $this->get(route('horarios.index'))
         ->assertOk()
@@ -44,7 +43,7 @@ test('muestra el formulario de alta', function () {
 });
 
 test('muestra la ficha de un horario', function () {
-    $horario = DiaTurno::factory()->create(['Dia' => '2', 'NombreTurno' => 'LUN: 08:00 - 16:00']);
+    $horario = Turno::factory()->create(['dia' => '2', 'nombreTurno' => 'LUN: 08:00 - 16:00']);
 
     $this->get(route('horarios.show', $horario))
         ->assertOk()
@@ -59,22 +58,22 @@ test('guarda un horario nuevo con código autogenerado y redirige al listado', f
         ->assertRedirect(route('horarios.index'))
         ->assertSessionHas('estado');
 
-    $this->assertDatabaseHas('DiaTurnos', [
-        'Dia' => '2',
-        'NombreTurno' => 'Turno de prueba',
-    ], 'sia');
+    $this->assertDatabaseHas('turnos', [
+        'dia' => '2',
+        'nombreTurno' => 'Turno de prueba',
+    ]);
 
-    $horario = DiaTurno::query()->first();
-    expect(trim($horario->IdTurno))->toHaveLength(3)
-        ->and($horario->HEntrada->format('H:i'))->toBe('08:00')
-        ->and($horario->SiguienteDia)->toBeTrue();
+    $horario = Turno::query()->first();
+    expect(trim($horario->idTurno))->toHaveLength(3)
+        ->and($horario->hEntrada->format('H:i'))->toBe('08:00')
+        ->and($horario->siguienteDia)->toBeTrue();
 });
 
 test('el alta valida los campos obligatorios', function () {
     $this->post(route('horarios.store'), [])
         ->assertSessionHasErrors(['Dia', 'NombreTurno', 'HEntrada', 'HSalida', 'HTrabajadas']);
 
-    $this->assertDatabaseCount('DiaTurnos', 0, 'sia');
+    $this->assertDatabaseCount('turnos', 0);
 });
 
 test('el alta rechaza una hora mal formada', function () {
@@ -83,8 +82,8 @@ test('el alta rechaza una hora mal formada', function () {
 });
 
 test('el listado filtra por nombre del horario', function () {
-    DiaTurno::factory()->create(['NombreTurno' => 'LUN: 08:00 - 16:00']);
-    DiaTurno::factory()->create(['NombreTurno' => 'MAR: 14:00 - 22:00']);
+    Turno::factory()->create(['nombreTurno' => 'LUN: 08:00 - 16:00']);
+    Turno::factory()->create(['nombreTurno' => 'MAR: 14:00 - 22:00']);
 
     $this->get(route('horarios.index', ['buscar' => '08:00']))
         ->assertOk()
@@ -93,8 +92,8 @@ test('el listado filtra por nombre del horario', function () {
 });
 
 test('el listado filtra por día', function () {
-    DiaTurno::factory()->create(['Dia' => '2', 'NombreTurno' => 'Turno del lunes']);
-    DiaTurno::factory()->create(['Dia' => '3', 'NombreTurno' => 'Turno del martes']);
+    Turno::factory()->create(['dia' => '2', 'nombreTurno' => 'Turno del lunes']);
+    Turno::factory()->create(['dia' => '3', 'nombreTurno' => 'Turno del martes']);
 
     $this->get(route('horarios.index', ['dia' => '2']))
         ->assertOk()
@@ -103,7 +102,7 @@ test('el listado filtra por día', function () {
 });
 
 test('muestra el formulario de edición con los datos actuales', function () {
-    $horario = DiaTurno::factory()->create(['NombreTurno' => 'Turno Tarde']);
+    $horario = Turno::factory()->create(['nombreTurno' => 'Turno Tarde']);
 
     $this->get(route('horarios.edit', $horario))
         ->assertOk()
@@ -111,21 +110,21 @@ test('muestra el formulario de edición con los datos actuales', function () {
 });
 
 test('actualiza un horario existente', function () {
-    $horario = DiaTurno::factory()->create(['NombreTurno' => 'Viejo']);
+    $horario = Turno::factory()->create(['nombreTurno' => 'Viejo']);
 
     $this->put(route('horarios.update', $horario), datosDeHorario(['NombreTurno' => 'Nuevo nombre']))
         ->assertRedirect(route('horarios.index'));
 
-    expect(trim($horario->refresh()->NombreTurno))->toBe('Nuevo nombre');
+    expect(trim($horario->refresh()->nombreTurno))->toBe('Nuevo nombre');
 });
 
-test('elimina un horario', function () {
-    $horario = DiaTurno::factory()->create();
+test('elimina un horario (lógicamente)', function () {
+    $horario = Turno::factory()->create();
 
     $this->delete(route('horarios.destroy', $horario))
         ->assertRedirect(route('horarios.index'));
 
-    $this->assertDatabaseCount('DiaTurnos', 0, 'sia');
+    $this->assertSoftDeleted('turnos', ['id' => $horario->id]);
 });
 
 test('un invitado no puede entrar al listado', function () {

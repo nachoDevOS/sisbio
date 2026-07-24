@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ImportarMarcacionesRequest;
-use App\Models\Sia\Asistencia;
+use App\Models\Asistencia;
 use App\Services\RegistroAsistenciaSia;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -12,11 +12,14 @@ use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 /**
- * Listado de las marcaciones del SIA (SQL Server 2008 remoto) y su única
- * puerta de escritura: importar el CSV que ya exporta EquipoController.
+ * Listado de las marcaciones desde la base local (MySQL, tabla `asistencias`,
+ * migrada del SIA) y la importación del CSV que exporta EquipoController.
  *
  * La tabla tiene ~4.4 millones de filas, por eso el rango arranca en el mes
  * actual: nunca se lista ni se cuenta la tabla completa.
+ *
+ * Nota de transición: el listado ya lee de MySQL, pero el import (y la
+ * sincronización de equipos) todavía escribe en el SIA vía RegistroAsistenciaSia.
  */
 class MarcacionController extends Controller
 {
@@ -36,12 +39,12 @@ class MarcacionController extends Controller
 
         $marcaciones = Asistencia::query()
             ->with('persona')
-            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('Fecha', '>=', $d))
-            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('Fecha', '<=', $h))
+            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('fecha', '>=', $d))
+            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('fecha', '<=', $h))
             ->when($buscar !== '', fn (Builder $query) => $query->buscar($buscar))
-            ->when($tipo !== '', fn (Builder $query) => $query->where('Tipo', $tipo))
-            ->orderByDesc('Fecha')
-            ->orderByDesc('Hora')
+            ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
             ->paginate(25)
             ->withQueryString();
 

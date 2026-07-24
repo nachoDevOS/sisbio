@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Database\Factories\ProfesionFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,7 +14,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Profesion extends Model
 {
-    use SoftDeletes;
+    /** @use HasFactory<ProfesionFactory> */
+    use HasFactory, SoftDeletes;
 
     protected $table = 'profesiones';
 

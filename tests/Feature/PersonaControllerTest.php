@@ -1,27 +1,23 @@
 <?php
 
-use App\Models\Sia\Asistencia;
-use App\Models\Sia\Persona;
-use App\Models\Sia\Profesion;
+use App\Models\Asistencia;
+use App\Models\Persona;
+use App\Models\Profesion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
-    fakeSiaDatabase();
     $this->actingAs(asSuperAdmin());
 });
 
-test('el listado muestra los funcionarios del SIA', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '12345678',
-        'Paterno' => 'Perez',
-        'Materno' => 'Gomez',
-        'Nombres' => 'Juan',
-        'PinReloj' => '99',
-        'MarcaDirecta' => false,
+test('el listado muestra los funcionarios', function () {
+    Persona::factory()->create([
+        'ci' => '12345678',
+        'paterno' => 'Perez',
+        'materno' => 'Gomez',
+        'nombres' => 'Juan',
     ]);
 
     $this->get(route('funcionarios.index'))
@@ -31,10 +27,8 @@ test('el listado muestra los funcionarios del SIA', function () {
 });
 
 test('la búsqueda filtra por nombre', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        ['IdPersona' => '1', 'Paterno' => 'Alfa', 'Materno' => null, 'Nombres' => 'Ana', 'PinReloj' => null, 'MarcaDirecta' => false],
-        ['IdPersona' => '2', 'Paterno' => 'Beta', 'Materno' => null, 'Nombres' => 'Beto', 'PinReloj' => null, 'MarcaDirecta' => false],
-    ]);
+    Persona::factory()->create(['ci' => '1', 'paterno' => 'Alfa', 'nombres' => 'Ana']);
+    Persona::factory()->create(['ci' => '2', 'paterno' => 'Beta', 'nombres' => 'Beto']);
 
     $this->get(route('funcionarios.index', ['q' => 'Alfa']))
         ->assertOk()
@@ -43,12 +37,10 @@ test('la búsqueda filtra por nombre', function () {
 });
 
 test('la búsqueda por varias palabras cruza nombre y apellido', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        ['IdPersona' => '10', 'Paterno' => 'Molina', 'Materno' => 'Guzman', 'Nombres' => 'Ignacio', 'PinReloj' => null, 'MarcaDirecta' => false],
-        ['IdPersona' => '20', 'Paterno' => 'Perez', 'Materno' => 'Rojas', 'Nombres' => 'Ignacio', 'PinReloj' => null, 'MarcaDirecta' => false],
-    ]);
+    Persona::factory()->create(['ci' => '10', 'paterno' => 'Molina', 'materno' => 'Guzman', 'nombres' => 'Ignacio']);
+    Persona::factory()->create(['ci' => '20', 'paterno' => 'Perez', 'materno' => 'Rojas', 'nombres' => 'Ignacio']);
 
-    // "ignacio m" debe encontrar a Ignacio Molina (Nombres + Paterno en
+    // "ignacio m" debe encontrar a Ignacio Molina (nombres + paterno en
     // columnas distintas) y dejar fuera a Ignacio Perez.
     $this->get(route('funcionarios.index', ['q' => 'ignacio m']))
         ->assertOk()
@@ -63,7 +55,7 @@ test('un invitado no puede ver funcionarios', function () {
 });
 
 test('muestra el formulario de alta', function () {
-    Profesion::factory()->create(['NombreProfesion' => 'CONTADOR GENERAL']);
+    Profesion::factory()->create(['nombreProfesion' => 'CONTADOR GENERAL']);
 
     $this->get(route('funcionarios.create'))
         ->assertOk()
@@ -71,57 +63,57 @@ test('muestra el formulario de alta', function () {
         ->assertSee('CONTADOR GENERAL');
 });
 
-test('registra un funcionario nuevo en el SIA', function () {
+test('registra un funcionario nuevo', function () {
     $profesion = Profesion::factory()->create();
 
     $this->post(route('funcionarios.store'), [
-        'IdPersona' => '1234567',
-        'OrigenId' => 'BE',
-        'Paterno' => 'Suárez',
-        'Materno' => 'Roca',
-        'Nombres' => 'Ana María',
-        'FechaNacimiento' => '1990-05-10',
-        'LugarNacimiento' => 'Trinidad',
-        'Sexo' => 'F',
-        'EstadoCivil' => 'S',
-        'CodigoProfesion' => $profesion->CodigoProfesion,
-        'NivelEstudio' => 'Profesional',
-        'Telefono' => '71234567',
-        'Direccion' => 'Av. 6 de Agosto 123',
-        'CorreoE' => 'ana@example.com',
+        'ci' => '1234567',
+        'origenId' => 'BE',
+        'paterno' => 'Suárez',
+        'materno' => 'Roca',
+        'nombres' => 'Ana María',
+        'fechaNacimiento' => '1990-05-10',
+        'lugarNacimiento' => 'Trinidad',
+        'sexo' => 'F',
+        'estadoCivil' => 'S',
+        'codigoProfesion' => $profesion->codigoProfesion,
+        'nivelEstudio' => 'Profesional',
+        'telefono' => '71234567',
+        'direccion' => 'Av. 6 de Agosto 123',
+        'correo' => 'ana@example.com',
     ])
         ->assertRedirect(route('funcionarios.index'))
         ->assertSessionHas('estado');
 
-    $persona = Persona::query()->find('1234567');
+    $persona = Persona::query()->where('ci', '1234567')->first();
 
     expect($persona)->not->toBeNull()
-        ->and($persona->Paterno)->toBe('Suárez')
+        ->and($persona->paterno)->toBe('Suárez')
         // Sección "Control de asistencia" deshabilitada: siempre entra sin
         // PIN y sin marcación con contraseña.
-        ->and($persona->PinReloj)->toBeNull()
-        ->and($persona->MarcaDirecta)->toBeFalse();
+        ->and($persona->pinReloj)->toBeNull()
+        ->and($persona->marcaDirecta)->toBeFalse();
 });
 
 test('el alta valida obligatorios y carnet repetido', function () {
-    Persona::factory()->create(['IdPersona' => '9999999']);
+    Persona::factory()->create(['ci' => '9999999']);
 
     $this->post(route('funcionarios.store'), [
-        'IdPersona' => '9999999',
-        'Paterno' => '',
-        'Nombres' => '',
-    ])->assertSessionHasErrors(['IdPersona', 'Paterno', 'Nombres', 'FechaNacimiento', 'Sexo', 'EstadoCivil', 'CodigoProfesion']);
+        'ci' => '9999999',
+        'paterno' => '',
+        'nombres' => '',
+    ])->assertSessionHasErrors(['ci', 'paterno', 'nombres', 'fechaNacimiento', 'sexo', 'estadoCivil', 'codigoProfesion']);
 
     expect(Persona::query()->count())->toBe(1);
 });
 
 test('muestra la ficha de detalle con datos', function () {
-    $profesion = Profesion::factory()->create(['NombreProfesion' => 'CONTADOR GENERAL']);
+    $profesion = Profesion::factory()->create(['nombreProfesion' => 'CONTADOR GENERAL']);
     $persona = Persona::factory()->create([
-        'IdPersona' => '7778888',
-        'Paterno' => 'Detalle',
-        'Nombres' => 'Vista Completa',
-        'CodigoProfesion' => $profesion->CodigoProfesion,
+        'ci' => '7778888',
+        'paterno' => 'Detalle',
+        'nombres' => 'Vista Completa',
+        'codigoProfesion' => $profesion->codigoProfesion,
     ]);
 
     $this->get(route('funcionarios.show', $persona))
@@ -133,7 +125,7 @@ test('muestra la ficha de detalle con datos', function () {
 
 test('muestra el formulario de edición con los datos actuales', function () {
     Profesion::factory()->create();
-    $persona = Persona::factory()->create(['Paterno' => 'Zabaleta']);
+    $persona = Persona::factory()->create(['paterno' => 'Zabaleta']);
 
     $this->get(route('funcionarios.edit', $persona))
         ->assertOk()
@@ -144,26 +136,26 @@ test('muestra el formulario de edición con los datos actuales', function () {
 test('actualiza un funcionario sin tocar el carnet', function () {
     $profesion = Profesion::factory()->create();
     $persona = Persona::factory()->create([
-        'IdPersona' => '5555555',
-        'Paterno' => 'Original',
+        'ci' => '5555555',
+        'paterno' => 'Original',
     ]);
 
     $this->put(route('funcionarios.update', $persona), [
-        'Paterno' => 'Cambiado',
-        'Nombres' => 'Nuevo Nombre',
-        'FechaNacimiento' => '1985-01-20',
-        'Sexo' => 'M',
-        'EstadoCivil' => 'C',
-        'CodigoProfesion' => $profesion->CodigoProfesion,
+        'paterno' => 'Cambiado',
+        'nombres' => 'Nuevo Nombre',
+        'fechaNacimiento' => '1985-01-20',
+        'sexo' => 'M',
+        'estadoCivil' => 'C',
+        'codigoProfesion' => $profesion->codigoProfesion,
     ])
         ->assertRedirect(route('funcionarios.index'))
         ->assertSessionHas('estado');
 
     $persona->refresh();
 
-    expect($persona->Paterno)->toBe('Cambiado')
-        ->and($persona->Nombres)->toBe('Nuevo Nombre')
-        ->and(trim($persona->IdPersona))->toBe('5555555');
+    expect($persona->paterno)->toBe('Cambiado')
+        ->and($persona->nombres)->toBe('Nuevo Nombre')
+        ->and(trim($persona->ci))->toBe('5555555');
 });
 
 test('un usuario sin permiso no puede entrar al listado', function () {
@@ -173,13 +165,13 @@ test('un usuario sin permiso no puede entrar al listado', function () {
 });
 
 test('la ficha muestra las marcaciones del funcionario dentro del rango por defecto', function () {
-    $persona = Persona::factory()->create(['IdPersona' => '7778888']);
+    $persona = Persona::factory()->create(['ci' => '7778888']);
 
     Asistencia::factory()->create([
-        'IdPersona' => $persona->IdPersona,
-        'Fecha' => today(),
-        'Hora' => '1899-12-30 08:15:00',
-        'Tipo' => Asistencia::TIPO_RELOJ,
+        'ci' => $persona->ci,
+        'fecha' => today(),
+        'hora' => '1899-12-30 08:15:00',
+        'tipo' => Asistencia::TIPO_RELOJ,
     ]);
 
     $this->get(route('funcionarios.show', $persona))
@@ -188,11 +180,11 @@ test('la ficha muestra las marcaciones del funcionario dentro del rango por defe
 });
 
 test('la ficha no mezcla marcaciones de otro funcionario', function () {
-    $persona = Persona::factory()->create(['IdPersona' => '7778888']);
-    $otro = Persona::factory()->create(['IdPersona' => '1112222']);
+    $persona = Persona::factory()->create(['ci' => '7778888']);
+    $otro = Persona::factory()->create(['ci' => '1112222']);
 
-    Asistencia::factory()->create(['IdPersona' => $persona->IdPersona, 'Fecha' => today(), 'Hora' => '1899-12-30 08:00:00']);
-    Asistencia::factory()->create(['IdPersona' => $otro->IdPersona, 'Fecha' => today(), 'Hora' => '1899-12-30 09:00:00']);
+    Asistencia::factory()->create(['ci' => $persona->ci, 'fecha' => today(), 'hora' => '1899-12-30 08:00:00']);
+    Asistencia::factory()->create(['ci' => $otro->ci, 'fecha' => today(), 'hora' => '1899-12-30 09:00:00']);
 
     $this->get(route('funcionarios.show', $persona))
         ->assertOk()
@@ -201,19 +193,19 @@ test('la ficha no mezcla marcaciones de otro funcionario', function () {
 });
 
 test('la ficha filtra las marcaciones por rango de fechas y tipo', function () {
-    $persona = Persona::factory()->create(['IdPersona' => '7778888']);
+    $persona = Persona::factory()->create(['ci' => '7778888']);
 
     Asistencia::factory()->create([
-        'IdPersona' => $persona->IdPersona,
-        'Fecha' => today()->subMonths(3),
-        'Hora' => '1899-12-30 07:00:00',
-        'Tipo' => Asistencia::TIPO_MANUAL,
+        'ci' => $persona->ci,
+        'fecha' => today()->subMonths(3),
+        'hora' => '1899-12-30 07:00:00',
+        'tipo' => Asistencia::TIPO_MANUAL,
     ]);
     Asistencia::factory()->create([
-        'IdPersona' => $persona->IdPersona,
-        'Fecha' => today(),
-        'Hora' => '1899-12-30 08:00:00',
-        'Tipo' => Asistencia::TIPO_RELOJ,
+        'ci' => $persona->ci,
+        'fecha' => today(),
+        'hora' => '1899-12-30 08:00:00',
+        'tipo' => Asistencia::TIPO_RELOJ,
     ]);
 
     $this->get(route('funcionarios.show', $persona))
@@ -234,24 +226,24 @@ test('la ficha filtra las marcaciones por rango de fechas y tipo', function () {
 
 test('el reporte imprimible lista las marcaciones crudas del rango', function () {
     $persona = Persona::factory()->create([
-        'IdPersona' => '7633685',
-        'Paterno' => 'Molina',
-        'Materno' => 'Guzman',
-        'Nombres' => 'Ignacio',
-        'PinReloj' => '7633685',
+        'ci' => '7633685',
+        'paterno' => 'Molina',
+        'materno' => 'Guzman',
+        'nombres' => 'Ignacio',
+        'pinReloj' => '7633685',
     ]);
 
     Asistencia::factory()->create([
-        'IdPersona' => $persona->IdPersona,
-        'Fecha' => today(),
-        'Hora' => '1899-12-30 08:15:00',
-        'Tipo' => Asistencia::TIPO_RELOJ,
+        'ci' => $persona->ci,
+        'fecha' => today(),
+        'hora' => '1899-12-30 08:15:00',
+        'tipo' => Asistencia::TIPO_RELOJ,
     ]);
     Asistencia::factory()->create([
-        'IdPersona' => $persona->IdPersona,
-        'Fecha' => today()->subYear(),
-        'Hora' => '1899-12-30 07:00:00',
-        'Tipo' => Asistencia::TIPO_RELOJ,
+        'ci' => $persona->ci,
+        'fecha' => today()->subYear(),
+        'hora' => '1899-12-30 07:00:00',
+        'tipo' => Asistencia::TIPO_RELOJ,
     ]);
 
     $this->get(route('funcionarios.reporte', [

@@ -4,7 +4,7 @@
 
 @section('contenido')
     <div class="cabecera">
-        <h1>Nuevo horario (SIA)</h1>
+        <h1>Nuevo horario</h1>
         <a href="{{ route('horarios.index') }}" class="btn btn--gris"><x-heroicon-o-arrow-left />Volver</a>
     </div>
 
