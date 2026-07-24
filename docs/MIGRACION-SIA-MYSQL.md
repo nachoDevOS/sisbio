@@ -82,8 +82,10 @@ php artisan migrate
 php artisan db:seed --class=MigrarSiaSeeder
 ```
 
-Corre los seis comandos de copia en el orden correcto. Idempotente: reejecutarlo
-no duplica.
+**Este seeder primero corre `migrate:fresh --seed`** (⚠️ BORRA todas las tablas y
+recrea el esquema + usuario/roles base), y luego corre los comandos de copia en el
+orden correcto. Es una migración limpia completa cada vez. En entorno de tests no
+hace el `migrate:fresh` (la BD ya viene fresca).
 
 ### Copiar los datos — comando por comando
 
@@ -119,6 +121,10 @@ php artisan tinker --execute 'echo DB::table("personas")->count()." personas, ".
 | `DiaTurnos` | `turnos` | `sia:migrar-horarios` | `idTurno` |
 | `Licencias` | `licencias` | `sia:migrar-licencias` | `ci + fecha + idTurno` |
 | `AsignacionTurnos` | `asignacion_turnos` | `sia:migrar-asignacion-turnos` | `ci + idTurno + desde` |
+
+`licencias` y `asignacion_turnos` conservan `idTurno` **y** tienen la FK `turno_id`
+→ `turnos.id`, que el comando resuelve cruzando `idTurno` contra `turnos` (por eso
+los horarios se migran antes; si no cruza, `turno_id` queda null).
 | `Calendario` | `dias_excepcionales` | `sia:migrar-dias-excepcionales` | `fecha` |
 
 Modelos locales (conexión MySQL por defecto): `App\Models\Persona`,
@@ -127,10 +133,6 @@ Modelos locales (conexión MySQL por defecto): `App\Models\Persona`,
 
 > Algunas tablas locales cambian de nombre respecto al SIA: `DiaTurnos`→`turnos`,
 > `Calendario`→`dias_excepcionales`.
-
-`asignacion_turnos` conserva `idTurno` (código del SIA) y además tiene la FK
-`turno_id` → `turnos.id`, que el comando resuelve cruzando `idTurno` contra
-`turnos` (por eso los horarios se migran antes; si no cruza, `turno_id` queda null).
 
 > **Tests:** al agregar una tabla del SIA, replicarla también en
 > `tests/Pest.php` → `fakeSiaDatabase()` (schema con nombres del SIA, PascalCase)

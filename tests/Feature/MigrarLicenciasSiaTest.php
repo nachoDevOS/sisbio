@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Sia\DiaTurno;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 
@@ -63,6 +64,27 @@ test('mapea IdPersona→ci y preserva los campos, recortando el relleno', functi
         ->and($local->idTurno)->toBe('8DW')
         ->and($local->motivo)->toBe('INGRESO AL BIOMETRICO')
         ->and($local->lEntra)->toContain('08:00:00');
+});
+
+test('resuelve turno_id cruzando idTurno con turnos local', function () {
+    // Turno local con el que se cruza: se migra un DiaTurno del SIA primero.
+    DiaTurno::factory()->create(['IdTurno' => '8DW']);
+    $this->artisan('sia:migrar-horarios')->assertSuccessful();
+    $turnoId = DB::table('turnos')->where('idTurno', '8DW')->value('id');
+
+    insertarLicenciaSia(['IdTurno' => '8DW']);
+
+    $this->artisan('sia:migrar-licencias')->assertSuccessful();
+
+    expect(DB::table('licencias')->value('turno_id'))->toBe($turnoId);
+});
+
+test('turno_id queda null si el idTurno no cruza con ningún turno', function () {
+    insertarLicenciaSia(['IdTurno' => 'ZZZ']);
+
+    $this->artisan('sia:migrar-licencias')->assertSuccessful();
+
+    expect(DB::table('licencias')->value('turno_id'))->toBeNull();
 });
 
 test('es idempotente: correrlo dos veces no duplica', function () {

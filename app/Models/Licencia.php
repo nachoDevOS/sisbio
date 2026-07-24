@@ -28,6 +28,7 @@ class Licencia extends Model
         'fecha',
         'ci',
         'idTurno',
+        'turno_id',
         'lEntra',
         'lSale',
         'tCompleto',
@@ -57,6 +58,6 @@ class Licencia extends Model
 
     public function turno(): BelongsTo
     {
-        return $this->belongsTo(Turno::class, 'idTurno', 'idTurno');
+        return $this->belongsTo(Turno::class, 'turno_id');
     }
 }

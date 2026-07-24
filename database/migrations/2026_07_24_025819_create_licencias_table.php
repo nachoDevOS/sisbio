@@ -13,8 +13,10 @@ use Illuminate\Support\Facades\Schema;
  * y eliminación lógica propios. El carnet va en `ci` (en el SIA es IdPersona).
  * La clave natural (una licencia por funcionario, día y turno) pasa a un índice
  * único (ci + fecha + idTurno) para el upsert idempotente; `ci` se indexa aparte
- * para los joins con personas. `lEntra`/`lSale` guardan la hora sobre la fecha
- * base 1899-12-30, como el resto de horas del SIA.
+ * para los joins con personas. Se conserva `idTurno` (código del SIA) y además
+ * se agrega la FK `turno_id` → `turnos.id`, que el comando resuelve cruzando
+ * idTurno contra `turnos` (por eso los horarios se migran antes). `lEntra`/`lSale`
+ * guardan la hora sobre la fecha base 1899-12-30, como el resto de horas del SIA.
  */
 return new class extends Migration
 {
@@ -27,6 +29,7 @@ return new class extends Migration
             $table->dateTime('fecha');
             $table->char('ci', 12);
             $table->char('idTurno', 3);
+            $table->foreignId('turno_id')->nullable()->constrained('turnos');
             $table->dateTime('lEntra')->nullable();
             $table->dateTime('lSale')->nullable();
             $table->boolean('tCompleto');

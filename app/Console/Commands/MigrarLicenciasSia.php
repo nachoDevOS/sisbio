@@ -59,7 +59,15 @@ class MigrarLicenciasSia extends Command
             return self::FAILURE;
         }
 
-        $actualizables = [...array_values(array_diff(self::MAPA, self::CLAVE)), 'updated_at'];
+        // Mapa idTurno → id local de turnos, para resolver la FK turno_id sin
+        // consultar la base por cada fila. Si turnos está vacío, todas quedan null.
+        $turnosPorCodigo = DB::connection($destino)->table('turnos')->pluck('id', 'idTurno');
+
+        if ($turnosPorCodigo->isEmpty()) {
+            $this->warn('La tabla «turnos» está vacía: turno_id quedará null. Corré «sia:migrar-horarios» antes.');
+        }
+
+        $actualizables = [...array_values(array_diff(self::MAPA, self::CLAVE)), 'turno_id', 'updated_at'];
         $copiadas = 0;
         $lote = [];
 
@@ -70,7 +78,10 @@ class MigrarLicenciasSia extends Command
 
             foreach ($filas as $fila) {
                 $ahora = now();
-                $lote[] = $this->aLocal((array) $fila) + ['created_at' => $ahora, 'updated_at' => $ahora];
+                $local = $this->aLocal((array) $fila);
+                // FK real: id de MySQL del turno cuyo idTurno coincide.
+                $local['turno_id'] = $turnosPorCodigo[$local['idTurno']] ?? null;
+                $lote[] = $local + ['created_at' => $ahora, 'updated_at' => $ahora];
 
                 if (count($lote) >= $tamanoLote) {
                     DB::connection($destino)->table('licencias')->upsert($lote, self::CLAVE, $actualizables);
