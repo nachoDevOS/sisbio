@@ -18,7 +18,7 @@ return new class extends Migration
     {
         Schema::create('turnos', function (Blueprint $table): void {
             $table->id();
-            $table->char('idTurno', 3)->unique();
+            $table->char('idTurno', 3)
             $table->char('dia', 1);
             $table->string('nombreTurno', 25);
             $table->dateTime('hEntrada');

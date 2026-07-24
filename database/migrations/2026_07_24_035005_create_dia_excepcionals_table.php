@@ -18,7 +18,7 @@ return new class extends Migration
     {
         Schema::create('dias_excepcionales', function (Blueprint $table): void {
             $table->id();
-            $table->dateTime('fecha')->unique();
+            $table->dateTime('fecha');
             $table->string('motivoInasistencia', 255)->nullable();
 
             $table->text('observacion')->nullable();
