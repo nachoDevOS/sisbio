@@ -94,6 +94,7 @@ php artisan sia:migrar-horarios           # turnos (antes de asignacion-turnos)
 php artisan sia:migrar-marcaciones        # ~4.4M filas — tarda
 php artisan sia:migrar-licencias          # permisos/vacaciones
 php artisan sia:migrar-asignacion-turnos  # asignaciones (resuelve turno_id)
+php artisan sia:migrar-dias-excepcionales # feriados/tolerancias (Calendario)
 ```
 
 Cada comando acepta `--chunk=N` (filas por lote). Si algo falla, se reejecuta
@@ -118,10 +119,14 @@ php artisan tinker --execute 'echo DB::table("personas")->count()." personas, ".
 | `DiaTurnos` | `turnos` | `sia:migrar-horarios` | `idTurno` |
 | `Licencias` | `licencias` | `sia:migrar-licencias` | `ci + fecha + idTurno` |
 | `AsignacionTurnos` | `asignacion_turnos` | `sia:migrar-asignacion-turnos` | `ci + idTurno + desde` |
+| `Calendario` | `dias_excepcionales` | `sia:migrar-dias-excepcionales` | `fecha` |
 
 Modelos locales (conexión MySQL por defecto): `App\Models\Persona`,
 `App\Models\Asistencia`, `App\Models\Profesion`, `App\Models\Turno`,
-`App\Models\Licencia`, `App\Models\AsignacionTurno`.
+`App\Models\Licencia`, `App\Models\AsignacionTurno`, `App\Models\DiaExcepcional`.
+
+> Algunas tablas locales cambian de nombre respecto al SIA: `DiaTurnos`→`turnos`,
+> `Calendario`→`dias_excepcionales`.
 
 `asignacion_turnos` conserva `idTurno` (código del SIA) y además tiene la FK
 `turno_id` → `turnos.id`, que el comando resuelve cruzando `idTurno` contra

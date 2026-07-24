@@ -41,6 +41,10 @@ class MigrarPersonasSia extends Command
     /**
      * Copia las Personas del SIA a la tabla local `personas`. Idempotente:
      * reejecutarlo no duplica (upsert por ci). El padding de los char() se recorta.
+     *
+     * Se lee con un cursor (stream de una sola consulta) en vez de paginar: el
+     * ROW_NUMBER() del grammar 2008 haría que cada página reescanee (O(n²)) y en
+     * tablas grandes el comando parecería colgado. Imprime progreso por lote.
      */
     public function handle(): int
     {
@@ -53,27 +57,33 @@ class MigrarPersonasSia extends Command
             return self::FAILURE;
         }
 
-        $copiadas = 0;
         // Al reejecutar se refresca updated_at, pero no created_at; deleted_at
         // nunca se toca desde aquí.
         $actualizables = [...array_values(array_diff(self::MAPA, ['ci'])), 'updated_at'];
+        $copiadas = 0;
+        $lote = [];
 
         try {
-            DB::connection('sia')->table('Personas')
+            $filas = DB::connection('sia')->table('Personas')
                 ->select(array_keys(self::MAPA))
-                ->orderBy('IdPersona')
-                ->chunk($tamanoLote, function ($filas) use (&$copiadas, $actualizables, $destino): void {
-                    $ahora = now();
+                ->cursor();
 
-                    $registros = $filas
-                        ->map(fn ($fila): array => $this->aLocal((array) $fila) + ['created_at' => $ahora, 'updated_at' => $ahora])
-                        ->all();
+            foreach ($filas as $fila) {
+                $ahora = now();
+                $lote[] = $this->aLocal((array) $fila) + ['created_at' => $ahora, 'updated_at' => $ahora];
 
-                    DB::connection($destino)->table('personas')
-                        ->upsert($registros, ['ci'], $actualizables);
+                if (count($lote) >= $tamanoLote) {
+                    DB::connection($destino)->table('personas')->upsert($lote, ['ci'], $actualizables);
+                    $copiadas += count($lote);
+                    $lote = [];
+                    $this->info("Copiados {$copiadas} funcionario(s)…");
+                }
+            }
 
-                    $copiadas += count($registros);
-                });
+            if ($lote !== []) {
+                DB::connection($destino)->table('personas')->upsert($lote, ['ci'], $actualizables);
+                $copiadas += count($lote);
+            }
         } catch (Throwable $e) {
             $this->error("Falló la migración de funcionarios: {$e->getMessage()}");
 

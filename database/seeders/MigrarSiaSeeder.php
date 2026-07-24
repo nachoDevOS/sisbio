@@ -31,6 +31,7 @@ class MigrarSiaSeeder extends Seeder
         'sia:migrar-marcaciones',
         'sia:migrar-licencias',
         'sia:migrar-asignacion-turnos',
+        'sia:migrar-dias-excepcionales',
     ];
 
     public function run(): void

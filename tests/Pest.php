@@ -143,4 +143,9 @@ function fakeSiaDatabase(): void
         $tabla->dateTime('Desde');
         $tabla->dateTime('Hasta');
     });
+
+    Schema::connection('sia')->create('Calendario', function (Blueprint $tabla): void {
+        $tabla->dateTime('Fecha');
+        $tabla->string('MotivoInasistencia', 255)->nullable();
+    });
 }

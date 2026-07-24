@@ -60,28 +60,34 @@ class MigrarAsignacionTurnosSia extends Command
             $this->warn('La tabla «turnos» está vacía: turno_id quedará null. Corré «sia:migrar-horarios» antes.');
         }
 
+        $actualizables = ['turno_id', 'hasta', 'updated_at'];
         $copiadas = 0;
+        $lote = [];
 
         try {
-            DB::connection('sia')->table('AsignacionTurnos')
+            $filas = DB::connection('sia')->table('AsignacionTurnos')
                 ->select(array_keys(self::MAPA))
-                ->orderBy('IdPersona')
-                ->chunk($tamanoLote, function ($filas) use (&$copiadas, $destino, $turnosPorCodigo): void {
-                    $ahora = now();
+                ->cursor();
 
-                    $registros = $filas->map(function ($fila) use ($ahora, $turnosPorCodigo): array {
-                        $local = $this->aLocal((array) $fila);
-                        // FK real: id de MySQL del turno cuyo idTurno coincide.
-                        $local['turno_id'] = $turnosPorCodigo[$local['idTurno']] ?? null;
+            foreach ($filas as $fila) {
+                $ahora = now();
+                $local = $this->aLocal((array) $fila);
+                // FK real: id de MySQL del turno cuyo idTurno coincide.
+                $local['turno_id'] = $turnosPorCodigo[$local['idTurno']] ?? null;
+                $lote[] = $local + ['created_at' => $ahora, 'updated_at' => $ahora];
 
-                        return $local + ['created_at' => $ahora, 'updated_at' => $ahora];
-                    })->all();
+                if (count($lote) >= $tamanoLote) {
+                    DB::connection($destino)->table('asignacion_turnos')->upsert($lote, self::CLAVE, $actualizables);
+                    $copiadas += count($lote);
+                    $lote = [];
+                    $this->info("Copiadas {$copiadas} asignación(es)…");
+                }
+            }
 
-                    DB::connection($destino)->table('asignacion_turnos')
-                        ->upsert($registros, self::CLAVE, ['turno_id', 'hasta', 'updated_at']);
-
-                    $copiadas += count($registros);
-                });
+            if ($lote !== []) {
+                DB::connection($destino)->table('asignacion_turnos')->upsert($lote, self::CLAVE, $actualizables);
+                $copiadas += count($lote);
+            }
         } catch (Throwable $e) {
             $this->error("Falló la migración de asignaciones de turno: {$e->getMessage()}");
 

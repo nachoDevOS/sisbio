@@ -43,6 +43,10 @@ class MigrarLicenciasSia extends Command
     /**
      * Copia las licencias del SIA a la tabla local `licencias`. Idempotente:
      * reejecutarlo no duplica (upsert por ci+fecha+idTurno). Recorta el padding char().
+     *
+     * Se lee con un cursor (stream de una sola consulta) en vez de paginar: el
+     * ROW_NUMBER() del grammar 2008 haría que cada página reescanee (O(n²)) y en
+     * tablas grandes el comando parecería colgado. Imprime progreso por lote.
      */
     public function handle(): int
     {
@@ -55,25 +59,31 @@ class MigrarLicenciasSia extends Command
             return self::FAILURE;
         }
 
-        $copiadas = 0;
         $actualizables = [...array_values(array_diff(self::MAPA, self::CLAVE)), 'updated_at'];
+        $copiadas = 0;
+        $lote = [];
 
         try {
-            DB::connection('sia')->table('Licencias')
+            $filas = DB::connection('sia')->table('Licencias')
                 ->select(array_keys(self::MAPA))
-                ->orderBy('IdPersona')
-                ->chunk($tamanoLote, function ($filas) use (&$copiadas, $actualizables, $destino): void {
-                    $ahora = now();
+                ->cursor();
 
-                    $registros = $filas
-                        ->map(fn ($fila): array => $this->aLocal((array) $fila) + ['created_at' => $ahora, 'updated_at' => $ahora])
-                        ->all();
+            foreach ($filas as $fila) {
+                $ahora = now();
+                $lote[] = $this->aLocal((array) $fila) + ['created_at' => $ahora, 'updated_at' => $ahora];
 
-                    DB::connection($destino)->table('licencias')
-                        ->upsert($registros, self::CLAVE, $actualizables);
+                if (count($lote) >= $tamanoLote) {
+                    DB::connection($destino)->table('licencias')->upsert($lote, self::CLAVE, $actualizables);
+                    $copiadas += count($lote);
+                    $lote = [];
+                    $this->info("Copiadas {$copiadas} licencia(s)…");
+                }
+            }
 
-                    $copiadas += count($registros);
-                });
+            if ($lote !== []) {
+                DB::connection($destino)->table('licencias')->upsert($lote, self::CLAVE, $actualizables);
+                $copiadas += count($lote);
+            }
         } catch (Throwable $e) {
             $this->error("Falló la migración de licencias: {$e->getMessage()}");
 
