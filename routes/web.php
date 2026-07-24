@@ -43,6 +43,8 @@ Route::middleware('auth')->group(function (): void {
     // La ficha por cédula de Mamoré va antes del resource para que no la capture
     // el binding {persona} del show local.
     Route::get('funcionarios/mamore/{ci}', [PersonaController::class, 'mamoreShow'])->name('funcionarios.mamore');
+    // Tabla del listado por AJAX (browse/list, con su paginación).
+    Route::get('funcionarios/ajax/list', [PersonaController::class, 'list'])->name('funcionarios.list');
     Route::resource('funcionarios', PersonaController::class)
         ->parameters(['funcionarios' => 'persona'])
         ->only(['index', 'show']);

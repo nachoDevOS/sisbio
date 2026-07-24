@@ -21,10 +21,22 @@ use Illuminate\View\View;
 class PersonaController extends Controller
 {
     /**
-     * Listado paginado de funcionarios, con búsqueda por CI o nombre, desde la
-     * fuente elegida (Mamoré por defecto, o SIAT local).
+     * Pantalla del listado (browse): el «shell» con los filtros. La tabla en sí
+     * se carga por AJAX contra `list()`, con su propia paginación.
      */
-    public function index(Request $request, MamoreClient $mamore): View
+    public function index(): View
+    {
+        $this->authorize('viewAny', Persona::class);
+
+        return view('funcionarios.index');
+    }
+
+    /**
+     * Devuelve el parcial de la tabla (filas + paginación) para el AJAX del
+     * listado, con búsqueda por CI o nombre desde la fuente elegida (Mamoré por
+     * defecto, o SIAT local).
+     */
+    public function list(Request $request, MamoreClient $mamore): View
     {
         $this->authorize('viewAny', Persona::class);
 
@@ -39,7 +51,7 @@ class PersonaController extends Controller
             [$funcionarios, $errorFuente] = $this->funcionariosMamore($request, $mamore, $busqueda, $porPagina);
         }
 
-        return view('funcionarios.index', compact('funcionarios', 'busqueda', 'porPagina', 'fuente', 'errorFuente'));
+        return view('funcionarios.list', compact('funcionarios', 'fuente', 'errorFuente'));
     }
 
     /**
