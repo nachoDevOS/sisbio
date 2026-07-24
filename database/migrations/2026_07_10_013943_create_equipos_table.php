@@ -24,6 +24,7 @@ return new class extends Migration
             $table->timestamp('ultima_sync')->nullable(); // Última vez que se conectó/sincronizó
             $table->boolean('activo')->default(true); // Si participa en la sincronización
             $table->timestamps();
+            $table->softDeletes(); // Eliminación lógica: destroy() solo marca deleted_at
 
             $table->unique(['ip', 'puerto']); // Evita registrar el mismo equipo dos veces
         });

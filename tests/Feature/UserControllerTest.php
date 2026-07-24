@@ -94,13 +94,14 @@ test('actualiza la contraseña cuando se envía una nueva', function () {
     expect(Hash::check('nuevaclave1', $user->refresh()->password))->toBeTrue();
 });
 
-test('elimina un usuario', function () {
+test('elimina un usuario (lógicamente)', function () {
     $user = User::factory()->create();
 
     $this->delete(route('usuarios.destroy', $user))
         ->assertRedirect(route('usuarios.index'));
 
-    $this->assertDatabaseMissing('users', ['id' => $user->id]);
+    // Eliminación lógica: la fila queda con deleted_at, no se borra.
+    $this->assertSoftDeleted('users', ['id' => $user->id]);
 });
 
 test('un usuario sin permiso no puede entrar al listado', function () {

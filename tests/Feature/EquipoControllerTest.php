@@ -118,13 +118,14 @@ test('actualiza un equipo existente', function () {
     expect($equipo->refresh()->nombre)->toBe('Nuevo nombre');
 });
 
-test('elimina un equipo', function () {
+test('elimina un equipo (lógicamente)', function () {
     $equipo = Equipo::factory()->create();
 
     $this->delete(route('equipos.destroy', $equipo))
         ->assertRedirect(route('equipos.index'));
 
-    $this->assertDatabaseMissing('equipos', ['id' => $equipo->id]);
+    // Eliminación lógica: la fila queda con deleted_at, no se borra.
+    $this->assertSoftDeleted('equipos', ['id' => $equipo->id]);
 });
 
 test('un invitado no puede entrar al listado', function () {

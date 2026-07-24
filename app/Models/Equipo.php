@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\EquipoFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Representa un equipo biométrico ZKTeco en la red LAN.
@@ -13,11 +14,14 @@ use Illuminate\Database\Eloquent\Model;
  * se comunica por TCP (puerto 4370 por defecto). Laravel nunca habla directo
  * con el equipo: solo lee/escribe estas columnas y delega la comunicación
  * real al microservicio.
+ *
+ * Usa eliminación lógica (SoftDeletes): destroy() solo marca deleted_at y el
+ * equipo desaparece de los listados sin borrarse de la base.
  */
 class Equipo extends Model
 {
     /** @use HasFactory<EquipoFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
      * Atributos asignables en masa.

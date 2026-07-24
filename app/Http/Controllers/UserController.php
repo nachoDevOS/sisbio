@@ -6,7 +6,6 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
 
@@ -101,15 +100,12 @@ class UserController extends Controller
     }
 
     /**
-     * Elimina un usuario y su avatar guardado.
+     * Elimina un usuario (eliminación lógica). La foto de perfil se conserva
+     * para poder restaurarlo con su avatar intacto.
      */
     public function destroy(User $usuario): RedirectResponse
     {
         $this->authorize('delete', $usuario);
-
-        if ($usuario->avatar_path) {
-            Storage::disk('public')->delete($usuario->avatar_path);
-        }
 
         $usuario->delete();
 
