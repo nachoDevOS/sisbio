@@ -50,11 +50,13 @@ Route::middleware('auth')->group(function (): void {
         ->only(['index', 'show']);
 
     // Horarios (turnos) del SIA: «Administrador de horarios» del escritorio.
+    Route::get('horarios/ajax/list', [DiaTurnoController::class, 'list'])->name('horarios.list');
     Route::resource('horarios', DiaTurnoController::class)
         ->parameters(['horarios' => 'horario']);
 
     // Parámetros → Días excepcionales (feriados/tolerancias que no controlan
     // asistencia), base local MySQL. CRUD sin ficha (show).
+    Route::get('dias-excepcionales/ajax/list', [DiaExcepcionalController::class, 'list'])->name('dias-excepcionales.list');
     Route::resource('dias-excepcionales', DiaExcepcionalController::class)
         ->parameters(['dias-excepcionales' => 'diaExcepcional'])
         ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
@@ -65,6 +67,7 @@ Route::middleware('auth')->group(function (): void {
     // El listado es de solo lectura; la única escritura es importar el CSV
     // que ya exporta "Equipos > Marcaciones > Exportar".
     Route::get('marcaciones', [MarcacionController::class, 'index'])->name('marcaciones.index');
+    Route::get('marcaciones/ajax/list', [MarcacionController::class, 'list'])->name('marcaciones.list');
     Route::post('marcaciones', [MarcacionController::class, 'store'])->name('marcaciones.store');
     Route::post('marcaciones/importar', [MarcacionController::class, 'importar'])->name('marcaciones.importar');
 

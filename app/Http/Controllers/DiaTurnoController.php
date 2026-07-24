@@ -48,6 +48,20 @@ class DiaTurnoController extends Controller
         $dia = (string) $request->query('dia', '');
         $porPagina = $this->porPagina($request);
 
+        return view('horarios.index', compact('buscar', 'dia', 'porPagina'));
+    }
+
+    /**
+     * Devuelve el listado para AJAX.
+     */
+    public function list(Request $request): View
+    {
+        $this->authorize('viewAny', Turno::class);
+
+        $buscar = trim((string) $request->query('q', ''));
+        $dia = (string) $request->query('dia', '');
+        $porPagina = $this->porPagina($request);
+
         $horarios = Turno::query()
             ->when($buscar !== '', fn (Builder $query) => $query->where('nombreTurno', 'like', "%{$buscar}%"))
             ->when($dia !== '', fn (Builder $query) => $query->where('dia', $dia))
@@ -55,7 +69,7 @@ class DiaTurnoController extends Controller
             ->paginate($porPagina)
             ->withQueryString();
 
-        return view('horarios.index', compact('horarios', 'buscar', 'dia', 'porPagina'));
+        return view('horarios.list', compact('horarios'));
     }
 
     /**

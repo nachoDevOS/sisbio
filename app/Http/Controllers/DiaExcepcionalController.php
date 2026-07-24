@@ -28,13 +28,26 @@ class DiaExcepcionalController extends Controller
         $busqueda = trim((string) $request->query('q', ''));
         $porPagina = $this->porPagina($request);
 
+        return view('dias-excepcionales.index', compact('busqueda', 'porPagina'));
+    }
+
+    /**
+     * Devuelve el listado para AJAX.
+     */
+    public function list(Request $request): View
+    {
+        $this->authorize('viewAny', DiaExcepcional::class);
+
+        $busqueda = trim((string) $request->query('q', ''));
+        $porPagina = $this->porPagina($request);
+
         $diasExcepcionales = DiaExcepcional::query()
             ->when($busqueda !== '', fn (Builder $query) => $this->filtrarBusqueda($query, $busqueda))
             ->orderByDesc('fecha')
             ->paginate($porPagina)
             ->withQueryString();
 
-        return view('dias-excepcionales.index', compact('diasExcepcionales', 'busqueda', 'porPagina'));
+        return view('dias-excepcionales.list', compact('diasExcepcionales', 'busqueda'));
     }
 
     /**

@@ -13,41 +13,74 @@
 
     <p class="ayuda" style="margin: -.4rem 0 1rem;">Fechas que no se toman en cuenta para el control de asistencia.</p>
 
-    <x-tabla-filtros :action="route('dias-excepcionales.index')" :busqueda="$busqueda"
-                     :por-pagina="$porPagina" placeholder="Buscar por motivo o fecha…" />
+    {{-- Filtros del listado (browse): disparan la carga AJAX de la tabla. --}}
+    <div class="tabla-filtros">
+        <label class="tabla-filtros__mostrar">
+            Mostrar
+            <select id="f-paginate" aria-label="Cantidad de registros a mostrar">
+                @foreach ([10, 25, 50, 100] as $n)
+                    <option value="{{ $n }}" @selected($porPagina == $n)>{{ $n }}</option>
+                @endforeach
+            </select>
+            registros
+        </label>
 
-    <div class="card">
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Fecha</th>
-                    <th>Motivo de inasistencia general</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($diasExcepcionales as $dia)
-                    <tr>
-                        <td>{{ $dia->id }}</td>
-                        <td><strong>{{ $dia->fecha?->format('d/m/Y') }}</strong></td>
-                        <td>{{ $dia->motivoInasistencia ?: '—' }}</td>
-                        <td class="acciones">
-                            <a href="{{ route('dias-excepcionales.edit', $dia) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
-                            <form action="{{ route('dias-excepcionales.destroy', $dia) }}" method="POST"
-                                  onsubmit="return confirm('¿Eliminar el día excepcional del {{ $dia->fecha?->format('d/m/Y') }}?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn-icon btn-icon--peligro" title="Eliminar" aria-label="Eliminar"><x-heroicon-o-trash /></button>
-                            </form>
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td colspan="4" class="vacio">{{ $busqueda !== '' ? 'Sin días excepcionales para la búsqueda.' : 'Aún no hay días excepcionales registrados.' }}</td></tr>
-                @endforelse
-            </tbody>
-        </table>
+        <div class="buscador">
+            <x-heroicon-o-magnifying-glass />
+            <input type="text" id="f-buscar" value="{{ $busqueda }}" placeholder="Buscar por motivo o fecha…">
+        </div>
     </div>
 
-    <div class="paginacion">{{ $diasExcepcionales->links() }}</div>
+    {{-- Aquí se inyecta el parcial dias-excepcionales.list (tabla + paginación). --}}
+    <div id="div-results" style="min-height: 8rem;">
+        <div class="vacio">Cargando…</div>
+    </div>
+
+    <script>
+        (function () {
+            const url = @json(route('dias-excepcionales.list'));
+            const resultados = document.getElementById('div-results');
+            const inputBuscar = document.getElementById('f-buscar');
+            const selPaginate = document.getElementById('f-paginate');
+            let temporizador = null;
+
+            async function cargar(page = 1) {
+                const params = new URLSearchParams({
+                    q: inputBuscar.value,
+                    por_pagina: selPaginate.value,
+                    page: page,
+                });
+                resultados.innerHTML = '<div class="vacio">Cargando…</div>';
+                try {
+                    const resp = await fetch(`${url}?${params.toString()}`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+                    resultados.innerHTML = await resp.text();
+                } catch (e) {
+                    resultados.innerHTML = '<div class="aviso aviso--error">No se pudo cargar el listado. Reintentá.</div>';
+                }
+            }
+
+            // Paginación: los enlaces del parcial se inyectan dinámicamente, se
+            // delega el click sobre el contenedor.
+            resultados.addEventListener('click', function (e) {
+                const enlace = e.target.closest('a.pag__link');
+                if (!enlace) { return; }
+                e.preventDefault();
+                const page = new URL(enlace.href).searchParams.get('page') || 1;
+                cargar(page);
+            });
+
+            selPaginate.addEventListener('change', () => cargar(1));
+            inputBuscar.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); clearTimeout(temporizador); cargar(1); }
+            });
+            inputBuscar.addEventListener('input', () => {
+                clearTimeout(temporizador);
+                temporizador = setTimeout(() => cargar(1), 500);
+            });
+
+            cargar(1);
+        })();
+    </script>
 @endsection

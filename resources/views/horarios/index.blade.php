@@ -11,71 +11,86 @@
         <a href="{{ route('horarios.create') }}" class="btn"><x-heroicon-o-plus />Nuevo horario</a>
     </div>
 
-    <x-tabla-filtros :action="route('horarios.index')" :busqueda="$buscar" campo="buscar"
-                     :por-pagina="$porPagina" placeholder="Buscar por nombre del horario…">
-        <x-slot:filtros>
-            <select name="dia" onchange="this.form.submit()">
+    {{-- Filtros del listado (browse): disparan la carga AJAX de la tabla. --}}
+    <div class="tabla-filtros">
+        <label class="tabla-filtros__mostrar">
+            Mostrar
+            <select id="f-paginate" aria-label="Cantidad de registros a mostrar">
+                @foreach ([10, 25, 50, 100] as $n)
+                    <option value="{{ $n }}" @selected($porPagina == $n)>{{ $n }}</option>
+                @endforeach
+            </select>
+            registros
+        </label>
+
+        <div class="tabla-filtros__extra">
+            <select id="f-dia" aria-label="Día de la semana">
                 <option value="">Todos los días</option>
                 @foreach (\App\Models\Turno::DIAS as $numero => $nombre)
                     <option value="{{ $numero }}" @selected($dia === (string) $numero)>{{ $nombre }}</option>
                 @endforeach
             </select>
-        </x-slot:filtros>
-    </x-tabla-filtros>
+        </div>
 
-    <div class="card">
-        <table>
-            <thead>
-                <tr>
-                    <th>Día</th>
-                    <th>Horario</th>
-                    <th>Entrada</th>
-                    <th>Salida</th>
-                    <th>Tol. entrada</th>
-                    <th>Tol. salida</th>
-                    <th>Horas</th>
-                    <th>Día sig.</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($horarios as $horario)
-                    <tr>
-                        <td><strong>{{ $horario->nombre_dia }}</strong></td>
-                        <td>{{ trim($horario->nombreTurno) }}</td>
-                        <td>{{ $horario->hEntrada?->format('H:i') }}</td>
-                        <td>{{ $horario->hSalida?->format('H:i') }}</td>
-                        <td>{{ $horario->hTolerancia?->format('H:i') }}</td>
-                        <td>{{ $horario->sTolerancia?->format('H:i') }}</td>
-                        <td>{{ number_format((float) $horario->hTrabajadas, 2) }}</td>
-                        <td>
-                            <span class="pill {{ $horario->siguienteDia ? 'pill--advertencia' : 'pill--no' }}">
-                                {{ $horario->siguienteDia ? 'Sí' : 'No' }}
-                            </span>
-                        </td>
-                        <td>
-                            <div class="acciones">
-                                <a href="{{ route('horarios.show', $horario) }}" class="btn-icon btn-icon--gris" title="Ver" aria-label="Ver"><x-heroicon-o-eye /></a>
-                                <a href="{{ route('horarios.edit', $horario) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
-                                <form action="{{ route('horarios.destroy', $horario) }}" method="POST"
-                                      onsubmit="return confirm('¿Eliminar el horario «{{ trim($horario->nombreTurno) }}»?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn-icon btn-icon--peligro" title="Eliminar" aria-label="Eliminar"><x-heroicon-o-trash /></button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="9" class="vacio">Aún no hay horarios registrados.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+        <div class="buscador">
+            <x-heroicon-o-magnifying-glass />
+            <input type="text" id="f-buscar" value="{{ $buscar }}" placeholder="Buscar por nombre del horario…">
+        </div>
     </div>
 
-    <div class="paginacion">
-        {{ $horarios->links() }}
+    {{-- Aquí se inyecta el parcial horarios.list (tabla + paginación). --}}
+    <div id="div-results" style="min-height: 8rem;">
+        <div class="vacio">Cargando…</div>
     </div>
+
+    <script>
+        (function () {
+            const url = @json(route('horarios.list'));
+            const resultados = document.getElementById('div-results');
+            const inputBuscar = document.getElementById('f-buscar');
+            const selPaginate = document.getElementById('f-paginate');
+            const selDia = document.getElementById('f-dia');
+            let temporizador = null;
+
+            async function cargar(page = 1) {
+                const params = new URLSearchParams({
+                    dia: selDia.value,
+                    q: inputBuscar.value,
+                    por_pagina: selPaginate.value,
+                    page: page,
+                });
+                resultados.innerHTML = '<div class="vacio">Cargando…</div>';
+                try {
+                    const resp = await fetch(`${url}?${params.toString()}`, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    });
+                    resultados.innerHTML = await resp.text();
+                } catch (e) {
+                    resultados.innerHTML = '<div class="aviso aviso--error">No se pudo cargar el listado. Reintentá.</div>';
+                }
+            }
+
+            // Paginación: los enlaces del parcial se inyectan dinámicamente, se
+            // delega el click sobre el contenedor.
+            resultados.addEventListener('click', function (e) {
+                const enlace = e.target.closest('a.pag__link');
+                if (!enlace) { return; }
+                e.preventDefault();
+                const page = new URL(enlace.href).searchParams.get('page') || 1;
+                cargar(page);
+            });
+
+            selPaginate.addEventListener('change', () => cargar(1));
+            selDia.addEventListener('change', () => cargar(1));
+            inputBuscar.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); clearTimeout(temporizador); cargar(1); }
+            });
+            inputBuscar.addEventListener('input', () => {
+                clearTimeout(temporizador);
+                temporizador = setTimeout(() => cargar(1), 500);
+            });
+
+            cargar(1);
+        })();
+    </script>
 @endsection

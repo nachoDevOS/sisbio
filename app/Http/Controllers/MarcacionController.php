@@ -32,7 +32,7 @@ class MarcacionController extends Controller
     /**
      * Listado paginado de marcaciones, filtrado por rango de fechas.
      */
-    public function index(Request $request, MamoreClient $mamore): View
+    public function index(Request $request): View
     {
         $this->authorize('viewAny', Asistencia::class);
 
@@ -40,9 +40,24 @@ class MarcacionController extends Controller
         // futuras que arrastra el SIA, ej. años 2064/2103).
         $desde = $request->query('desde', now()->startOfMonth()->toDateString());
         $hasta = $request->query('hasta', now()->toDateString());
-        $buscar = trim((string) $request->query('buscar', ''));
         $tipo = $request->query('tipo', '');
-        $porPagina = $this->porPagina($request);
+        $porPagina = $this->porPagina($request, 10);
+
+        return view('marcaciones.index', compact('desde', 'hasta', 'tipo', 'porPagina'));
+    }
+
+    /**
+     * Devuelve el listado para AJAX.
+     */
+    public function list(Request $request, MamoreClient $mamore): View
+    {
+        $this->authorize('viewAny', Asistencia::class);
+
+        $desde = $request->query('desde', now()->startOfMonth()->toDateString());
+        $hasta = $request->query('hasta', now()->toDateString());
+        $buscar = trim((string) $request->query('q', ''));
+        $tipo = $request->query('tipo', '');
+        $porPagina = $this->porPagina($request, 10);
 
         $marcaciones = Asistencia::query()
             ->when($desde, fn (Builder $query, string $d) => $query->whereDate('fecha', '>=', $d))
@@ -56,7 +71,7 @@ class MarcacionController extends Controller
 
         $nombres = $this->resolverNombres($marcaciones->pluck('ci'), $mamore);
 
-        return view('marcaciones.index', compact('marcaciones', 'desde', 'hasta', 'buscar', 'tipo', 'porPagina', 'nombres'));
+        return view('marcaciones.list', compact('marcaciones', 'nombres'));
     }
 
     /**
