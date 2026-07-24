@@ -62,6 +62,7 @@ Route::middleware('auth')->group(function (): void {
     // El listado es de solo lectura; la única escritura es importar el CSV
     // que ya exporta "Equipos > Marcaciones > Exportar".
     Route::get('marcaciones', [MarcacionController::class, 'index'])->name('marcaciones.index');
+    Route::post('marcaciones', [MarcacionController::class, 'store'])->name('marcaciones.store');
     Route::post('marcaciones/importar', [MarcacionController::class, 'importar'])->name('marcaciones.importar');
 
     // Reportes: selección de funcionario + generación (pantalla, imprimible o

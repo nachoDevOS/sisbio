@@ -5,10 +5,10 @@ namespace App\Http\Controllers;
 use App\Exceptions\DeviceServiceException;
 use App\Http\Requests\StoreEquipoRequest;
 use App\Http\Requests\UpdateEquipoRequest;
+use App\Models\Asistencia;
 use App\Models\Equipo;
-use App\Models\Sia\Asistencia;
 use App\Services\DeviceService;
-use App\Services\RegistroAsistenciaSia;
+use App\Services\RegistroAsistencia;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -188,11 +188,11 @@ class EquipoController extends Controller
 
     /**
      * Lee las marcaciones del equipo (opcionalmente acotadas por rango) y las
-     * registra directo en Asistencia del SIA, sin pasar por descargar/reimportar
-     * el CSV. Aplica las mismas reglas que el import (cruce por funcionario, sin
-     * duplicar, descartando fecha basura del reloj).
+     * registra directo en la tabla local `asistencias` (MySQL), sin pasar por
+     * descargar/reimportar el CSV. Aplica las mismas reglas que el import (cruce
+     * por funcionario, sin duplicar, descartando fecha basura del reloj).
      */
-    public function sincronizarMarcaciones(Request $request, Equipo $equipo, DeviceService $deviceService, RegistroAsistenciaSia $registro): RedirectResponse
+    public function sincronizarMarcaciones(Request $request, Equipo $equipo, DeviceService $deviceService, RegistroAsistencia $registro): RedirectResponse
     {
         $this->authorize('create', Asistencia::class);
 

@@ -17,6 +17,7 @@
         <table>
             <thead>
                 <tr>
+                    <th>ID</th>
                     <th>CI</th>
                     <th>Paterno</th>
                     <th>Materno</th>
@@ -28,6 +29,7 @@
             <tbody>
                 @forelse ($funcionarios as $persona)
                     <tr>
+                        <td>{{ $persona->id }}</td>
                         <td><strong>{{ trim($persona->ci) }}</strong></td>
                         <td>{{ trim($persona->paterno) }}</td>
                         <td>{{ trim((string) $persona->materno) ?: '—' }}</td>
@@ -38,7 +40,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="vacio">Sin funcionarios en el criterio buscado.</td></tr>
+                    <tr><td colspan="7" class="vacio">Sin funcionarios en el criterio buscado.</td></tr>
                 @endforelse
             </tbody>
         </table>

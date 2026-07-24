@@ -2,13 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Models\DiaExcepcional;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
-#[Signature('sia:migrar-dias-excepcionales {--chunk=500 : Filas por lote}')]
+#[Signature('sia:migrar-dias-excepcionales {--chunk=500 : Filas por lote de aviso}')]
 #[Description('Copia los días excepcionales (Calendario) del SIA (SQL Server) a la base local, tal cual, sin tocar el origen.')]
 class MigrarDiasExcepcionalesSia extends Command
 {
@@ -25,11 +26,12 @@ class MigrarDiasExcepcionalesSia extends Command
 
     /**
      * Copia los días excepcionales del SIA a la tabla local `dias_excepcionales`.
-     * Idempotente: reejecutarlo no duplica (upsert por fecha). Recorta el padding char().
+     * Idempotente: reejecutarlo no duplica (updateOrCreate por fecha, sin
+     * depender de un índice único en la base). Recorta el padding char().
      */
     public function handle(): int
     {
-        $tamanoLote = max(1, (int) $this->option('chunk'));
+        $tamanoAviso = max(1, (int) $this->option('chunk'));
         $destino = config('database.default');
 
         if ($destino === 'sia') {
@@ -39,7 +41,6 @@ class MigrarDiasExcepcionalesSia extends Command
         }
 
         $copiadas = 0;
-        $lote = [];
 
         try {
             $filas = DB::connection('sia')->table('Calendario')
@@ -47,20 +48,18 @@ class MigrarDiasExcepcionalesSia extends Command
                 ->cursor();
 
             foreach ($filas as $fila) {
-                $ahora = now();
-                $lote[] = $this->aLocal((array) $fila) + ['created_at' => $ahora, 'updated_at' => $ahora];
+                $local = $this->aLocal((array) $fila);
 
-                if (count($lote) >= $tamanoLote) {
-                    DB::connection($destino)->table('dias_excepcionales')->upsert($lote, ['fecha'], ['motivoInasistencia', 'updated_at']);
-                    $copiadas += count($lote);
-                    $lote = [];
+                DiaExcepcional::updateOrCreate(
+                    ['fecha' => $local['fecha']],
+                    ['motivoInasistencia' => $local['motivoInasistencia']],
+                );
+
+                $copiadas++;
+
+                if ($copiadas % $tamanoAviso === 0) {
                     $this->info("Copiados {$copiadas} día(s)…");
                 }
-            }
-
-            if ($lote !== []) {
-                DB::connection($destino)->table('dias_excepcionales')->upsert($lote, ['fecha'], ['motivoInasistencia', 'updated_at']);
-                $copiadas += count($lote);
             }
         } catch (Throwable $e) {
             $this->error("Falló la migración de días excepcionales: {$e->getMessage()}");

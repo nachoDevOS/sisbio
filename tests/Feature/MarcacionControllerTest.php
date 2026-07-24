@@ -142,9 +142,9 @@ test('una marcación manual no se pinta con el color de reloj', function () {
         ->assertSee('<span class="pill pill--advertencia">M</span>', escape: false);
 });
 
-test('importa un csv nuevo y crea la marcación en Asistencia', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '4176235', 'Paterno' => 'Perez', 'Materno' => null, 'Nombres' => 'Juan', 'PinReloj' => '4176235', 'MarcaDirecta' => false,
+test('importa un csv nuevo y crea la marcación en asistencias', function () {
+    DB::table('personas')->insert([
+        'ci' => '4176235', 'paterno' => 'Perez', 'materno' => null, 'nombres' => 'Juan', 'pinReloj' => '4176235', 'marcaDirecta' => false,
     ]);
 
     $csv = "\u{FEFF}CI/ID,Nombre,Fecha,Hora\n4176235,\"Perez Juan\",15/07/2026,08:05:00\n";
@@ -154,18 +154,18 @@ test('importa un csv nuevo y crea la marcación en Asistencia', function () {
         ->assertRedirect()
         ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '1 marcación(es) nueva(s)'));
 
-    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '4176235')->count())->toBe(1);
+    expect(DB::table('asistencias')->where('ci', '4176235')->count())->toBe(1);
 });
 
-test('no duplica una marcación que ya existe en Asistencia', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '555', 'Paterno' => 'Gomez', 'Materno' => null, 'Nombres' => 'Ana', 'PinReloj' => '555', 'MarcaDirecta' => false,
+test('no duplica una marcación que ya existe en asistencias', function () {
+    DB::table('personas')->insert([
+        'ci' => '555', 'paterno' => 'Gomez', 'materno' => null, 'nombres' => 'Ana', 'pinReloj' => '555', 'marcaDirecta' => false,
     ]);
-    DB::connection('sia')->table('Asistencia')->insert([
-        'IdPersona' => '555',
-        'Fecha' => '2026-07-15 00:00:00',
-        'Hora' => '1899-12-30 08:05:00',
-        'Tipo' => 'R',
+    DB::table('asistencias')->insert([
+        'ci' => '555',
+        'fecha' => '2026-07-15 00:00:00',
+        'hora' => '1899-12-30 08:05:00',
+        'tipo' => 'R',
     ]);
 
     $csv = "CI/ID,Nombre,Fecha,Hora\n555,\"Gomez Ana\",15/07/2026,08:05:00\n";
@@ -175,7 +175,7 @@ test('no duplica una marcación que ya existe en Asistencia', function () {
         ->assertRedirect()
         ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '0 marcación(es) nueva(s)') && str_contains($mensaje, '1 ya existían'));
 
-    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '555')->count())->toBe(1);
+    expect(DB::table('asistencias')->where('ci', '555')->count())->toBe(1);
 });
 
 test('una fila sin funcionario vinculado no se inserta y queda contada', function () {
@@ -186,12 +186,12 @@ test('una fila sin funcionario vinculado no se inserta y queda contada', functio
         ->assertRedirect()
         ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '1 sin funcionario vinculado'));
 
-    expect(DB::connection('sia')->table('Asistencia')->count())->toBe(0);
+    expect(DB::table('asistencias')->count())->toBe(0);
 });
 
 test('importa un csv reguardado desde Excel con separador punto y coma', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '4176235', 'Paterno' => 'Perez', 'Materno' => null, 'Nombres' => 'Juan', 'PinReloj' => '4176235', 'MarcaDirecta' => false,
+    DB::table('personas')->insert([
+        'ci' => '4176235', 'paterno' => 'Perez', 'materno' => null, 'nombres' => 'Juan', 'pinReloj' => '4176235', 'marcaDirecta' => false,
     ]);
 
     $csv = "CI/ID;Nombre;Fecha;Hora\n4176235;\"Perez Juan\";15/07/2026;08:05:00\n";
@@ -201,12 +201,12 @@ test('importa un csv reguardado desde Excel con separador punto y coma', functio
         ->assertRedirect()
         ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '1 marcación(es) nueva(s)'));
 
-    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '4176235')->count())->toBe(1);
+    expect(DB::table('asistencias')->where('ci', '4176235')->count())->toBe(1);
 });
 
 test('importa filas con la hora sin segundos', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '999', 'Paterno' => 'Sinseg', 'Materno' => null, 'Nombres' => 'Test', 'PinReloj' => '999', 'MarcaDirecta' => false,
+    DB::table('personas')->insert([
+        'ci' => '999', 'paterno' => 'Sinseg', 'materno' => null, 'nombres' => 'Test', 'pinReloj' => '999', 'marcaDirecta' => false,
     ]);
 
     $csv = "CI/ID,Nombre,Fecha,Hora\n999,\"Sinseg Test\",15/07/2026,08:05\n";
@@ -216,12 +216,12 @@ test('importa filas con la hora sin segundos', function () {
         ->assertRedirect()
         ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '1 marcación(es) nueva(s)'));
 
-    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '999')->count())->toBe(1);
+    expect(DB::table('asistencias')->where('ci', '999')->count())->toBe(1);
 });
 
 test('una fila con fecha basura futura del reloj (RTC) se descarta y no rompe el import', function () {
-    DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '7655482', 'Paterno' => 'Torrez', 'Materno' => null, 'Nombres' => 'Rene', 'PinReloj' => '7655482', 'MarcaDirecta' => false,
+    DB::table('personas')->insert([
+        'ci' => '7655482', 'paterno' => 'Torrez', 'materno' => null, 'nombres' => 'Rene', 'pinReloj' => '7655482', 'marcaDirecta' => false,
     ]);
 
     $csv = "CI/ID,Nombre,Fecha,Hora\n7655482,\"Torrez Rene\",19/08/2103,02:52:58\n";
@@ -231,7 +231,60 @@ test('una fila con fecha basura futura del reloj (RTC) se descarta y no rompe el
         ->assertRedirect()
         ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '0 marcación(es) nueva(s)') && str_contains($mensaje, '1 fila(s) inválida(s)'));
 
-    expect(DB::connection('sia')->table('Asistencia')->count())->toBe(0);
+    expect(DB::table('asistencias')->count())->toBe(0);
+});
+
+test('registra una marcación manual de tipo M', function () {
+    DB::table('personas')->insert([
+        'ci' => '888', 'paterno' => 'Roca', 'materno' => null, 'nombres' => 'Luis', 'pinReloj' => null, 'marcaDirecta' => false,
+    ]);
+
+    $this->post(route('marcaciones.store'), ['ci' => '888', 'fecha' => '2026-07-20', 'hora' => '08:30'])
+        ->assertRedirect(route('marcaciones.index'))
+        ->assertSessionHas('estado');
+
+    $marcacion = DB::table('asistencias')->where('ci', '888')->first();
+
+    expect($marcacion)->not->toBeNull()
+        ->and(trim($marcacion->tipo))->toBe('M')
+        ->and($marcacion->fecha)->toContain('2026-07-20')
+        ->and($marcacion->hora)->toContain('08:30:00');
+});
+
+test('la marcación manual valida CI, fecha y hora', function () {
+    $this->post(route('marcaciones.store'), ['ci' => '', 'fecha' => '', 'hora' => ''])
+        ->assertSessionHasErrors(['ci', 'fecha', 'hora']);
+
+    expect(DB::table('asistencias')->count())->toBe(0);
+});
+
+test('la marcación manual rechaza un CI que no es de ningún funcionario', function () {
+    $this->post(route('marcaciones.store'), ['ci' => '000', 'fecha' => '2026-07-20', 'hora' => '08:30'])
+        ->assertSessionHasErrors('ci');
+
+    expect(DB::table('asistencias')->count())->toBe(0);
+});
+
+test('la marcación manual no duplica la misma ci, fecha y hora', function () {
+    DB::table('personas')->insert([
+        'ci' => '888', 'paterno' => 'Roca', 'materno' => null, 'nombres' => 'Luis', 'pinReloj' => null, 'marcaDirecta' => false,
+    ]);
+    DB::table('asistencias')->insert([
+        'ci' => '888', 'fecha' => '2026-07-20 00:00:00', 'hora' => '1899-12-30 08:30:00', 'tipo' => 'M',
+    ]);
+
+    $this->post(route('marcaciones.store'), ['ci' => '888', 'fecha' => '2026-07-20', 'hora' => '08:30'])
+        ->assertRedirect()
+        ->assertSessionHas('error');
+
+    expect(DB::table('asistencias')->where('ci', '888')->count())->toBe(1);
+});
+
+test('un usuario sin permiso no puede registrar una marcación manual', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->post(route('marcaciones.store'), ['ci' => '888', 'fecha' => '2026-07-20', 'hora' => '08:30'])
+        ->assertForbidden();
 });
 
 test('un usuario sin permiso de crear marcaciones no puede importar', function () {

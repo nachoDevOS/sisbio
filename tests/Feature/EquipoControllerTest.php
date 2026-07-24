@@ -273,10 +273,9 @@ test('la descarga CSV redirige con error si el equipo no responde', function () 
         ->assertSessionHas('error', 'No se pudo conectar con el equipo');
 });
 
-test('sincroniza las marcaciones del equipo directo a la BD del SIA', function () {
-    fakeSiaDatabase();
-    DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '7633685', 'Paterno' => 'Molina', 'Materno' => null, 'Nombres' => 'Ignacio', 'PinReloj' => '7633685', 'MarcaDirecta' => false,
+test('sincroniza las marcaciones del equipo directo a la BD local', function () {
+    DB::table('personas')->insert([
+        'ci' => '7633685', 'paterno' => 'Molina', 'materno' => null, 'nombres' => 'Ignacio', 'pinReloj' => '7633685', 'marcaDirecta' => false,
     ]);
 
     Http::fake([
@@ -293,13 +292,12 @@ test('sincroniza las marcaciones del equipo directo a la BD del SIA', function (
         ->assertRedirect()
         ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '1 marcación(es) nueva(s)'));
 
-    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '7633685')->count())->toBe(1);
+    expect(DB::table('asistencias')->where('ci', '7633685')->count())->toBe(1);
 });
 
 test('la sincronización a la BD respeta el rango de fechas', function () {
-    fakeSiaDatabase();
-    DB::connection('sia')->table('Personas')->insert([
-        'IdPersona' => '5', 'Paterno' => 'Test', 'Materno' => null, 'Nombres' => 'Uno', 'PinReloj' => '5', 'MarcaDirecta' => false,
+    DB::table('personas')->insert([
+        'ci' => '5', 'paterno' => 'Test', 'materno' => null, 'nombres' => 'Uno', 'pinReloj' => '5', 'marcaDirecta' => false,
     ]);
 
     Http::fake([
@@ -316,7 +314,7 @@ test('la sincronización a la BD respeta el rango de fechas', function () {
     $this->post(route('equipos.marcaciones.sincronizar', $equipo), ['desde' => '2026-07-01', 'hasta' => '2026-07-15'])
         ->assertRedirect();
 
-    expect(DB::connection('sia')->table('Asistencia')->where('IdPersona', '5')->count())->toBe(1);
+    expect(DB::table('asistencias')->where('ci', '5')->count())->toBe(1);
 });
 
 test('la sincronización redirige con error si el equipo no responde', function () {

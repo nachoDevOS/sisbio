@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ImportarMarcacionesRequest;
+use App\Http\Requests\StoreMarcacionRequest;
 use App\Models\Asistencia;
-use App\Services\RegistroAsistenciaSia;
+use App\Services\RegistroAsistencia;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,8 +19,8 @@ use Illuminate\View\View;
  * La tabla tiene ~4.4 millones de filas, por eso el rango arranca en el mes
  * actual: nunca se lista ni se cuenta la tabla completa.
  *
- * Nota de transición: el listado ya lee de MySQL, pero el import (y la
- * sincronización de equipos) todavía escribe en el SIA vía RegistroAsistenciaSia.
+ * Tanto el listado como el import (y la sincronización de equipos) trabajan ya
+ * sobre la base local MySQL vía App\Services\RegistroAsistencia.
  */
 class MarcacionController extends Controller
 {
@@ -53,14 +54,46 @@ class MarcacionController extends Controller
     }
 
     /**
-     * Importa a Asistencia el CSV que ya genera
-     * EquipoController::exportarMarcaciones() (columnas CI/ID, Nombre,
-     * Fecha, Hora). El CI se cruza contra Personas.IdPersona con el mismo
-     * criterio de padding que Persona::resolveRouteBinding(); lo que no
-     * matchea un funcionario o ya existe en Asistencia (misma
-     * IdPersona+Fecha+Hora) se cuenta pero no se inserta.
+     * Registra una marcación manual (tipo M) sobre la base local. La hora se
+     * guarda sobre la fecha base 1899-12-30, como el resto de las marcaciones.
      */
-    public function importar(ImportarMarcacionesRequest $request, RegistroAsistenciaSia $registro): RedirectResponse
+    public function store(StoreMarcacionRequest $request): RedirectResponse
+    {
+        $this->authorize('create', Asistencia::class);
+
+        $ci = $request->validated('ci');
+        $fecha = Carbon::parse($request->validated('fecha'))->startOfDay();
+        $hora = Carbon::parse($request->validated('hora'))->format('H:i:s');
+
+        $yaExiste = Asistencia::query()
+            ->where('ci', $ci)
+            ->whereDate('fecha', $fecha->toDateString())
+            ->whereTime('hora', $hora)
+            ->exists();
+
+        if ($yaExiste) {
+            return back()->with('error', 'Ya existe una marcación para ese funcionario en esa fecha y hora.');
+        }
+
+        Asistencia::create([
+            'ci' => $ci,
+            'fecha' => $fecha,
+            'hora' => '1899-12-30 '.$hora,
+            'tipo' => Asistencia::TIPO_MANUAL,
+        ]);
+
+        return redirect()
+            ->route('marcaciones.index')
+            ->with('estado', 'Marcación manual registrada correctamente.');
+    }
+
+    /**
+     * Importa a la tabla local `asistencias` el CSV que ya genera
+     * EquipoController::exportarMarcaciones() (columnas CI/ID, Nombre,
+     * Fecha, Hora). El CI se cruza contra `personas.ci`; lo que no matchea un
+     * funcionario o ya existe (mismo ci+fecha+hora) se cuenta pero no se inserta.
+     */
+    public function importar(ImportarMarcacionesRequest $request, RegistroAsistencia $registro): RedirectResponse
     {
         $this->authorize('create', Asistencia::class);
 
