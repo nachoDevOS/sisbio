@@ -119,6 +119,15 @@
 
         .acciones { display: flex; gap: .35rem; align-items: center; }
 
+        /* Celda de persona: foto + nombre con CI y profesión debajo. */
+        .persona-celda { display: flex; align-items: center; gap: .7rem; }
+        .persona-foto { width: 2.6rem; height: 2.6rem; border-radius: .45rem; flex-shrink: 0;
+            background: #e5e7eb; color: #9ca3af; display: inline-flex; align-items: center; justify-content: center;
+            object-fit: cover; overflow: hidden; }
+        .persona-foto svg { width: 1.5rem; height: 1.5rem; }
+        .persona-nombre { font-weight: 600; }
+        .persona-meta { color: var(--muted); font-size: .75rem; line-height: 1.35; }
+
         /* ===== Botón ícono cuadrado: acción principal de fila (Ver/Editar) ===== */
         .btn-icon { display: inline-flex; align-items: center; justify-content: center;
             width: 1.9rem; height: 1.9rem; border-radius: .4rem; border: 0; cursor: pointer;

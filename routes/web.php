@@ -39,9 +39,10 @@ Route::middleware('auth')->group(function (): void {
     // Roles y su matriz de permisos.
     Route::resource('roles', RoleController::class)->except('show');
 
-    // Funcionarios del SIA (SQL Server remoto): solo lectura. Listado y ficha
-    // (con sus marcaciones filtradas). El alta/edición/borrado siguen siendo
-    // del sistema de escritorio.
+    // Funcionarios (solo lectura). Listado con dos fuentes (Mamoré/SIAT) y ficha.
+    // La ficha por cédula de Mamoré va antes del resource para que no la capture
+    // el binding {persona} del show local.
+    Route::get('funcionarios/mamore/{ci}', [PersonaController::class, 'mamoreShow'])->name('funcionarios.mamore');
     Route::resource('funcionarios', PersonaController::class)
         ->parameters(['funcionarios' => 'persona'])
         ->only(['index', 'show']);

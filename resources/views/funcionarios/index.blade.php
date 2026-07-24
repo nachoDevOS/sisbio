@@ -11,17 +11,26 @@
     </div>
 
     <x-tabla-filtros :action="route('funcionarios.index')" :busqueda="$busqueda"
-                     :por-pagina="$porPagina" placeholder="Buscar por CI o nombre…" />
+                     :por-pagina="$porPagina" placeholder="Buscar por CI o nombre…">
+        <x-slot:filtros>
+            <select name="fuente" onchange="this.form.submit()" aria-label="Fuente de datos">
+                <option value="mamore" @selected($fuente === 'mamore')>Mamoré</option>
+                <option value="siat" @selected($fuente === 'siat')>SIAT</option>
+            </select>
+        </x-slot:filtros>
+    </x-tabla-filtros>
+
+    @if ($errorFuente)
+        <div class="aviso aviso--error">{{ $errorFuente }}</div>
+    @endif
 
     <div class="card">
         <table>
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>CI</th>
-                    <th>Paterno</th>
-                    <th>Materno</th>
-                    <th>Nombres</th>
+                    <th>Nombre completo</th>
+                    <th>Fecha nac.</th>
                     <th>PIN reloj</th>
                     <th></th>
                 </tr>
@@ -29,18 +38,36 @@
             <tbody>
                 @forelse ($funcionarios as $persona)
                     <tr>
-                        <td>{{ $persona->id }}</td>
-                        <td><strong>{{ trim($persona->ci) }}</strong></td>
-                        <td>{{ trim($persona->paterno) }}</td>
-                        <td>{{ trim((string) $persona->materno) ?: '—' }}</td>
-                        <td>{{ trim($persona->nombres) }}</td>
-                        <td>{{ trim((string) $persona->pinReloj) ?: 'Sin PIN' }}</td>
+                        <td>{{ $persona['id'] }}</td>
+                        <td>
+                            <div class="persona-celda">
+                                <span class="persona-foto"><x-heroicon-o-user /></span>
+                                <div>
+                                    <div class="persona-nombre">{{ $persona['nombre'] }}</div>
+                                    <div class="persona-meta">
+                                        {{ $persona['ci'] }}
+                                        @if (!empty($persona['profesion']))
+                                            <br>{{ $persona['profesion'] }}
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {{ $persona['nacimiento'] ?: '—' }}
+                            @if (!is_null($persona['edad']))
+                                <div class="persona-meta">{{ $persona['edad'] }} años</div>
+                            @endif
+                        </td>
+                        <td>{{ $persona['pinReloj'] ?: 'Sin PIN' }}</td>
                         <td class="acciones">
-                            <a href="{{ route('funcionarios.show', $persona) }}" class="btn-icon btn-icon--gris" title="Ver" aria-label="Ver"><x-heroicon-o-eye /></a>
+                            @if ($persona['ver'])
+                                <a href="{{ $persona['ver'] }}" class="btn-icon btn-icon--gris" title="Ver" aria-label="Ver"><x-heroicon-o-eye /></a>
+                            @endif
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="vacio">Sin funcionarios en el criterio buscado.</td></tr>
+                    <tr><td colspan="5" class="vacio">Sin funcionarios en el criterio buscado.</td></tr>
                 @endforelse
             </tbody>
         </table>

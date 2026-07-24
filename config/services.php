@@ -45,4 +45,14 @@ return [
         'token' => env('DEVICE_SERVICE_TOKEN'),
     ],
 
+    /*
+    | API externa de Datos Personales del sistema «Mamoré» (solo lectura).
+    | Se consulta por HTTP con el header X-API-KEY para listar/ver personas.
+    | `url` incluye el prefijo completo, p.ej. https://servidor/api/personal
+    */
+    'mamore' => [
+        'url' => env('MAMORE_API_URL'),
+        'key' => env('MAMORE_API_KEY'),
+    ],
+
 ];
