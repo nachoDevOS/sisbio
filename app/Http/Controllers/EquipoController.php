@@ -9,6 +9,7 @@ use App\Models\Equipo;
 use App\Models\Sia\Asistencia;
 use App\Services\DeviceService;
 use App\Services\RegistroAsistenciaSia;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -23,15 +24,26 @@ use Illuminate\View\View;
 class EquipoController extends Controller
 {
     /**
-     * Listado de equipos, del más reciente al más antiguo.
+     * Listado de equipos, del más reciente al más antiguo, con búsqueda por
+     * nombre, IP o ubicación.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->authorize('viewAny', Equipo::class);
 
-        $equipos = Equipo::latest()->paginate(15);
+        $busqueda = trim((string) $request->query('q', ''));
+        $porPagina = $this->porPagina($request);
 
-        return view('equipos.index', compact('equipos'));
+        $equipos = Equipo::query()
+            ->when($busqueda !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->where('nombre', 'like', "%{$busqueda}%")
+                ->orWhere('ip', 'like', "%{$busqueda}%")
+                ->orWhere('ubicacion', 'like', "%{$busqueda}%")))
+            ->latest()
+            ->paginate($porPagina)
+            ->withQueryString();
+
+        return view('equipos.index', compact('equipos', 'busqueda', 'porPagina'));
     }
 
     /**

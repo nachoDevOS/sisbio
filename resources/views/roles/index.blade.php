@@ -11,6 +11,9 @@
         <a href="{{ route('roles.create') }}" class="btn"><x-heroicon-o-plus />Nuevo rol</a>
     </div>
 
+    <x-tabla-filtros :action="route('roles.index')" :busqueda="$busqueda"
+                     :por-pagina="$porPagina" placeholder="Buscar por nombre…" />
+
     <div class="card">
         <table>
             <thead>

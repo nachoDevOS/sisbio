@@ -11,28 +11,17 @@
         <a href="{{ route('horarios.create') }}" class="btn"><x-heroicon-o-plus />Nuevo horario</a>
     </div>
 
-    <div class="card card--padded" style="margin-bottom: 1rem;">
-        <form method="GET" action="{{ route('horarios.index') }}" class="toolbar">
-            <div class="campo" style="flex: 1; min-width: 12rem;">
-                <label for="buscar">Buscar horario</label>
-                <input type="text" id="buscar" name="buscar" value="{{ $buscar }}" class="input"
-                       placeholder="Nombre del horario, ej.: «08:00 - 16:00»">
-            </div>
-            <div class="campo">
-                <label for="dia">Día</label>
-                <select id="dia" name="dia" class="input">
-                    <option value="">Todos los días</option>
-                    @foreach (\App\Models\Turno::DIAS as $numero => $nombre)
-                        <option value="{{ $numero }}" @selected($dia === (string) $numero)>{{ $nombre }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <button type="submit" class="btn"><x-heroicon-o-funnel />Filtrar</button>
-            @if ($buscar !== '' || $dia !== '')
-                <a href="{{ route('horarios.index') }}" class="btn btn--gris"><x-heroicon-o-x-mark />Limpiar</a>
-            @endif
-        </form>
-    </div>
+    <x-tabla-filtros :action="route('horarios.index')" :busqueda="$buscar" campo="buscar"
+                     :por-pagina="$porPagina" placeholder="Buscar por nombre del horario…">
+        <x-slot:filtros>
+            <select name="dia" onchange="this.form.submit()">
+                <option value="">Todos los días</option>
+                @foreach (\App\Models\Turno::DIAS as $numero => $nombre)
+                    <option value="{{ $numero }}" @selected($dia === (string) $numero)>{{ $nombre }}</option>
+                @endforeach
+            </select>
+        </x-slot:filtros>
+    </x-tabla-filtros>
 
     <div class="card">
         <table>

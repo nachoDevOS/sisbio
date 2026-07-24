@@ -38,8 +38,16 @@ return new class extends Migration
             // siempre marcaDirecta o falla por NOT NULL.
             $table->boolean('marcaDirecta');
             $table->string('pinReloj', 10)->nullable();
+
+            $table->text('observacion')->nullable();
+            $table->smallInteger('estado')->default(1);
+
             $table->timestamps();
+            $table->foreignId('registerUser_id')->nullable()->constrained('users');
+
             $table->softDeletes();
+            $table->foreignId('deleteUser_id')->nullable()->constrained('users');
+            $table->text('deleteObservacion')->nullable();
         });
     }
 

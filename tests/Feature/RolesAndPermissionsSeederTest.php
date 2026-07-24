@@ -14,10 +14,10 @@ test('el seeder deja un super_admin funcional con todos los permisos', function 
     $superAdmin = Role::where('name', 'super_admin')->first();
 
     expect($superAdmin)->not->toBeNull()
-        ->and(Permission::count())->toBe(30)
-        ->and($superAdmin->permissions()->count())->toBe(30);
+        ->and(Permission::count())->toBe(35)
+        ->and($superAdmin->permissions()->count())->toBe(35);
 
-    $usuario = User::where('email', 'test@example.com')->first();
+    $usuario = User::where('email', 'admin@admin.com')->first();
 
     expect($usuario)->not->toBeNull()
         ->and($usuario->hasRole('super_admin'))->toBeTrue();
@@ -29,5 +29,5 @@ test('el seeder es idempotente si se corre dos veces', function () {
     expect(fn () => Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web'])->syncPermissions(Permission::all()))
         ->not->toThrow(Exception::class);
 
-    expect(Permission::count())->toBe(30);
+    expect(Permission::count())->toBe(35);
 });

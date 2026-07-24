@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Traits\RegistersUserEvents;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -14,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class DiaExcepcional extends Model
 {
-    use SoftDeletes;
+    use HasFactory, RegistersUserEvents, SoftDeletes;
 
     protected $table = 'dias_excepcionales';
 
@@ -24,6 +26,8 @@ class DiaExcepcional extends Model
     protected $fillable = [
         'fecha',
         'motivoInasistencia',
+        'observacion',
+        'estado',
     ];
 
     /**

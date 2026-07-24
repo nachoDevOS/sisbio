@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\RegistersUserEvents;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class Licencia extends Model
 {
-    use SoftDeletes;
+    use RegistersUserEvents, SoftDeletes;
 
     protected $table = 'licencias';
 
@@ -34,6 +35,8 @@ class Licencia extends Model
         'tCompleto',
         'motivo',
         'goceHaberes',
+        'observacion',
+        'estado',
     ];
 
     /**

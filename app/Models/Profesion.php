@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\RegistersUserEvents;
 use Database\Factories\ProfesionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Profesion extends Model
 {
     /** @use HasFactory<ProfesionFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, RegistersUserEvents, SoftDeletes;
 
     protected $table = 'profesiones';
 
@@ -25,6 +26,8 @@ class Profesion extends Model
     protected $fillable = [
         'codigoProfesion',
         'nombreProfesion',
+        'observacion',
+        'estado',
     ];
 
     public function personas(): HasMany

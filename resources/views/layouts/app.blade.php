@@ -42,6 +42,22 @@
         .sidebar__link.activo { background: var(--sidebar-activo); color: var(--sidebar-fg-activo); }
         .sidebar__overlay { display: none; }
 
+        /* Grupo colapsable del sidebar ("Parámetros" → submenú). */
+        .sidebar__grouptoggle { display: flex; align-items: center; gap: .7rem; width: 100%;
+            padding: .55rem .7rem; border: 0; background: none; color: var(--sidebar-fg);
+            font-family: inherit; font-size: .8rem; font-weight: 500; cursor: pointer; border-radius: .45rem; }
+        .sidebar__grouptoggle:hover { background: var(--sidebar-hover); color: #fff; }
+        .sidebar__grouptoggle > svg { width: 1.15rem; height: 1.15rem; flex-shrink: 0; }
+        .sidebar__chevron { margin-left: auto; display: inline-flex; transition: transform .15s ease; }
+        .sidebar__chevron svg { width: .9rem; height: .9rem; }
+        .sidebar__submenu { display: flex; flex-direction: column; gap: .15rem;
+            padding-left: 1.1rem; margin-top: .15rem; }
+        .sidebar__sublink { display: flex; align-items: center; gap: .6rem; padding: .5rem .7rem;
+            border-radius: .45rem; font-size: .78rem; color: var(--sidebar-fg); }
+        .sidebar__sublink svg { width: 1.05rem; height: 1.05rem; flex-shrink: 0; }
+        .sidebar__sublink:hover { background: var(--sidebar-hover); color: #fff; }
+        .sidebar__sublink.activo { background: var(--sidebar-activo); color: var(--sidebar-fg-activo); }
+
         /* ===== Zona principal: topbar + contenido ===== */
         .zona { margin-left: var(--sidebar-w); flex: 1; min-width: 0; display: flex; flex-direction: column; }
         .topbar { background: #fff; border-bottom: 1px solid var(--border); padding: .65rem 1.5rem;
@@ -159,6 +175,28 @@
         .modal-acciones { display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1.25rem; flex-wrap: wrap; }
         .modal-acciones form { margin: 0; }
 
+        /* ===== Filtros de tabla estilo DataTables: «Mostrar N registros» a la
+             izquierda y buscador pill a la derecha, en una fila sobre la tabla ===== */
+        .tabla-filtros { display: flex; align-items: center; justify-content: space-between;
+            gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .tabla-filtros__mostrar { display: flex; align-items: center; gap: .5rem;
+            font-size: .8125rem; color: var(--muted); margin: 0; }
+        .tabla-filtros__mostrar select { padding: .4rem 1.8rem .4rem .6rem; border: 1px solid var(--border);
+            border-radius: .5rem; font-size: .8125rem; background: #fff; color: var(--fg);
+            font-family: inherit; cursor: pointer; }
+        .buscador { position: relative; flex: 1; max-width: 28rem; min-width: 13rem; margin-left: auto; }
+        .buscador svg { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%);
+            width: 1.05rem; height: 1.05rem; color: var(--muted); pointer-events: none; }
+        .buscador input { width: 100%; padding: .6rem .9rem .6rem 2.4rem; border: 1px solid var(--border);
+            border-radius: 9999px; font-size: .85rem; background: #fff; color: var(--fg);
+            font-family: inherit; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+        .buscador input:focus { outline: none; border-color: var(--verde);
+            box-shadow: 0 0 0 2px rgba(0, 166, 90, .25); }
+        .tabla-filtros__extra { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+        .tabla-filtros__extra select, .tabla-filtros__extra input { padding: .45rem .6rem;
+            border: 1px solid var(--border); border-radius: .5rem; font-size: .8125rem;
+            background: #fff; color: var(--fg); font-family: inherit; }
+
         /* ===== Barra de herramientas: buscador y filtros en caja, con etiqueta arriba ===== */
         .toolbar { display: flex; gap: .9rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem;
             background: var(--card); border: 1px solid var(--border); border-radius: .625rem; padding: .9rem 1rem; }
@@ -260,6 +298,18 @@
             <a href="{{ route('horarios.index') }}" class="sidebar__link {{ request()->routeIs('horarios.*') ? 'activo' : '' }}">
                 <x-heroicon-o-clock />Horarios
             </a>
+            {{-- Parámetros: grupo colapsable con las tablas de configuración. --}}
+            <div x-data="{ abierto: {{ request()->routeIs('dias-excepcionales.*') ? 'true' : 'false' }} }">
+                <button type="button" class="sidebar__grouptoggle" x-on:click="abierto = !abierto" :aria-expanded="abierto">
+                    <x-heroicon-o-adjustments-horizontal />Parámetros
+                    <span class="sidebar__chevron" :style="abierto ? 'transform: rotate(180deg)' : ''"><x-heroicon-o-chevron-down /></span>
+                </button>
+                <div class="sidebar__submenu" x-show="abierto" x-cloak>
+                    <a href="{{ route('dias-excepcionales.index') }}" class="sidebar__sublink {{ request()->routeIs('dias-excepcionales.*') ? 'activo' : '' }}">
+                        <x-heroicon-o-calendar-days />Días excepcionales
+                    </a>
+                </div>
+            </div>
             <a href="{{ route('reportes.marcaciones.sin-procesar') }}" class="sidebar__link {{ request()->routeIs('reportes.*') ? 'activo' : '' }}">
                 <x-heroicon-o-document-chart-bar />Reportes
             </a>
@@ -272,6 +322,8 @@
             <a href="{{ route('roles.index') }}" class="sidebar__link {{ request()->routeIs('roles.*') ? 'activo' : '' }}">
                 <x-heroicon-o-shield-check />Roles
             </a>
+
+            
         </nav>
     </aside>
 

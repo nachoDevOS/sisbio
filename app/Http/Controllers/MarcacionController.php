@@ -36,6 +36,7 @@ class MarcacionController extends Controller
         $hasta = $request->query('hasta', now()->toDateString());
         $buscar = trim((string) $request->query('buscar', ''));
         $tipo = $request->query('tipo', '');
+        $porPagina = $this->porPagina($request);
 
         $marcaciones = Asistencia::query()
             ->with('persona')
@@ -45,10 +46,10 @@ class MarcacionController extends Controller
             ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
             ->orderByDesc('fecha')
             ->orderByDesc('hora')
-            ->paginate(25)
+            ->paginate($porPagina)
             ->withQueryString();
 
-        return view('marcaciones.index', compact('marcaciones', 'desde', 'hasta', 'buscar', 'tipo'));
+        return view('marcaciones.index', compact('marcaciones', 'desde', 'hasta', 'buscar', 'tipo', 'porPagina'));
     }
 
     /**

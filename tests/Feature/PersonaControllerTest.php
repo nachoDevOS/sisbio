@@ -54,59 +54,6 @@ test('un invitado no puede ver funcionarios', function () {
     $this->get(route('funcionarios.index'))->assertRedirect();
 });
 
-test('muestra el formulario de alta', function () {
-    Profesion::factory()->create(['nombreProfesion' => 'CONTADOR GENERAL']);
-
-    $this->get(route('funcionarios.create'))
-        ->assertOk()
-        ->assertSee('Nuevo funcionario')
-        ->assertSee('CONTADOR GENERAL');
-});
-
-test('registra un funcionario nuevo', function () {
-    $profesion = Profesion::factory()->create();
-
-    $this->post(route('funcionarios.store'), [
-        'ci' => '1234567',
-        'origenId' => 'BE',
-        'paterno' => 'Suárez',
-        'materno' => 'Roca',
-        'nombres' => 'Ana María',
-        'fechaNacimiento' => '1990-05-10',
-        'lugarNacimiento' => 'Trinidad',
-        'sexo' => 'F',
-        'estadoCivil' => 'S',
-        'codigoProfesion' => $profesion->codigoProfesion,
-        'nivelEstudio' => 'Profesional',
-        'telefono' => '71234567',
-        'direccion' => 'Av. 6 de Agosto 123',
-        'correo' => 'ana@example.com',
-    ])
-        ->assertRedirect(route('funcionarios.index'))
-        ->assertSessionHas('estado');
-
-    $persona = Persona::query()->where('ci', '1234567')->first();
-
-    expect($persona)->not->toBeNull()
-        ->and($persona->paterno)->toBe('Suárez')
-        // Sección "Control de asistencia" deshabilitada: siempre entra sin
-        // PIN y sin marcación con contraseña.
-        ->and($persona->pinReloj)->toBeNull()
-        ->and($persona->marcaDirecta)->toBeFalse();
-});
-
-test('el alta valida obligatorios y carnet repetido', function () {
-    Persona::factory()->create(['ci' => '9999999']);
-
-    $this->post(route('funcionarios.store'), [
-        'ci' => '9999999',
-        'paterno' => '',
-        'nombres' => '',
-    ])->assertSessionHasErrors(['ci', 'paterno', 'nombres', 'fechaNacimiento', 'sexo', 'estadoCivil', 'codigoProfesion']);
-
-    expect(Persona::query()->count())->toBe(1);
-});
-
 test('muestra la ficha de detalle con datos', function () {
     $profesion = Profesion::factory()->create(['nombreProfesion' => 'CONTADOR GENERAL']);
     $persona = Persona::factory()->create([
@@ -121,41 +68,6 @@ test('muestra la ficha de detalle con datos', function () {
         ->assertSee('Detalle')
         ->assertSee('Vista Completa')
         ->assertSee('CONTADOR GENERAL');
-});
-
-test('muestra el formulario de edición con los datos actuales', function () {
-    Profesion::factory()->create();
-    $persona = Persona::factory()->create(['paterno' => 'Zabaleta']);
-
-    $this->get(route('funcionarios.edit', $persona))
-        ->assertOk()
-        ->assertSee('Editar funcionario')
-        ->assertSee('Zabaleta');
-});
-
-test('actualiza un funcionario sin tocar el carnet', function () {
-    $profesion = Profesion::factory()->create();
-    $persona = Persona::factory()->create([
-        'ci' => '5555555',
-        'paterno' => 'Original',
-    ]);
-
-    $this->put(route('funcionarios.update', $persona), [
-        'paterno' => 'Cambiado',
-        'nombres' => 'Nuevo Nombre',
-        'fechaNacimiento' => '1985-01-20',
-        'sexo' => 'M',
-        'estadoCivil' => 'C',
-        'codigoProfesion' => $profesion->codigoProfesion,
-    ])
-        ->assertRedirect(route('funcionarios.index'))
-        ->assertSessionHas('estado');
-
-    $persona->refresh();
-
-    expect($persona->paterno)->toBe('Cambiado')
-        ->and($persona->nombres)->toBe('Nuevo Nombre')
-        ->and(trim($persona->ci))->toBe('5555555');
 });
 
 test('un usuario sin permiso no puede entrar al listado', function () {

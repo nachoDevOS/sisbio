@@ -26,8 +26,16 @@ return new class extends Migration
             $table->foreignId('turno_id')->nullable()->constrained('turnos');
             $table->dateTime('desde');
             $table->dateTime('hasta');
+
+            $table->text('observacion')->nullable();
+            $table->smallInteger('estado')->default(1);
+
             $table->timestamps();
+            $table->foreignId('registerUser_id')->nullable()->constrained('users');
+
             $table->softDeletes();
+            $table->foreignId('deleteUser_id')->nullable()->constrained('users');
+            $table->text('deleteObservacion')->nullable();
 
             $table->unique(['ci', 'idTurno', 'desde']);
             $table->index('ci');

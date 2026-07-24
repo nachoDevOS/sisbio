@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\RegistersUserEvents;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class AsignacionTurno extends Model
 {
-    use SoftDeletes;
+    use RegistersUserEvents, SoftDeletes;
 
     protected $table = 'asignacion_turnos';
 
@@ -29,6 +30,8 @@ class AsignacionTurno extends Model
         'turno_id',
         'desde',
         'hasta',
+        'observacion',
+        'estado',
     ];
 
     /**

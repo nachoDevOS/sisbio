@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\RegistersUserEvents;
 use Database\Factories\TurnoFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Turno extends Model
 {
     /** @use HasFactory<TurnoFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, RegistersUserEvents, SoftDeletes;
 
     /**
      * Días de la semana según el número que guarda la columna `dia`
@@ -55,6 +56,8 @@ class Turno extends Model
         'sTolerancia',
         'hTrabajadas',
         'siguienteDia',
+        'observacion',
+        'estado',
     ];
 
     /**

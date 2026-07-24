@@ -35,8 +35,16 @@ return new class extends Migration
             $table->boolean('tCompleto');
             $table->string('motivo', 255)->nullable();
             $table->boolean('goceHaberes');
+
+            $table->text('observacion')->nullable();
+            $table->smallInteger('estado')->default(1);
+
             $table->timestamps();
+            $table->foreignId('registerUser_id')->nullable()->constrained('users');
+
             $table->softDeletes();
+            $table->foreignId('deleteUser_id')->nullable()->constrained('users');
+            $table->text('deleteObservacion')->nullable();
 
             $table->unique(['ci', 'fecha', 'idTurno']);
             $table->index('ci');

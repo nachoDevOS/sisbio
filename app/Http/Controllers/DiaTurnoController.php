@@ -46,15 +46,16 @@ class DiaTurnoController extends Controller
 
         $buscar = trim((string) $request->query('buscar', ''));
         $dia = (string) $request->query('dia', '');
+        $porPagina = $this->porPagina($request);
 
         $horarios = Turno::query()
             ->when($buscar !== '', fn (Builder $query) => $query->where('nombreTurno', 'like', "%{$buscar}%"))
             ->when($dia !== '', fn (Builder $query) => $query->where('dia', $dia))
             ->ordenado()
-            ->paginate(25)
+            ->paginate($porPagina)
             ->withQueryString();
 
-        return view('horarios.index', compact('horarios', 'buscar', 'dia'));
+        return view('horarios.index', compact('horarios', 'buscar', 'dia', 'porPagina'));
     }
 
     /**

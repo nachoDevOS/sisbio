@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\RegistersUserEvents;
 use Database\Factories\PersonaFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Persona extends Model
 {
     /** @use HasFactory<PersonaFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, RegistersUserEvents, SoftDeletes;
 
     protected $table = 'personas';
 
@@ -54,6 +55,8 @@ class Persona extends Model
         'correo',
         'marcaDirecta',
         'pinReloj',
+        'observacion',
+        'estado',
     ];
 
     /**

@@ -11,6 +11,9 @@
         <a href="{{ route('equipos.create') }}" class="btn"><x-heroicon-o-plus />Nuevo equipo</a>
     </div>
 
+    <x-tabla-filtros :action="route('equipos.index')" :busqueda="$busqueda"
+                     :por-pagina="$porPagina" placeholder="Buscar por nombre, IP o ubicación…" />
+
     <div class="card">
         <table>
             <thead>

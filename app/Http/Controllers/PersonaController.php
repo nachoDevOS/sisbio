@@ -2,19 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StorePersonaRequest;
-use App\Http\Requests\UpdatePersonaRequest;
 use App\Models\Persona;
-use App\Models\Profesion;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 /**
- * CRUD clásico (MVC) de los funcionarios, sobre la base local MySQL (tabla
- * `personas`, migrada del SIA). Sin borrado desde la web.
+ * Consulta (solo lectura) de los funcionarios, sobre la base local MySQL
+ * (tabla `personas`, migrada del SIA). El alta, edición y borrado siguen
+ * siendo del sistema de escritorio.
  */
 class PersonaController extends Controller
 {
@@ -26,39 +22,15 @@ class PersonaController extends Controller
         $this->authorize('viewAny', Persona::class);
 
         $busqueda = trim((string) $request->query('q', ''));
+        $porPagina = $this->porPagina($request);
 
         $funcionarios = Persona::query()
             ->when($busqueda !== '', fn (Builder $query) => $query->buscar($busqueda))
             ->orderBy('paterno')
-            ->paginate(25)
+            ->paginate($porPagina)
             ->withQueryString();
 
-        return view('funcionarios.index', compact('funcionarios', 'busqueda'));
-    }
-
-    /**
-     * Formulario de alta.
-     */
-    public function create(): View
-    {
-        $this->authorize('create', Persona::class);
-
-        return view('funcionarios.create', $this->datosDeFormulario());
-    }
-
-    /**
-     * Guarda un funcionario nuevo. La validación la hace StorePersonaRequest.
-     * marcaDirecta es NOT NULL sin default: el INSERT siempre la manda en falso.
-     */
-    public function store(StorePersonaRequest $request): RedirectResponse
-    {
-        $this->authorize('create', Persona::class);
-
-        Persona::create($request->validated() + ['marcaDirecta' => false]);
-
-        return redirect()
-            ->route('funcionarios.index')
-            ->with('estado', 'Funcionario registrado correctamente.');
+        return view('funcionarios.index', compact('funcionarios', 'busqueda', 'porPagina'));
     }
 
     /**
@@ -109,45 +81,5 @@ class PersonaController extends Controller
             ->get();
 
         return view('reportes.marcaciones.sinProcesar.print', compact('persona', 'marcaciones', 'desde', 'hasta', 'tipo'));
-    }
-
-    /**
-     * Formulario de edición.
-     */
-    public function edit(Persona $persona): View
-    {
-        $this->authorize('update', $persona);
-
-        return view('funcionarios.edit', ['persona' => $persona] + $this->datosDeFormulario());
-    }
-
-    /**
-     * Actualiza un funcionario. La validación la hace UpdatePersonaRequest;
-     * el carnet (clave) y el control de asistencia no se tocan.
-     */
-    public function update(UpdatePersonaRequest $request, Persona $persona): RedirectResponse
-    {
-        $this->authorize('update', $persona);
-
-        $persona->update($request->validated());
-
-        return redirect()
-            ->route('funcionarios.index')
-            ->with('estado', 'Funcionario actualizado correctamente.');
-    }
-
-    /**
-     * Catálogos que necesitan los formularios de alta y edición.
-     *
-     * @return array{profesiones: Collection<string, string>, niveles: list<string>}
-     */
-    private function datosDeFormulario(): array
-    {
-        return [
-            'profesiones' => Profesion::query()
-                ->orderBy('nombreProfesion')
-                ->pluck('nombreProfesion', 'codigoProfesion'),
-            'niveles' => StorePersonaRequest::NIVELES_ESTUDIO,
-        ];
     }
 }

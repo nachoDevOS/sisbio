@@ -11,6 +11,9 @@
         <a href="{{ route('usuarios.create') }}" class="btn"><x-heroicon-o-plus />Nuevo usuario</a>
     </div>
 
+    <x-tabla-filtros :action="route('usuarios.index')" :busqueda="$busqueda"
+                     :por-pagina="$porPagina" placeholder="Buscar por nombre o correo…" />
+
     <div class="card">
         <table>
             <thead>

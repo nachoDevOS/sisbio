@@ -31,8 +31,16 @@ return new class extends Migration
             $table->dateTime('sTolerancia');
             $table->decimal('hTrabajadas', 19, 4);
             $table->boolean('siguienteDia');
+
+            $table->text('observacion')->nullable();
+            $table->smallInteger('estado')->default(1);
+
             $table->timestamps();
+            $table->foreignId('registerUser_id')->nullable()->constrained('users');
+
             $table->softDeletes();
+            $table->foreignId('deleteUser_id')->nullable()->constrained('users');
+            $table->text('deleteObservacion')->nullable();
         });
     }
 

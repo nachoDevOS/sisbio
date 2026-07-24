@@ -20,8 +20,16 @@ return new class extends Migration
             $table->id();
             $table->char('codigoProfesion', 2)->unique();
             $table->string('nombreProfesion', 60);
+
+            $table->text('observacion')->nullable();
+            $table->smallInteger('estado')->default(1);
+
             $table->timestamps();
+            $table->foreignId('registerUser_id')->nullable()->constrained('users');
+
             $table->softDeletes();
+            $table->foreignId('deleteUser_id')->nullable()->constrained('users');
+            $table->text('deleteObservacion')->nullable();
         });
     }
 

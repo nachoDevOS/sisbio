@@ -1,10 +1,10 @@
 <?php
 
+use App\Models\Role;
 use App\Models\User;
 use App\Policies\RolePolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 uses(RefreshDatabase::class);
 
@@ -62,13 +62,16 @@ test('actualiza los permisos de un rol existente', function () {
     expect($rol->refresh()->permissions->pluck('name')->all())->toBe(['ViewAny:User']);
 });
 
-test('elimina un rol', function () {
+test('elimina un rol de forma lógica', function () {
     $rol = Role::create(['name' => 'temporal', 'guard_name' => 'web']);
 
     $this->delete(route('roles.destroy', $rol))
         ->assertRedirect(route('roles.index'));
 
-    expect(Role::where('name', 'temporal')->exists())->toBeFalse();
+    // Borrado lógico: desaparece de las consultas normales pero sigue en la
+    // base marcado con deleted_at.
+    expect(Role::where('name', 'temporal')->exists())->toBeFalse()
+        ->and(Role::onlyTrashed()->where('name', 'temporal')->exists())->toBeTrue();
 });
 
 test('nunca se puede eliminar el rol super_admin', function () {

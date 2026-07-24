@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\RegistersUserEvents;
 use Database\Factories\AsistenciaFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Asistencia extends Model
 {
     /** @use HasFactory<AsistenciaFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, RegistersUserEvents, SoftDeletes;
 
     public const TIPO_RELOJ = 'R';
 
@@ -37,6 +38,8 @@ class Asistencia extends Model
         'fecha',
         'hora',
         'tipo',
+        'observacion',
+        'estado',
     ];
 
     /**

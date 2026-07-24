@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Role;
 use App\Policies\RolePolicy;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Spatie\Permission\Models\Role;
 
 class UpdateRoleRequest extends FormRequest
 {

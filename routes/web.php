@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DiaExcepcionalController;
 use App\Http\Controllers\DiaTurnoController;
 use App\Http\Controllers\EquipoController;
 use App\Http\Controllers\MarcacionController;
@@ -38,16 +39,22 @@ Route::middleware('auth')->group(function (): void {
     // Roles y su matriz de permisos.
     Route::resource('roles', RoleController::class)->except('show');
 
-    // Funcionarios del SIA (SQL Server remoto): listado, ficha (con sus
-    // marcaciones filtradas), alta y edición. Sin destroy: el borrado sigue
-    // siendo del sistema de escritorio.
+    // Funcionarios del SIA (SQL Server remoto): solo lectura. Listado y ficha
+    // (con sus marcaciones filtradas). El alta/edición/borrado siguen siendo
+    // del sistema de escritorio.
     Route::resource('funcionarios', PersonaController::class)
         ->parameters(['funcionarios' => 'persona'])
-        ->except(['destroy']);
+        ->only(['index', 'show']);
 
     // Horarios (turnos) del SIA: «Administrador de horarios» del escritorio.
     Route::resource('horarios', DiaTurnoController::class)
         ->parameters(['horarios' => 'horario']);
+
+    // Parámetros → Días excepcionales (feriados/tolerancias que no controlan
+    // asistencia), base local MySQL. CRUD sin ficha (show).
+    Route::resource('dias-excepcionales', DiaExcepcionalController::class)
+        ->parameters(['dias-excepcionales' => 'diaExcepcional'])
+        ->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
     // Reporte imprimible de marcaciones «sin procesar» (todo lo marcado por el
     // funcionario en un rango), con el formato del sistema de escritorio viejo.
     Route::get('funcionarios/{persona}/reporte-marcaciones', [PersonaController::class, 'reporteMarcaciones'])->name('funcionarios.reporte');

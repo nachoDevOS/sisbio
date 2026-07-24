@@ -20,7 +20,6 @@
     <div class="cabecera">
         <h1>{{ $persona->nombre_completo ?: 'Funcionario' }} · CI {{ trim($persona->ci) }}</h1>
         <div class="acciones">
-            <a href="{{ route('funcionarios.edit', $persona) }}" class="btn"><x-heroicon-o-pencil-square />Editar</a>
             <a href="{{ route('funcionarios.index') }}" class="btn btn--gris"><x-heroicon-o-arrow-left />Volver</a>
         </div>
     </div>

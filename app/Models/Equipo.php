@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\RegistersUserEvents;
 use Database\Factories\EquipoFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,7 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Equipo extends Model
 {
     /** @use HasFactory<EquipoFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, RegistersUserEvents, SoftDeletes;
 
     /**
      * Atributos asignables en masa.
@@ -39,6 +40,8 @@ class Equipo extends Model
         'en_linea',
         'ultima_sync',
         'activo',
+        'observacion',
+        'estado',
     ];
 
     /**

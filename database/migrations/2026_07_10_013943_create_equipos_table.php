@@ -26,6 +26,15 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes(); // Eliminación lógica: destroy() solo marca deleted_at
 
+            $table->text('observacion')->nullable();
+            $table->smallInteger('estado')->default(1);
+
+            // Auditoría de alta/baja (quién y con qué rol registró/eliminó).
+            $table->foreignId('registerUser_id')->nullable()->constrained('users');
+
+            $table->foreignId('deleteUser_id')->nullable()->constrained('users');
+            $table->text('deleteObservacion')->nullable();
+
             $table->unique(['ip', 'puerto']); // Evita registrar el mismo equipo dos veces
         });
     }

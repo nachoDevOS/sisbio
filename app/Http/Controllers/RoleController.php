@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreRoleRequest;
 use App\Http\Requests\UpdateRoleRequest;
+use App\Models\Role;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Spatie\Permission\Models\Role;
 
 /**
  * CRUD clásico (MVC) de roles y su matriz de permisos. Usa el modelo Spatie
@@ -17,13 +19,20 @@ class RoleController extends Controller
     /**
      * Listado de roles con su cantidad de permisos.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->authorize('viewAny', Role::class);
 
-        $roles = Role::withCount('permissions')->orderBy('name')->paginate(25);
+        $busqueda = trim((string) $request->query('q', ''));
+        $porPagina = $this->porPagina($request);
 
-        return view('roles.index', compact('roles'));
+        $roles = Role::withCount('permissions')
+            ->when($busqueda !== '', fn (Builder $query) => $query->where('name', 'like', "%{$busqueda}%"))
+            ->orderBy('name')
+            ->paginate($porPagina)
+            ->withQueryString();
+
+        return view('roles.index', compact('roles', 'busqueda', 'porPagina'));
     }
 
     /**

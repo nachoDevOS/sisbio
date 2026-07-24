@@ -27,30 +27,19 @@
         @endcan
     </div>
 
-    <form method="GET" action="{{ route('marcaciones.index') }}" class="toolbar">
-        <div class="campo">
-            <label for="desde">Desde</label>
-            <input type="date" id="desde" name="desde" value="{{ $desde }}" class="input">
-        </div>
-        <div class="campo">
-            <label for="hasta">Hasta</label>
-            <input type="date" id="hasta" name="hasta" value="{{ $hasta }}" class="input">
-        </div>
-        <div class="campo">
-            <label for="buscar">Buscar</label>
-            <input type="text" id="buscar" name="buscar" value="{{ $buscar }}" placeholder="CI o nombre…" class="input">
-        </div>
-        <div class="campo">
-            <label for="tipo">Tipo</label>
-            <select id="tipo" name="tipo" class="input">
+    <x-tabla-filtros :action="route('marcaciones.index')" :busqueda="$buscar" campo="buscar"
+                     :por-pagina="$porPagina" placeholder="Buscar por CI o nombre…">
+        <x-slot:filtros>
+            <input type="date" name="desde" value="{{ $desde }}" onchange="this.form.submit()" aria-label="Desde">
+            <input type="date" name="hasta" value="{{ $hasta }}" onchange="this.form.submit()" aria-label="Hasta">
+            <select name="tipo" onchange="this.form.submit()" aria-label="Tipo">
                 <option value="">Todos</option>
                 <option value="{{ \App\Models\Asistencia::TIPO_RELOJ }}" @selected($tipo === \App\Models\Asistencia::TIPO_RELOJ)>R</option>
                 <option value="{{ \App\Models\Asistencia::TIPO_A }}" @selected($tipo === \App\Models\Asistencia::TIPO_A)>A</option>
                 <option value="{{ \App\Models\Asistencia::TIPO_MANUAL }}" @selected($tipo === \App\Models\Asistencia::TIPO_MANUAL)>M</option>
             </select>
-        </div>
-        <button type="submit" class="btn"><x-heroicon-o-funnel />Filtrar</button>
-    </form>
+        </x-slot:filtros>
+    </x-tabla-filtros>
 
     <div class="card">
         <table>

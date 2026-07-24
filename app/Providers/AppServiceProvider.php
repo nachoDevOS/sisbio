@@ -3,12 +3,12 @@
 namespace App\Providers;
 
 use App\Database\SqlServer2008Connection;
+use App\Models\Role;
 use App\Policies\RolePolicy;
 use Illuminate\Database\Connection;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -29,9 +29,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // El modelo Role de Spatie vive fuera de app/Models: la convención
-        // de autodescubrimiento de policies de Laravel no lo encuentra sola,
-        // por eso se registra su policy a mano.
+        // Registro explícito de la policy del modelo Role (App\Models\Role,
+        // que extiende el de Spatie con SoftDeletes) para no depender solo del
+        // autodescubrimiento.
         Gate::policy(Role::class, RolePolicy::class);
 
         // super_admin puede todo, sin permisos individuales asignados.

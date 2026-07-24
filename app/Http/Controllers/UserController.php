@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\Role;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Spatie\Permission\Models\Role;
 
 /**
  * CRUD clásico (MVC) de los usuarios del sistema.
@@ -18,15 +20,24 @@ use Spatie\Permission\Models\Role;
 class UserController extends Controller
 {
     /**
-     * Listado de usuarios con sus roles.
+     * Listado de usuarios con sus roles, con búsqueda por nombre o correo.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->authorize('viewAny', User::class);
 
-        $usuarios = User::with('roles')->latest()->paginate(15);
+        $busqueda = trim((string) $request->query('q', ''));
+        $porPagina = $this->porPagina($request);
 
-        return view('usuarios.index', compact('usuarios'));
+        $usuarios = User::with('roles')
+            ->when($busqueda !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                ->where('name', 'like', "%{$busqueda}%")
+                ->orWhere('email', 'like', "%{$busqueda}%")))
+            ->latest()
+            ->paginate($porPagina)
+            ->withQueryString();
+
+        return view('usuarios.index', compact('usuarios', 'busqueda', 'porPagina'));
     }
 
     /**

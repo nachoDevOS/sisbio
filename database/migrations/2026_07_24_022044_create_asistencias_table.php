@@ -25,8 +25,16 @@ return new class extends Migration
             $table->dateTime('fecha');
             $table->dateTime('hora');
             $table->char('tipo', 1);
+
+            $table->text('observacion')->nullable();
+            $table->smallInteger('estado')->default(1);
+
             $table->timestamps();
+            $table->foreignId('registerUser_id')->nullable()->constrained('users');
+
             $table->softDeletes();
+            $table->foreignId('deleteUser_id')->nullable()->constrained('users');
+            $table->text('deleteObservacion')->nullable();
 
             $table->unique(['ci', 'fecha', 'hora']);
             $table->index('ci');
