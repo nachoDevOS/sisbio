@@ -4,6 +4,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
@@ -232,6 +233,64 @@ test('una fila con fecha basura futura del reloj (RTC) se descarta y no rompe el
         ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, '0 marcación(es) nueva(s)') && str_contains($mensaje, '1 fila(s) inválida(s)'));
 
     expect(DB::table('asistencias')->count())->toBe(0);
+});
+
+test('la columna funcionario usa el nombre de Mamoré cuando existe', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people/ci/*' => Http::response([
+            'data' => ['id' => 1, 'ci' => '777', 'full_name' => 'MARIELA CRUZ PORCO'],
+        ], 200),
+    ]);
+
+    // Existe también localmente, pero Mamoré tiene prioridad.
+    DB::table('personas')->insert([
+        'ci' => '777', 'paterno' => 'Diaz', 'materno' => null, 'nombres' => 'Eva', 'pinReloj' => null, 'marcaDirecta' => false,
+    ]);
+    DB::table('asistencias')->insert([
+        'ci' => '777', 'fecha' => today(), 'hora' => '1899-12-30 08:00:00', 'tipo' => 'R',
+    ]);
+
+    $this->get(route('marcaciones.index'))
+        ->assertOk()
+        ->assertSee('MARIELA CRUZ PORCO')
+        ->assertDontSee('Eva Diaz');
+});
+
+test('la columna funcionario cae a la BD local si no está en Mamoré', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake(['mamore.test/*' => Http::response(['message' => 'not found'], 404)]);
+
+    DB::table('personas')->insert([
+        'ci' => '888', 'paterno' => 'Roca', 'materno' => null, 'nombres' => 'Luis', 'pinReloj' => null, 'marcaDirecta' => false,
+    ]);
+    DB::table('asistencias')->insert([
+        'ci' => '888', 'fecha' => today(), 'hora' => '1899-12-30 08:00:00', 'tipo' => 'R',
+    ]);
+
+    $this->get(route('marcaciones.index'))
+        ->assertOk()
+        ->assertSee('Roca');
+});
+
+test('la columna funcionario muestra «Sin persona» si el CI no está en ningún sistema', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake(['mamore.test/*' => Http::response(['message' => 'not found'], 404)]);
+
+    // Marcación de un CI que no existe ni en Mamoré ni en personas local.
+    DB::table('asistencias')->insert([
+        'ci' => '999999', 'fecha' => today(), 'hora' => '1899-12-30 08:00:00', 'tipo' => 'R',
+    ]);
+
+    $this->get(route('marcaciones.index'))
+        ->assertOk()
+        ->assertSee('Sin persona');
 });
 
 test('registra una marcación manual de tipo M', function () {

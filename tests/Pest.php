@@ -32,6 +32,13 @@ pest()->extend(TestCase::class)
             'foreign_key_constraints' => false,
         ]);
         DB::purge('sia');
+
+        // Mamoré (API externa) desactivada por defecto: ningún test pega a la red
+        // salvo los que la configuran y falsean la respuesta con Http::fake().
+        config()->set('services.mamore', ['url' => null, 'key' => null]);
+
+        // Caché limpia por test (evita arrastrar nombres de Mamoré cacheados).
+        Cache::flush();
     })
     ->in('Feature');
 

@@ -96,7 +96,13 @@
                     <tr>
                         <td>{{ $marcacion->id }}</td>
                         <td>{{ trim((string) $marcacion->ci) }}</td>
-                        <td>{{ $marcacion->persona?->nombre_completo ?? '—' }}</td>
+                        <td>
+                            @if ($nombres[trim((string) $marcacion->ci)] ?? null)
+                                {{ $nombres[trim((string) $marcacion->ci)] }}
+                            @else
+                                <span style="color: var(--muted); font-style: italic;">Sin persona</span>
+                            @endif
+                        </td>
                         <td>{{ $marcacion->fecha?->format('d/m/Y') }}</td>
                         <td>{{ $marcacion->hora?->format('H:i:s') }}</td>
                         <td><span class="pill {{ $pillPorTipo[trim((string) $marcacion->tipo)] ?? 'pill--info' }}">{{ trim((string) $marcacion->tipo) }}</span></td>

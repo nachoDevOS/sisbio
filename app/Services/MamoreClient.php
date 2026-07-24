@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\MamoreException;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 
@@ -34,7 +35,11 @@ class MamoreClient
             $parametros['search'] = $search;
         }
 
-        $respuesta = $this->http()->get('/people', $parametros);
+        try {
+            $respuesta = $this->http()->get('/people', $parametros);
+        } catch (ConnectionException) {
+            throw new MamoreException('No se pudo conectar con la API de Mamoré.');
+        }
 
         if ($respuesta->failed()) {
             throw new MamoreException($this->motivo($respuesta->status()));
@@ -50,7 +55,11 @@ class MamoreClient
      */
     public function personByCi(string $ci): ?array
     {
-        $respuesta = $this->http()->get('/people/ci/'.rawurlencode($ci));
+        try {
+            $respuesta = $this->http()->get('/people/ci/'.rawurlencode($ci));
+        } catch (ConnectionException) {
+            throw new MamoreException('No se pudo conectar con la API de Mamoré.');
+        }
 
         if ($respuesta->status() === 404) {
             return null;
