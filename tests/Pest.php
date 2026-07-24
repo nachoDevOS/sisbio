@@ -20,6 +20,19 @@ use Tests\TestCase;
 */
 
 pest()->extend(TestCase::class)
+    // Aísla la conexión 'sia' del SQL Server real en TODOS los tests: por
+    // defecto apunta a un sqlite vacío, así ningún test pega a la red del SIA
+    // (p. ej. al renderizar el dashboard). Los tests que necesitan datos del
+    // SIA llaman fakeSiaDatabase(), que además crea las tablas.
+    ->beforeEach(function (): void {
+        config()->set('database.connections.sia', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+        ]);
+        DB::purge('sia');
+    })
     ->in('Feature');
 
 /*
@@ -122,5 +135,12 @@ function fakeSiaDatabase(): void
         $tabla->boolean('TCompleto');
         $tabla->string('Motivo', 255)->nullable();
         $tabla->boolean('GoceHaberes');
+    });
+
+    Schema::connection('sia')->create('AsignacionTurnos', function (Blueprint $tabla): void {
+        $tabla->string('IdPersona', 12);
+        $tabla->string('IdTurno', 3);
+        $tabla->dateTime('Desde');
+        $tabla->dateTime('Hasta');
     });
 }

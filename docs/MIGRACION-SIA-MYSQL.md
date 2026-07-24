@@ -76,17 +76,29 @@ php -m | grep sqlsrv        # debe imprimir: pdo_sqlsrv  y  sqlsrv
 php artisan migrate
 ```
 
-### Copiar los datos (orden lógico)
+### Copiar los datos — todo de una (recomendado)
 
 ```bash
-php artisan sia:migrar-profesiones   # catálogo (rápido)
-php artisan sia:migrar-personas      # funcionarios
-php artisan sia:migrar-marcaciones   # ~4.4M filas — tarda
-php artisan sia:migrar-horarios      # turnos
+php artisan db:seed --class=MigrarSiaSeeder
+```
+
+Corre los seis comandos de copia en el orden correcto. Idempotente: reejecutarlo
+no duplica.
+
+### Copiar los datos — comando por comando
+
+```bash
+php artisan sia:migrar-profesiones        # catálogo (rápido)
+php artisan sia:migrar-personas           # funcionarios
+php artisan sia:migrar-horarios           # turnos (antes de asignacion-turnos)
+php artisan sia:migrar-marcaciones        # ~4.4M filas — tarda
+php artisan sia:migrar-licencias          # permisos/vacaciones
+php artisan sia:migrar-asignacion-turnos  # asignaciones (resuelve turno_id)
 ```
 
 Cada comando acepta `--chunk=N` (filas por lote). Si algo falla, se reejecuta
-sin duplicar.
+sin duplicar. El **orden importa**: `asignacion_turnos` resuelve su FK `turno_id`
+cruzando `idTurno` contra `turnos`, así que los horarios van antes.
 
 ### Verificar
 
@@ -104,9 +116,20 @@ php artisan tinker --execute 'echo DB::table("personas")->count()." personas, ".
 | `Asistencia` | `asistencias` | `sia:migrar-marcaciones` | `ci + fecha + hora` |
 | `Profesiones` | `profesiones` | `sia:migrar-profesiones` | `codigoProfesion` |
 | `DiaTurnos` | `turnos` | `sia:migrar-horarios` | `idTurno` |
+| `Licencias` | `licencias` | `sia:migrar-licencias` | `ci + fecha + idTurno` |
+| `AsignacionTurnos` | `asignacion_turnos` | `sia:migrar-asignacion-turnos` | `ci + idTurno + desde` |
 
 Modelos locales (conexión MySQL por defecto): `App\Models\Persona`,
-`App\Models\Asistencia`, `App\Models\Profesion`, `App\Models\Turno`.
+`App\Models\Asistencia`, `App\Models\Profesion`, `App\Models\Turno`,
+`App\Models\Licencia`, `App\Models\AsignacionTurno`.
+
+`asignacion_turnos` conserva `idTurno` (código del SIA) y además tiene la FK
+`turno_id` → `turnos.id`, que el comando resuelve cruzando `idTurno` contra
+`turnos` (por eso los horarios se migran antes; si no cruza, `turno_id` queda null).
+
+> **Tests:** al agregar una tabla del SIA, replicarla también en
+> `tests/Pest.php` → `fakeSiaDatabase()` (schema con nombres del SIA, PascalCase)
+> para que el test del comando pueda insertar datos de origen.
 
 ---
 
