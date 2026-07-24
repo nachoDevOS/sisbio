@@ -15,14 +15,14 @@ test('copia los horarios del SIA a la base local con id y timestamps', function 
 
     $this->artisan('sia:migrar-horarios')->assertSuccessful();
 
-    expect(DB::table('DiaTurnos')->count())->toBe(3);
+    expect(DB::table('turnos')->count())->toBe(3);
 
-    $fila = DB::table('DiaTurnos')->first();
+    $fila = DB::table('turnos')->first();
     expect($fila->id)->toBeGreaterThan(0)
         ->and($fila->created_at)->not->toBeNull();
 });
 
-test('preserva los campos tal cual, recortando el relleno de los char()', function () {
+test('mapea a camelCase y preserva los campos, recortando el relleno de los char()', function () {
     DB::connection('sia')->table('DiaTurnos')->insert([
         'IdTurno' => 'M1 ', // char(3) con relleno.
         'Dia' => '2',
@@ -41,12 +41,12 @@ test('preserva los campos tal cual, recortando el relleno de los char()', functi
 
     $this->artisan('sia:migrar-horarios')->assertSuccessful();
 
-    $local = DB::table('DiaTurnos')->where('IdTurno', 'M1')->first();
+    $local = DB::table('turnos')->where('idTurno', 'M1')->first();
 
     expect($local)->not->toBeNull()
-        ->and($local->NombreTurno)->toBe('Mañana')
-        ->and($local->Dia)->toBe('2')
-        ->and($local->HEntrada)->toContain('08:00:00');
+        ->and($local->nombreTurno)->toBe('Mañana')
+        ->and($local->dia)->toBe('2')
+        ->and($local->hEntrada)->toContain('08:00:00');
 });
 
 test('es idempotente: correrlo dos veces no duplica', function () {
@@ -55,7 +55,7 @@ test('es idempotente: correrlo dos veces no duplica', function () {
     $this->artisan('sia:migrar-horarios')->assertSuccessful();
     $this->artisan('sia:migrar-horarios')->assertSuccessful();
 
-    expect(DB::table('DiaTurnos')->count())->toBe(2);
+    expect(DB::table('turnos')->count())->toBe(2);
 });
 
 test('no escribe sobre la base del SIA (origen intacto)', function () {

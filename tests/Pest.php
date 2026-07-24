@@ -110,4 +110,17 @@ function fakeSiaDatabase(): void
         $tabla->decimal('HTrabajadas', 19, 4);
         $tabla->boolean('SiguienteDia');
     });
+
+    Schema::connection('sia')->create('Licencias', function (Blueprint $tabla): void {
+        $tabla->dateTime('FechaPedido');
+        $tabla->string('Usuario', 50);
+        $tabla->dateTime('Fecha');
+        $tabla->string('IdPersona', 12);
+        $tabla->string('IdTurno', 3);
+        $tabla->dateTime('LEntra')->nullable();
+        $tabla->dateTime('LSale')->nullable();
+        $tabla->boolean('TCompleto');
+        $tabla->string('Motivo', 255)->nullable();
+        $tabla->boolean('GoceHaberes');
+    });
 }

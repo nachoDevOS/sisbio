@@ -1,0 +1,171 @@
+# Migración SIA (SQL Server) → MySQL
+
+Guía para migrar la información del sistema legado **SIA** (SQL Server 2008 R2,
+solo lectura) a la base **MySQL local** del sistema, tabla por tabla.
+
+**Meta:** que SISBIO viva 100% en MySQL y deje de depender del SQL Server.
+
+---
+
+## 1. Cómo funciona
+
+Cada tabla del SIA se migra en dos piezas:
+
+1. **Migración local** (`database/migrations/*_create_<tabla>_table.php`): crea la
+   tabla en MySQL con los mismos campos que el SIA, más `id` autoincremental,
+   `timestamps` y `deleted_at` (eliminación lógica).
+2. **Comando de copia** (`app/Console/Commands/Migrar<X>Sia.php`): lee del SQL
+   Server (conexión `sia`, solo lectura) y hace `upsert` en la tabla local. Es
+   **idempotente**: reejecutarlo no duplica.
+
+El SQL Server **nunca se toca** (sigue solo lectura). Los comandos usan query
+builder (`DB::table`) a propósito: el `upsert` masivo es mucho más rápido que
+instanciar un modelo por fila (Asistencia ~4.4M filas).
+
+### Convención de nombres
+
+| | SIA (origen) | Local (MySQL) |
+|---|---|---|
+| Tablas | PascalCase (`Personas`, `DiaTurnos`) | **minúscula plural** (`personas`, `turnos`) |
+| Columnas | PascalCase (`CodigoProfesion`, `IdPersona`) | **camelCase** (`codigoProfesion`, `ci`) |
+
+Renombres fijos: `IdPersona` → `ci`, `CorreoE` → `correo`. Cada comando lleva un
+array `MAPA` (columna origen ⇒ columna local) que hace la traducción y recorta
+el relleno de espacios de los `char()` del SIA.
+
+---
+
+## 2. Ejecutar la migración
+
+### Prerequisitos (una vez)
+
+```bash
+sudo systemctl start mysql       # MySQL arriba (destino)
+php -m | grep pdo_sqlsrv          # debe listar pdo_sqlsrv (para leer el SQL Server)
+```
+
+Las credenciales del SIA (`DB_*_SIA`) ya van en el `.env`.
+
+Si `pdo_sqlsrv` **no aparece** (error `could not find driver`), instalarlo.
+En **Ubuntu 22.04 + PHP 8.3**:
+
+```bash
+# Headers de PHP + compilador
+sudo apt-get update
+sudo apt-get install -y php8.3-dev php-pear gcc g++ make autoconf unixodbc-dev
+
+# Driver ODBC de Microsoft (repo Ubuntu 22.04)
+curl https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc
+curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+sudo apt-get update
+sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+
+# Compilar las extensiones (sqlsrv primero, luego pdo_sqlsrv)
+sudo pecl install sqlsrv pdo_sqlsrv
+
+# Habilitarlas en PHP CLI
+printf "extension=sqlsrv.so\n"     | sudo tee /etc/php/8.3/cli/conf.d/20-sqlsrv.ini
+printf "extension=pdo_sqlsrv.so\n" | sudo tee /etc/php/8.3/cli/conf.d/30-pdo_sqlsrv.ini
+
+php -m | grep sqlsrv        # debe imprimir: pdo_sqlsrv  y  sqlsrv
+```
+
+### Crear las tablas
+
+```bash
+php artisan migrate
+```
+
+### Copiar los datos (orden lógico)
+
+```bash
+php artisan sia:migrar-profesiones   # catálogo (rápido)
+php artisan sia:migrar-personas      # funcionarios
+php artisan sia:migrar-marcaciones   # ~4.4M filas — tarda
+php artisan sia:migrar-horarios      # turnos
+```
+
+Cada comando acepta `--chunk=N` (filas por lote). Si algo falla, se reejecuta
+sin duplicar.
+
+### Verificar
+
+```bash
+php artisan tinker --execute 'echo DB::table("personas")->count()." personas, ".DB::table("asistencias")->count()." marcaciones\n";'
+```
+
+---
+
+## 3. Tablas ya migradas
+
+| SIA (origen) | Tabla local | Comando | Clave de upsert |
+|---|---|---|---|
+| `Personas` | `personas` | `sia:migrar-personas` | `ci` |
+| `Asistencia` | `asistencias` | `sia:migrar-marcaciones` | `ci + fecha + hora` |
+| `Profesiones` | `profesiones` | `sia:migrar-profesiones` | `codigoProfesion` |
+| `DiaTurnos` | `turnos` | `sia:migrar-horarios` | `idTurno` |
+
+Modelos locales (conexión MySQL por defecto): `App\Models\Persona`,
+`App\Models\Asistencia`, `App\Models\Profesion`, `App\Models\Turno`.
+
+---
+
+## 4. Agregar una tabla nueva
+
+Para migrar otra tabla del SIA, repetir el patrón:
+
+1. **Modelo + migración:**
+
+   ```bash
+   php artisan make:model NombreModelo -m
+   ```
+
+2. **Migración** (`database/migrations/*`): definir la tabla en **minúscula
+   plural**, columnas en **camelCase**, con `id()`, `timestamps()` y
+   `softDeletes()`. La clave de negocio del SIA (la PK legada) va como
+   `unique()`. Copiar los tipos/longitudes del SIA — la referencia offline es
+   `tests/Pest.php` (`fakeSiaDatabase()`), que replica las tablas del SIA real.
+
+3. **Modelo** (`app/Models/*`): `$table` explícito (minúscula), `use SoftDeletes`,
+   `$fillable` y `casts` en camelCase.
+
+4. **Comando de copia:**
+
+   ```bash
+   php artisan make:command MigrarNombreSia
+   ```
+
+   Copiar de un comando existente (p. ej. `MigrarProfesionesSia`) y ajustar:
+   - `#[Signature('sia:migrar-nombre ...')]`
+   - `MAPA`: columna del SIA (PascalCase) ⇒ columna local (camelCase).
+   - Tabla origen (`DB::connection('sia')->table('TablaSia')`) y destino
+     (`->table('tabla_local')`).
+   - Clave del `upsert` y columnas actualizables.
+   - Tablas grandes (millones de filas): leer con `cursor()` en vez de
+     `chunk()`, para no pagar el `ROW_NUMBER()` O(n²) del grammar 2008 (ver
+     `MigrarMarcacionesSia`).
+
+5. **Test** (`tests/Feature/MigrarNombreSiaTest.php`): usar `fakeSiaDatabase()`;
+   probar copia, mapeo de columnas, idempotencia y que el origen queda intacto.
+
+6. **Correr:**
+
+   ```bash
+   vendor/bin/pint --dirty
+   php artisan test --compact --filter=MigrarNombreSia
+   ```
+
+---
+
+## 5. Pendiente: el «flip» a MySQL
+
+Copiar los datos es la mitad. La app **todavía lee del SQL Server** (los
+controllers y servicios usan `App\Models\Sia\*`). Para que el sistema use MySQL:
+
+1. Cambiar los controllers/servicios de `App\Models\Sia\*` → `App\Models\*`
+   (dashboard, `MarcacionController`, `PersonaController`,
+   `ReporteMarcacionController`, `DiaTurnoController`, `RegistroAsistenciaSia`).
+2. Ajustar el código que usa `IdPersona` en Asistencia → `ci`.
+3. Ajustar las claves de ruta (route binding) al nuevo `id` / `ci`.
+
+Recién ahí el SQL Server deja de usarse.
