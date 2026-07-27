@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Traits\RegistersUserEvents;
+use Database\Factories\AsignacionTurnoFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -17,7 +19,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class AsignacionTurno extends Model
 {
-    use RegistersUserEvents, SoftDeletes;
+    /** @use HasFactory<AsignacionTurnoFactory> */
+    use HasFactory, RegistersUserEvents, SoftDeletes;
 
     protected $table = 'asignacion_turnos';
 

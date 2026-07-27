@@ -12,11 +12,15 @@ use Illuminate\Support\Facades\Schema;
  * Igual que el resto de la migración SIA→MySQL: id autoincremental, timestamps
  * y eliminación lógica propios. El carnet va en `ci` (en el SIA es IdPersona).
  * La clave natural (una licencia por funcionario, día y turno) pasa a un índice
- * único (ci + fecha + idTurno) para el upsert idempotente; `ci` se indexa aparte
- * para los joins con personas. Se conserva `idTurno` (código del SIA) y además
- * se agrega la FK `turno_id` → `turnos.id`, que el comando resuelve cruzando
- * idTurno contra `turnos` (por eso los horarios se migran antes). `lEntra`/`lSale`
- * guardan la hora sobre la fecha base 1899-12-30, como el resto de horas del SIA.
+ * único (ci + fecha + turno_id) para el upsert idempotente; `ci` se indexa aparte
+ * para los joins con personas. `lEntra`/`lSale` guardan la hora sobre la fecha
+ * base 1899-12-30, como el resto de horas del SIA.
+ *
+ * El horario se referencia por la FK real `turno_id` → `turnos.id`, que el
+ * comando de copia resuelve cruzando el IdTurno del SIA contra `turnos` (por eso
+ * los horarios se migran antes). La columna `idTurno` se conserva **solo como
+ * dato histórico** de lo que trajo el SIA: el sistema no la escribe, es nullable
+ * y no entra en ningún índice ni en el `$fillable` del modelo.
  */
 return new class extends Migration
 {
@@ -28,8 +32,9 @@ return new class extends Migration
             $table->string('usuario', 50);
             $table->dateTime('fecha');
             $table->char('ci', 12);
-            $table->char('idTurno', 3);
-            $table->foreignId('turno_id')->nullable()->constrained('turnos');
+            // Solo histórico (lo que trajo el SIA); el sistema no lo escribe.
+            $table->char('idTurno', 3)->nullable();
+            $table->foreignId('turno_id')->constrained('turnos');
             $table->dateTime('lEntra')->nullable();
             $table->dateTime('lSale')->nullable();
             $table->boolean('tCompleto');
@@ -46,7 +51,7 @@ return new class extends Migration
             $table->foreignId('deleteUser_id')->nullable()->constrained('users');
             $table->text('deleteObservacion')->nullable();
 
-            $table->unique(['ci', 'fecha', 'idTurno']);
+            $table->unique(['ci', 'fecha', 'turno_id']);
             $table->index('ci');
         });
     }

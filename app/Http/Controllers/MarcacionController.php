@@ -2,19 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\MamoreException;
 use App\Http\Requests\ImportarMarcacionesRequest;
 use App\Http\Requests\StoreMarcacionRequest;
 use App\Models\Asistencia;
-use App\Models\Persona;
-use App\Services\MamoreClient;
 use App\Services\RegistroAsistencia;
+use App\Services\ResolutorNombres;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 /**
@@ -49,7 +45,7 @@ class MarcacionController extends Controller
     /**
      * Devuelve el listado para AJAX.
      */
-    public function list(Request $request, MamoreClient $mamore): View
+    public function list(Request $request, ResolutorNombres $resolutor): View
     {
         $this->authorize('viewAny', Asistencia::class);
 
@@ -69,77 +65,11 @@ class MarcacionController extends Controller
             ->paginate($porPagina)
             ->withQueryString();
 
-        $nombres = $this->resolverNombres($marcaciones->pluck('ci'), $mamore);
+        // La columna «Funcionario» sale de Mamoré y, si el CI no está ahí, de
+        // la base local (App\Services\ResolutorNombres).
+        $nombres = $resolutor->porCi($marcaciones->pluck('ci'));
 
         return view('marcaciones.list', compact('marcaciones', 'nombres'));
-    }
-
-    /**
-     * Resuelve el nombre del funcionario de cada CI: primero en Mamoré (API,
-     * cacheado), y si no está ahí, en la base local (`personas`). Solo consulta
-     * los CI distintos de la página.
-     *
-     * @param  Collection<int, mixed>  $cis
-     * @return array<string, ?string> ci => nombre (o null si no se encontró)
-     */
-    private function resolverNombres($cis, MamoreClient $mamore): array
-    {
-        $cis = collect($cis)
-            ->map(fn ($ci): string => trim((string) $ci))
-            ->filter()
-            ->unique()
-            ->values();
-
-        if ($cis->isEmpty()) {
-            return [];
-        }
-
-        $locales = Persona::query()
-            ->whereIn('ci', $cis->all())
-            ->get()
-            ->mapWithKeys(fn (Persona $persona): array => [trim((string) $persona->ci) => $persona->nombre_completo]);
-
-        $usarMamore = $mamore->configurado();
-        $nombres = [];
-
-        foreach ($cis as $ci) {
-            $nombre = $usarMamore ? $this->nombreMamore($ci, $mamore) : '';
-
-            if ($nombre === '') {
-                $nombre = (string) ($locales->get($ci) ?? '');
-            }
-
-            $nombres[$ci] = $nombre !== '' ? $nombre : null;
-        }
-
-        return $nombres;
-    }
-
-    /**
-     * Nombre de una persona en Mamoré por CI, cacheado por un día. Devuelve ''
-     * si no existe (404). Un fallo transitorio de la API no se cachea (se
-     * reintenta luego) y también devuelve ''.
-     */
-    private function nombreMamore(string $ci, MamoreClient $mamore): string
-    {
-        $clave = 'mamore.nombre.'.$ci;
-        $cacheado = Cache::get($clave);
-
-        if ($cacheado !== null) {
-            return $cacheado;
-        }
-
-        try {
-            $persona = $mamore->personByCi($ci);
-        } catch (MamoreException) {
-            return '';
-        }
-
-        $nombre = $persona ? trim((string) ($persona['full_name'] ?? '')) : '';
-
-        Cache::put($clave, $nombre, now()->addDay());
-
-        return $nombre;
     }
 
     /**

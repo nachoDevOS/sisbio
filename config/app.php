@@ -65,7 +65,12 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    /*
+     * Hora de Bolivia (UTC-4). No puede quedar en UTC: los datos migrados del
+     * SIA vienen en hora local, y las marcaciones de los biométricos también,
+     * así que `now()` en UTC guardaba todo 4 horas adelantado.
+     */
+    'timezone' => env('APP_TIMEZONE', 'America/La_Paz'),
 
     /*
     |--------------------------------------------------------------------------

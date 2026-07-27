@@ -26,6 +26,7 @@ class RolePolicy
         'Persona' => 'Funcionarios',
         'Asistencia' => 'Marcaciones',
         'DiaTurno' => 'Horarios',
+        'Licencia' => 'Licencias',
         'DiaExcepcional' => 'Días excepcionales',
     ];
 

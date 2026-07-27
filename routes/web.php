@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiaExcepcionalController;
 use App\Http\Controllers\DiaTurnoController;
 use App\Http\Controllers\EquipoController;
+use App\Http\Controllers\LicenciaController;
 use App\Http\Controllers\MarcacionController;
 use App\Http\Controllers\PersonaController;
 use App\Http\Controllers\ReporteMarcacionController;
@@ -53,6 +54,14 @@ Route::middleware('auth')->group(function (): void {
     Route::get('horarios/ajax/list', [DiaTurnoController::class, 'list'])->name('horarios.list');
     Route::resource('horarios', DiaTurnoController::class)
         ->parameters(['horarios' => 'horario']);
+
+    // Licencias/permisos de personal: listado AJAX + pantalla «Licenciar»
+    // (turnos asignados + rango de fechas). Sin edición: se anota o se elimina.
+    Route::get('licencias/ajax/list', [LicenciaController::class, 'list'])->name('licencias.list');
+    // Búsqueda JSON de funcionarios para el combo de la pantalla «Licenciar».
+    Route::get('licencias/ajax/funcionarios', [LicenciaController::class, 'buscarFuncionarios'])->name('licencias.funcionarios');
+    Route::resource('licencias', LicenciaController::class)
+        ->only(['index', 'create', 'store', 'destroy']);
 
     // Parámetros → Días excepcionales (feriados/tolerancias que no controlan
     // asistencia), base local MySQL. CRUD sin ficha (show).

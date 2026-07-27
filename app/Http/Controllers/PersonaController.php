@@ -77,7 +77,13 @@ class PersonaController extends Controller
             ->paginate(25, pageName: 'marcaciones_page')
             ->withQueryString();
 
-        return view('funcionarios.show', compact('persona', 'marcaciones', 'desde', 'hasta', 'tipo'));
+        $licencias = $persona->licencias()
+            ->with('turno')
+            ->orderByDesc('fecha')
+            ->paginate(10, pageName: 'licencias_page')
+            ->withQueryString();
+
+        return view('funcionarios.show', compact('persona', 'marcaciones', 'licencias', 'desde', 'hasta', 'tipo'));
     }
 
     /**

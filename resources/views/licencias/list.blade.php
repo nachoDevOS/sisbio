@@ -1,0 +1,58 @@
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Fecha</th>
+                <th>Funcionario</th>
+                <th>Turno</th>
+                <th>Alcance</th>
+                <th>Haberes</th>
+                <th>Motivo</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse ($licencias as $licencia)
+                <tr>
+                    <td>{{ $licencia->id }}</td>
+                    <td><strong>{{ $licencia->fecha?->format('d/m/Y') }}</strong></td>
+                    <td>
+                        @if ($nombres[trim((string) $licencia->ci)] ?? null)
+                            {{ $nombres[trim((string) $licencia->ci)] }}
+                        @else
+                            <span style="color: var(--muted); font-style: italic;">Sin persona</span>
+                        @endif
+                        <div class="ayuda">CI {{ trim((string) $licencia->ci) }}</div>
+                    </td>
+                    <td>{{ $licencia->resumen_turno }}</td>
+                    <td>
+                        @if ($licencia->tCompleto)
+                            <span class="pill pill--info">Turno completo</span>
+                        @else
+                            {{ $licencia->lEntra?->format('H:i') ?? '—' }} – {{ $licencia->lSale?->format('H:i') ?? '—' }}
+                        @endif
+                    </td>
+                    <td>
+                        <span class="pill {{ $licencia->goceHaberes ? 'pill--ok' : 'pill--no' }}">
+                            {{ $licencia->goceHaberes ? 'Con goce' : 'Sin goce' }}
+                        </span>
+                    </td>
+                    <td>{{ $licencia->motivo ?: '—' }}</td>
+                    <td class="acciones">
+                        <form action="{{ route('licencias.destroy', $licencia) }}" method="POST"
+                              onsubmit="return confirm('¿Eliminar la licencia del {{ $licencia->fecha?->format('d/m/Y') }}?');">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn-icon btn-icon--peligro" title="Eliminar" aria-label="Eliminar"><x-heroicon-o-trash /></button>
+                        </form>
+                    </td>
+                </tr>
+            @empty
+                <tr><td colspan="8" class="vacio">{{ $busqueda !== '' ? 'Sin licencias para la búsqueda.' : 'Aún no hay licencias registradas.' }}</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+
+<div class="paginacion">{{ $licencias->links() }}</div>

@@ -24,7 +24,7 @@ test('el listado muestra las marcaciones del rango por defecto', function () {
         'tipo' => 'R',
     ]);
 
-    $this->get(route('marcaciones.index'))
+    $this->get(route('marcaciones.list'))
         ->assertOk()
         ->assertSee('Diaz')
         ->assertSee('777');
@@ -42,7 +42,7 @@ test('el rango de fechas excluye lo que queda fuera', function () {
     ]);
 
     // El rango por defecto arranca en el mes actual: la marcación de hace 2 años queda fuera.
-    $this->get(route('marcaciones.index'))
+    $this->get(route('marcaciones.list'))
         ->assertOk()
         ->assertSee('Sin marcaciones en el rango seleccionado');
 });
@@ -69,7 +69,7 @@ test('busca marcaciones por apellido del funcionario', function () {
         ['ci' => '2', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'R'],
     ]);
 
-    $this->get(route('marcaciones.index', ['buscar' => 'Zabaleta']))
+    $this->get(route('marcaciones.list', ['q' => 'Zabaleta']))
         ->assertOk()
         ->assertSee('Zabaleta')
         ->assertDontSee('Quiroga');
@@ -87,7 +87,7 @@ test('busca marcaciones por nombre y apellido combinados', function () {
 
     // "ignacio m" cruza nombres + paterno: encuentra a Ignacio Molina y deja
     // fuera a Ignacio Perez.
-    $this->get(route('marcaciones.index', ['buscar' => 'ignacio m']))
+    $this->get(route('marcaciones.list', ['q' => 'ignacio m']))
         ->assertOk()
         ->assertSee('Molina')
         ->assertDontSee('Perez');
@@ -103,7 +103,7 @@ test('busca marcaciones por CI del funcionario', function () {
         ['ci' => '222', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'R'],
     ]);
 
-    $this->get(route('marcaciones.index', ['buscar' => '111']))
+    $this->get(route('marcaciones.list', ['q' => '111']))
         ->assertOk()
         ->assertSee('Rocabado')
         ->assertDontSee('Salvatierra');
@@ -119,7 +119,7 @@ test('filtra por tipo de marcación', function () {
         ['ci' => '2', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'M'],
     ]);
 
-    $this->get(route('marcaciones.index', ['tipo' => 'R']))
+    $this->get(route('marcaciones.list', ['tipo' => 'R']))
         ->assertOk()
         ->assertSee('Relojero')
         ->assertDontSee('Manualino');
@@ -138,7 +138,7 @@ test('una marcación manual no se pinta con el color de reloj', function () {
 
     // El CSS estático del layout siempre define .pill--ok (regla, no dato);
     // se verifica el <span> renderizado puntual, no una búsqueda de substring.
-    $this->get(route('marcaciones.index'))
+    $this->get(route('marcaciones.list'))
         ->assertOk()
         ->assertSee('<span class="pill pill--advertencia">M</span>', escape: false);
 });
@@ -253,7 +253,7 @@ test('la columna funcionario usa el nombre de Mamoré cuando existe', function (
         'ci' => '777', 'fecha' => today(), 'hora' => '1899-12-30 08:00:00', 'tipo' => 'R',
     ]);
 
-    $this->get(route('marcaciones.index'))
+    $this->get(route('marcaciones.list'))
         ->assertOk()
         ->assertSee('MARIELA CRUZ PORCO')
         ->assertDontSee('Eva Diaz');
@@ -272,7 +272,7 @@ test('la columna funcionario cae a la BD local si no está en Mamoré', function
         'ci' => '888', 'fecha' => today(), 'hora' => '1899-12-30 08:00:00', 'tipo' => 'R',
     ]);
 
-    $this->get(route('marcaciones.index'))
+    $this->get(route('marcaciones.list'))
         ->assertOk()
         ->assertSee('Roca');
 });
@@ -288,7 +288,7 @@ test('la columna funcionario muestra «Sin persona» si el CI no está en ningú
         'ci' => '999999', 'fecha' => today(), 'hora' => '1899-12-30 08:00:00', 'tipo' => 'R',
     ]);
 
-    $this->get(route('marcaciones.index'))
+    $this->get(route('marcaciones.list'))
         ->assertOk()
         ->assertSee('Sin persona');
 });

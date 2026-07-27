@@ -80,6 +80,11 @@ class Persona extends Model
         return $this->belongsTo(Profesion::class, 'codigoProfesion', 'codigoProfesion');
     }
 
+    public function licencias(): HasMany
+    {
+        return $this->hasMany(Licencia::class, 'ci', 'ci');
+    }
+
     /**
      * Filtra por CI o nombre: cada palabra debe aparecer en el CI o en alguno de
      * los nombres, así "ignacio molina" cruza nombres + paterno.

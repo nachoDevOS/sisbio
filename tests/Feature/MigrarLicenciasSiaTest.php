@@ -10,6 +10,12 @@ beforeEach(function (): void {
     // SIA falso (sqlite en memoria) con Licencias; la base local trae la tabla
     // `licencias` de la migración propia.
     fakeSiaDatabase();
+
+    // La licencia referencia el horario por la FK `turno_id`, así que los turnos
+    // tienen que existir antes: es el orden real de la migración.
+    DiaTurno::factory()->create(['IdTurno' => '8DW']);
+    DiaTurno::factory()->create(['IdTurno' => 'EKX']);
+    $this->artisan('sia:migrar-horarios')->assertSuccessful();
 });
 
 /**
@@ -66,25 +72,37 @@ test('mapea IdPersona→ci y preserva los campos, recortando el relleno', functi
         ->and($local->lEntra)->toContain('08:00:00');
 });
 
-test('resuelve turno_id cruzando idTurno con turnos local', function () {
-    // Turno local con el que se cruza: se migra un DiaTurno del SIA primero.
-    DiaTurno::factory()->create(['IdTurno' => '8DW']);
-    $this->artisan('sia:migrar-horarios')->assertSuccessful();
+test('resuelve turno_id cruzando idTurno con turnos local y conserva el código como histórico', function () {
     $turnoId = DB::table('turnos')->where('idTurno', '8DW')->value('id');
 
     insertarLicenciaSia(['IdTurno' => '8DW']);
 
     $this->artisan('sia:migrar-licencias')->assertSuccessful();
 
-    expect(DB::table('licencias')->value('turno_id'))->toBe($turnoId);
+    $local = DB::table('licencias')->first();
+
+    expect($local->turno_id)->toBe($turnoId)
+        // El código del SIA se copia solo como dato histórico de lo migrado.
+        ->and($local->idTurno)->toBe('8DW');
 });
 
-test('turno_id queda null si el idTurno no cruza con ningún turno', function () {
+test('saltea la licencia si su IdTurno no cruza con ningún turno', function () {
     insertarLicenciaSia(['IdTurno' => 'ZZZ']);
+    insertarLicenciaSia(['IdPersona' => '4191164', 'IdTurno' => 'EKX']);
 
     $this->artisan('sia:migrar-licencias')->assertSuccessful();
 
-    expect(DB::table('licencias')->value('turno_id'))->toBeNull();
+    expect(DB::table('licencias')->count())->toBe(1)
+        ->and(DB::table('licencias')->value('ci'))->toBe('4191164');
+});
+
+test('falla si los turnos no se migraron antes', function () {
+    DB::table('turnos')->delete();
+    insertarLicenciaSia();
+
+    $this->artisan('sia:migrar-licencias')->assertFailed();
+
+    expect(DB::table('licencias')->count())->toBe(0);
 });
 
 test('es idempotente: correrlo dos veces no duplica', function () {

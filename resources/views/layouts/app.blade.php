@@ -110,6 +110,8 @@
         tbody td { padding: .5rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
         tbody tr:last-child td { border-bottom: 0; }
         tbody tr:hover { background: #f9fafb; }
+        /* Fila de solo lectura (p. ej. asignación de turno vencida). */
+        tbody tr.fila--inactiva td { color: var(--muted); background: var(--bg); }
 
         .pill { display: inline-block; padding: .2rem .6rem; border-radius: 9999px; font-size: .7rem; font-weight: 700; }
         .pill--ok { background: #dcfce7; color: #166534; }
@@ -306,6 +308,9 @@
             </a>
             <a href="{{ route('horarios.index') }}" class="sidebar__link {{ request()->routeIs('horarios.*') ? 'activo' : '' }}">
                 <x-heroicon-o-clock />Horarios
+            </a>
+            <a href="{{ route('licencias.index') }}" class="sidebar__link {{ request()->routeIs('licencias.*') ? 'activo' : '' }}">
+                <x-heroicon-o-clipboard-document-check />Licencias
             </a>
             {{-- Parámetros: grupo colapsable con las tablas de configuración. --}}
             <div x-data="{ abierto: {{ request()->routeIs('dias-excepcionales.*') ? 'true' : 'false' }} }">

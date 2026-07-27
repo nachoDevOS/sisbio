@@ -20,6 +20,11 @@
     <div class="cabecera">
         <h1>{{ $persona->nombre_completo ?: 'Funcionario' }} · CI {{ trim($persona->ci) }}</h1>
         <div class="acciones">
+            @can('create', \App\Models\Licencia::class)
+                <a href="{{ route('licencias.create', ['ci' => trim($persona->ci)]) }}" class="btn">
+                    <x-heroicon-o-clipboard-document-check />Registrar licencia
+                </a>
+            @endcan
             <a href="{{ route('funcionarios.index') }}" class="btn btn--gris"><x-heroicon-o-arrow-left />Volver</a>
         </div>
     </div>
@@ -159,4 +164,47 @@
 
         <div class="paginacion">{{ $marcaciones->links() }}</div>
     </div>
+
+    @can('viewAny', \App\Models\Licencia::class)
+        <div class="tarjeta" style="margin-top: 1.5rem;">
+            <h2>Licencias</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Turno</th>
+                        <th>Alcance</th>
+                        <th>Haberes</th>
+                        <th>Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($licencias as $licencia)
+                        <tr>
+                            <td><strong>{{ $licencia->fecha?->format('d/m/Y') }}</strong></td>
+                            <td>{{ $licencia->resumen_turno }}</td>
+                            <td>
+                                @if ($licencia->tCompleto)
+                                    <span class="pill pill--info">Turno completo</span>
+                                @else
+                                    {{ $licencia->lEntra?->format('H:i') ?? '—' }} – {{ $licencia->lSale?->format('H:i') ?? '—' }}
+                                @endif
+                            </td>
+                            <td>
+                                <span class="pill {{ $licencia->goceHaberes ? 'pill--ok' : 'pill--no' }}">
+                                    {{ $licencia->goceHaberes ? 'Con goce' : 'Sin goce' }}
+                                </span>
+                            </td>
+                            <td>{{ $licencia->motivo ?: '—' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="vacio">El funcionario no tiene licencias registradas.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+
+            <div class="paginacion">{{ $licencias->links() }}</div>
+        </div>
+    @endcan
 @endsection
