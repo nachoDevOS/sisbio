@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Equipo;
+use App\Models\EquipoAuditoria;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -121,11 +122,22 @@ test('actualiza un equipo existente', function () {
 test('elimina un equipo (lógicamente)', function () {
     $equipo = Equipo::factory()->create();
 
-    $this->delete(route('equipos.destroy', $equipo))
+    $this->delete(route('equipos.destroy', $equipo), ['deleteObservacion' => 'Equipo dado de baja por falla de hardware.'])
         ->assertRedirect(route('equipos.index'));
 
     // Eliminación lógica: la fila queda con deleted_at, no se borra.
     $this->assertSoftDeleted('equipos', ['id' => $equipo->id]);
+});
+
+test('no elimina un equipo si no se escribe el motivo', function () {
+    $equipo = Equipo::factory()->create();
+
+    $this->from(route('equipos.index'))
+        ->delete(route('equipos.destroy', $equipo))
+        ->assertSessionHasErrors('deleteObservacion');
+
+    $this->assertNotSoftDeleted('equipos', ['id' => $equipo->id]);
+    expect(EquipoAuditoria::count())->toBe(0);
 });
 
 test('un invitado no puede entrar al listado', function () {
@@ -343,5 +355,304 @@ test('el modal del listado ofrece descargar y enviar a la BD por rango', functio
     $this->get(route('equipos.index'))
         ->assertOk()
         ->assertSee(route('equipos.marcaciones.sincronizar', $equipo), escape: false)
-        ->assertSee('Enviar a la BD');
+        // Cada acción del modal dice qué hace, para no confundir bajar un
+        // archivo con grabar las marcaciones en la base.
+        ->assertSee('Enviar a la base del SIA')
+        ->assertSee('Registra las marcaciones en el sistema. No baja ningún archivo.')
+        ->assertSee('Baja un archivo a tu computadora. No modifica nada.');
+});
+
+test('limpiar marcaciones le pide al microservicio vaciar el buffer del equipo', function () {
+    Http::fake([
+        'microservicio.test/device/attendance/clear*' => Http::response(['en_linea' => true, 'limpiado' => true], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create(['nombre' => 'iClock Entrada', 'ip' => '192.168.1.90', 'puerto' => 4370]);
+
+    $this->post(route('equipos.marcaciones.limpiar', $equipo), ['motivo' => 'Memoria del equipo llena.'])
+        ->assertRedirect()
+        ->assertSessionHas('estado', fn (string $mensaje) => str_contains($mensaje, 'iClock Entrada'));
+
+    Http::assertSent(fn ($request) => $request->method() === 'POST'
+        && str_contains($request->url(), '/device/attendance/clear')
+        && str_contains($request->url(), 'ip=192.168.1.90')
+        && $request->hasHeader('X-Auth-Token', 'token-de-prueba'));
+});
+
+test('limpiar marcaciones no toca la asistencia ya guardada en la BD local', function () {
+    Http::fake([
+        'microservicio.test/device/attendance/clear*' => Http::response(['limpiado' => true], 200),
+    ]);
+
+    DB::table('personas')->insert([
+        'ci' => '7633685', 'paterno' => 'Molina', 'materno' => null, 'nombres' => 'Ignacio', 'pinReloj' => '7633685', 'marcaDirecta' => false,
+    ]);
+    DB::table('asistencias')->insert([
+        'ci' => '7633685', 'fecha' => '2026-07-10 00:00:00', 'hora' => '2026-07-10 08:00:00', 'tipo' => 'E',
+    ]);
+
+    $this->post(route('equipos.marcaciones.limpiar', Equipo::factory()->create()), ['motivo' => 'Memoria del equipo llena.'])
+        ->assertRedirect();
+
+    expect(DB::table('asistencias')->where('ci', '7633685')->count())->toBe(1);
+});
+
+test('limpiar marcaciones redirige con error si el equipo no responde', function () {
+    Http::fake([
+        'microservicio.test/device/attendance/clear*' => Http::response(['detail' => 'No se pudo conectar con el equipo'], 503),
+    ]);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->post(route('equipos.marcaciones.limpiar', $equipo), ['motivo' => 'Memoria del equipo llena.'])
+        ->assertRedirect()
+        ->assertSessionHas('error', fn (string $mensaje) => str_contains($mensaje, 'No se pudo conectar con el equipo'));
+});
+
+test('un usuario sin permiso de borrado no puede limpiar las marcaciones del equipo', function () {
+    Http::fake();
+
+    $this->actingAs(User::factory()->create());
+
+    $this->post(route('equipos.marcaciones.limpiar', Equipo::factory()->create()))->assertForbidden();
+
+    Http::assertNothingSent();
+});
+
+test('no limpia el equipo si no se escribe el motivo', function () {
+    Http::fake();
+
+    $this->post(route('equipos.marcaciones.limpiar', Equipo::factory()->create()))
+        ->assertSessionHasErrors('motivo');
+
+    // No se le pidió nada al reloj: el motivo se valida antes de tocarlo.
+    Http::assertNothingSent();
+    expect(EquipoAuditoria::count())->toBe(0);
+});
+
+test('la bitácora guarda quién limpió el equipo, por qué y con qué datos', function () {
+    Http::fake([
+        'microservicio.test/device/attendance/clear*' => Http::response(['limpiado' => true], 200),
+    ]);
+
+    $usuario = auth()->user();
+    $equipo = Equipo::factory()->create([
+        'nombre' => 'iClock Entrada',
+        'ip' => '192.168.1.90',
+        'puerto' => 4370,
+        'ubicacion' => 'Puerta principal',
+        'algoritmo' => 'ZMM720_TFT | Ver 6.60',
+    ]);
+
+    $this->post(route('equipos.marcaciones.limpiar', $equipo), ['motivo' => 'Memoria del equipo llena.'])
+        ->assertRedirect();
+
+    $registro = EquipoAuditoria::sole();
+
+    expect($registro)
+        ->accion->toBe(EquipoAuditoria::ACCION_LIMPIAR)
+        ->motivo->toBe('Memoria del equipo llena.')
+        ->registerUser_id->toBe($usuario->id)
+        ->equipo_id->toBe($equipo->id)
+        ->exito->toBeTrue();
+
+    // Foto del equipo al momento de la acción, sin la clave del reloj.
+    expect($registro->datos_equipo)
+        ->toMatchArray([
+            'nombre' => 'iClock Entrada',
+            'ip' => '192.168.1.90',
+            'puerto' => 4370,
+            'ubicacion' => 'Puerta principal',
+            'algoritmo' => 'ZMM720_TFT | Ver 6.60',
+        ])
+        ->not->toHaveKey('comm_key');
+});
+
+test('la bitácora guarda la baja del equipo con su motivo', function () {
+    $equipo = Equipo::factory()->create(['nombre' => 'iClock Bodega']);
+
+    $this->delete(route('equipos.destroy', $equipo), ['deleteObservacion' => 'Equipo quemado por descarga eléctrica.'])
+        ->assertRedirect(route('equipos.index'));
+
+    expect(EquipoAuditoria::sole())
+        ->accion->toBe(EquipoAuditoria::ACCION_ELIMINAR)
+        ->motivo->toBe('Equipo quemado por descarga eléctrica.');
+
+    // El motivo queda también en la propia fila del equipo, vía RegistersUserEvents.
+    $this->assertDatabaseHas('equipos', [
+        'id' => $equipo->id,
+        'deleteObservacion' => 'Equipo quemado por descarga eléctrica.',
+        'deleteUser_id' => auth()->id(),
+    ]);
+});
+
+test('la bitácora guarda quién exportó el CSV y cuántas marcaciones se llevó', function () {
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response([
+            'marcaciones' => [
+                ['uid' => 1, 'user_id' => '1', 'nombre' => 'Uno', 'timestamp' => '2026-07-10T08:00:00'],
+                ['uid' => 2, 'user_id' => '2', 'nombre' => 'Dos', 'timestamp' => '2026-07-11T08:00:00'],
+            ],
+        ], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->get(route('equipos.marcaciones.exportar', ['equipo' => $equipo, 'desde' => '2026-07-01', 'hasta' => '2026-07-15']))
+        ->assertOk();
+
+    expect(EquipoAuditoria::sole())
+        ->accion->toBe(EquipoAuditoria::ACCION_EXPORTAR)
+        ->registerUser_id->toBe(auth()->id())
+        ->total_marcaciones->toBe(2)
+        ->desde->toBe('2026-07-01')
+        ->hasta->toBe('2026-07-15')
+        ->exito->toBeTrue();
+});
+
+test('la bitácora guarda quién envió las marcaciones a la BD y el resultado', function () {
+    DB::table('personas')->insert([
+        'ci' => '7633685', 'paterno' => 'Molina', 'materno' => null, 'nombres' => 'Ignacio', 'pinReloj' => '7633685', 'marcaDirecta' => false,
+    ]);
+
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response([
+            'marcaciones' => [
+                ['uid' => 1, 'user_id' => '7633685', 'nombre' => 'NN', 'timestamp' => '2026-07-10T08:00:00'],
+            ],
+        ], 200),
+    ]);
+
+    $this->post(route('equipos.marcaciones.sincronizar', Equipo::factory()->create()))->assertRedirect();
+
+    expect(EquipoAuditoria::sole())
+        ->accion->toBe(EquipoAuditoria::ACCION_SINCRONIZAR)
+        ->registerUser_id->toBe(auth()->id())
+        ->total_marcaciones->toBe(1)
+        ->detalle->toContain('1 marcación(es) nueva(s)');
+});
+
+test('la bitácora también deja constancia de los intentos fallidos', function () {
+    Http::fake([
+        'microservicio.test/device/attendance/clear*' => Http::response(['detail' => 'No se pudo conectar con el equipo'], 503),
+    ]);
+
+    $this->post(route('equipos.marcaciones.limpiar', Equipo::factory()->create()), ['motivo' => 'Memoria del equipo llena.'])
+        ->assertRedirect();
+
+    expect(EquipoAuditoria::sole())
+        ->exito->toBeFalse()
+        ->detalle->toContain('No se pudo conectar con el equipo');
+});
+
+test('la pantalla de bitácora muestra usuario, acción, equipo y motivo', function () {
+    Http::fake([
+        'microservicio.test/device/attendance/clear*' => Http::response(['limpiado' => true], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create(['nombre' => 'iClock Entrada', 'ip' => '192.168.1.90']);
+
+    $this->post(route('equipos.marcaciones.limpiar', $equipo), ['motivo' => 'Memoria del equipo llena.'])
+        ->assertSessionHas('estado');
+
+    $this->get(route('equipos.auditoria'))
+        ->assertOk()
+        ->assertSee(auth()->user()->name)
+        ->assertSee('Limpió el equipo')
+        ->assertSee('iClock Entrada')
+        ->assertSee('192.168.1.90')
+        ->assertSee('Memoria del equipo llena.');
+});
+
+test('la bitácora se puede filtrar por acción', function () {
+    // Se comparan por el nombre del equipo y no por la etiqueta de la acción:
+    // el select de filtros ya trae todas las etiquetas en la página.
+    EquipoAuditoria::factory()->limpieza()->create([
+        'datos_equipo' => ['nombre' => 'Equipo Limpiado', 'ip' => '10.0.0.1', 'puerto' => 4370],
+    ]);
+    EquipoAuditoria::factory()->create([
+        'datos_equipo' => ['nombre' => 'Equipo Exportado', 'ip' => '10.0.0.2', 'puerto' => 4370],
+    ]);
+
+    $this->get(route('equipos.auditoria', ['accion' => EquipoAuditoria::ACCION_LIMPIAR]))
+        ->assertOk()
+        ->assertSee('Equipo Limpiado')
+        ->assertDontSee('Equipo Exportado');
+});
+
+test('la bitácora sigue mostrando los datos de un equipo ya eliminado', function () {
+    $equipo = Equipo::factory()->create(['nombre' => 'iClock Retirado', 'ip' => '192.168.1.99']);
+
+    $this->delete(route('equipos.destroy', $equipo), ['deleteObservacion' => 'Equipo retirado de la oficina.']);
+
+    $this->get(route('equipos.auditoria'))
+        ->assertOk()
+        // El equipo ya no está en el listado, pero la foto guardada sí.
+        ->assertSee('iClock Retirado')
+        ->assertSee('192.168.1.99');
+});
+
+test('un usuario sin permiso no puede ver la bitácora', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('equipos.auditoria'))->assertForbidden();
+});
+
+test('el listado ofrece limpiar las marcaciones con confirmación escrita', function () {
+    $equipo = Equipo::factory()->create();
+
+    $this->get(route('equipos.index'))
+        ->assertOk()
+        ->assertSee(route('equipos.marcaciones.limpiar', $equipo), escape: false)
+        // Rotulada como borrado, no como «limpieza»: destruye información.
+        ->assertSee('Borrar marcaciones')
+        ->assertSee('dropdown-menu__peligro')
+        ->assertSee('Escribí LIMPIAR para confirmar');
+});
+
+test('el componente Alpine del dropdown no se escapa del atributo x-data', function () {
+    Equipo::factory()->create();
+
+    $html = $this->get(route('equipos.index'))->assertOk()->getContent();
+
+    $dom = new DOMDocument;
+    @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+
+    // Una sola comilla doble dentro de x-data="{ ... }" corta el atributo: el
+    // resto del JS deja de ser código y se dibuja como texto en la tabla.
+    // Acá se mira el texto renderizado, no el HTML crudo, para detectarlo.
+    $textoVisible = $dom->textContent;
+
+    expect($textoVisible)
+        ->not->toContain('revokeObjectURL')
+        ->not->toContain('$refs.formLimpiar')
+        ->not->toContain('this.respaldando');
+});
+
+test('el modal de limpieza descarga el respaldo completo antes de borrar', function () {
+    $equipo = Equipo::factory()->create(['nombre' => 'iClock Entrada']);
+
+    $this->get(route('equipos.index'))
+        ->assertOk()
+        // El botón dispara el respaldo, no el submit directo del formulario.
+        ->assertSee('respaldarYLimpiar()', escape: false)
+        ->assertSee('Descargar todo y borrar')
+        // Nombre del CSV anunciado al usuario: "respaldo" + equipo + fecha de hoy.
+        ->assertSee('respaldo-iclock-entrada-'.now()->toDateString().'.csv');
+});
+
+test('el respaldo previo al borrado pide el historial completo, sin rango', function () {
+    Http::fake([
+        'microservicio.test/device/attendance*' => Http::response([
+            'marcaciones' => [
+                ['uid' => 1, 'user_id' => '1', 'nombre' => 'Empleado', 'timestamp' => '2026-07-10T08:00:00'],
+            ],
+        ], 200),
+    ]);
+
+    // Es la misma URL que usa el modal de limpieza: sin desde/hasta trae todo.
+    $this->get(route('equipos.marcaciones.exportar', Equipo::factory()->create()))->assertOk();
+
+    Http::assertSent(fn ($request) => ! str_contains($request->url(), 'desde=')
+        && ! str_contains($request->url(), 'hasta='));
 });

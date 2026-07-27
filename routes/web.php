@@ -27,6 +27,9 @@ Route::middleware('auth')->group(function (): void {
     // marcaciones).
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Bitácora de acciones sobre las marcaciones. Va antes del resource para que
+    // el binding {equipo} del show no capture la palabra «auditoria».
+    Route::get('equipos/auditoria', [EquipoController::class, 'auditoria'])->name('equipos.auditoria');
     // CRUD completo (base local).
     Route::resource('equipos', EquipoController::class);
     // Habla en vivo con el microservicio Python (probar conexión, exportar y
@@ -34,6 +37,8 @@ Route::middleware('auth')->group(function (): void {
     Route::post('equipos/{equipo}/probar-conexion', [EquipoController::class, 'probarConexion'])->name('equipos.probar-conexion');
     Route::get('equipos/{equipo}/marcaciones/exportar', [EquipoController::class, 'exportarMarcaciones'])->name('equipos.marcaciones.exportar');
     Route::post('equipos/{equipo}/marcaciones/sincronizar', [EquipoController::class, 'sincronizarMarcaciones'])->name('equipos.marcaciones.sincronizar');
+    // Vacía el buffer de marcaciones del reloj (irreversible, todo o nada).
+    Route::post('equipos/{equipo}/marcaciones/limpiar', [EquipoController::class, 'limpiarMarcaciones'])->name('equipos.marcaciones.limpiar');
     Route::resource('usuarios', UserController::class)
         ->parameters(['usuarios' => 'usuario'])
         ->except('show');

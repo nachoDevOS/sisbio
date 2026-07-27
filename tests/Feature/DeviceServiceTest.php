@@ -73,6 +73,33 @@ test('attendance devuelve las marcaciones del equipo', function () {
         ->and($respuesta['marcaciones'][0]['user_id'])->toBe('7633685');
 });
 
+test('clearAttendance manda un POST con los datos del equipo', function () {
+    Http::fake([
+        'microservicio.test/device/attendance/clear*' => Http::response(['en_linea' => true, 'limpiado' => true], 200),
+    ]);
+
+    $equipo = Equipo::factory()->create(['ip' => '192.168.1.201', 'puerto' => 4370, 'comm_key' => 0]);
+
+    expect(app(DeviceService::class)->clearAttendance($equipo)['limpiado'])->toBeTrue();
+
+    Http::assertSent(function (Request $request) {
+        return $request->method() === 'POST'
+            && $request->hasHeader('X-Auth-Token', 'token-de-prueba')
+            && str_contains($request->url(), 'ip=192.168.1.201')
+            && str_contains($request->url(), 'port=4370');
+    });
+});
+
+test('clearAttendance lanza excepción con el detalle cuando el equipo no responde', function () {
+    Http::fake([
+        'microservicio.test/device/attendance/clear*' => Http::response([
+            'detail' => 'No se pudo limpiar las marcaciones de 192.168.1.201:4370',
+        ], 503),
+    ]);
+
+    app(DeviceService::class)->clearAttendance(Equipo::factory()->create());
+})->throws(DeviceServiceException::class, 'No se pudo limpiar las marcaciones');
+
 test('info lanza excepción clara cuando el microservicio está caído', function () {
     // Simula que ni siquiera se puede establecer conexión con el microservicio.
     Http::fake(function () {

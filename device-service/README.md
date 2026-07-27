@@ -89,8 +89,9 @@ En desarrollo podés añadir `--reload` para recarga automática.
 | GET    | `/device/info`      | Sí    | Info del equipo: nombre, serial, plataforma, firmware y firma de algoritmo. |
 | GET    | `/device/users`     | Sí    | Lista de usuarios registrados en el equipo.              |
 | GET    | `/device/attendance`| Sí    | Marcaciones guardadas en el equipo (más recientes primero), con el nombre resuelto contra `/device/users`. |
+| POST   | `/device/attendance/clear`| Sí | Vacía el buffer de marcaciones del equipo. Borra **todo** el historial (el protocolo ZK no permite borrar por rango) y es irreversible. Usuarios y huellas no se tocan. |
 
-Parámetros de `/device/info`, `/device/users` y `/device/attendance`:
+Parámetros de `/device/info`, `/device/users`, `/device/attendance` y `/device/attendance/clear`:
 
 - `ip` (obligatorio) — IP del equipo en la LAN.
 - `port` (opcional, por defecto `4370`) — puerto TCP.

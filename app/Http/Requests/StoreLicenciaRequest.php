@@ -36,9 +36,12 @@ class StoreLicenciaRequest extends FormRequest
     {
         return [
             'modo' => ['required', Rule::in(self::MODOS)],
-            'ci' => ['required_if:modo,uno', 'nullable', 'string', 'exists:personas,ci'],
+            // Los carnets vienen del directorio de Mamoré, no de la base local:
+            // no se valida contra `personas`. Que el CI tenga turnos asignados
+            // (lo único que hace licenciable a alguien) lo comprueba el controlador.
+            'ci' => ['required_if:modo,uno', 'nullable', 'string', 'max:12'],
             'cis' => ['required_if:modo,varios', 'nullable', 'array'],
-            'cis.*' => ['string', 'exists:personas,ci'],
+            'cis.*' => ['string', 'max:12'],
             // Opcional y solo en modo «uno»: sin turnos elegidos se licencian
             // todos los que el funcionario tenga asignados dentro del rango.
             'asignaciones' => ['nullable', 'array'],
@@ -91,7 +94,6 @@ class StoreLicenciaRequest extends FormRequest
     {
         return [
             'ci.required_if' => 'Elegí el funcionario que requiere la licencia.',
-            'ci.exists' => 'El funcionario elegido no existe.',
             'cis.required_if' => 'Agregá al menos un funcionario a la lista.',
             'hasta.after_or_equal' => 'La fecha «Hasta» no puede ser anterior a «Desde».',
             'lEntra.required_if' => 'Indicá la hora de entrada o marcá «Turno completo».',

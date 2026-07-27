@@ -339,3 +339,44 @@ def device_attendance(
                 conn.disconnect()
             except Exception:
                 pass
+
+
+@app.post("/device/attendance/clear", dependencies=[Depends(verificar_token)])
+def device_attendance_clear(
+    ip: str = Query(..., description="IP del equipo en la LAN"),
+    port: int = Query(4370, description="Puerto TCP ZKTeco"),
+    password: int = Query(0, description="COMM key del equipo"),
+) -> dict:
+    """Borra del equipo TODAS las marcaciones guardadas en su buffer.
+
+    OJO: el protocolo ZK solo ofrece clear_attendance(), que vacía el buffer
+    entero. No existe borrado por rango de fechas: si se pide limpiar, se va
+    todo el historial que el reloj tenga adentro. Es irreversible.
+
+    Solo toca las marcaciones. Los usuarios, huellas, rostros y tarjetas
+    registrados en el equipo quedan intactos.
+
+    Mismo manejo de errores y cierre garantizado que el resto de endpoints.
+    """
+    conn = None
+    try:
+        conn = conectar_con_reintento(ip, port, password)
+        # Se deshabilita el equipo mientras se borra, para que nadie marque
+        # justo en el medio y su marcación se pierda sin haberse leído.
+        conn.disable_device()
+
+        conn.clear_attendance()
+
+        return {"en_linea": True, "limpiado": True}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"No se pudo limpiar las marcaciones de {ip}:{port}: {e}",
+        )
+    finally:
+        if conn is not None:
+            try:
+                conn.enable_device()
+                conn.disconnect()
+            except Exception:
+                pass

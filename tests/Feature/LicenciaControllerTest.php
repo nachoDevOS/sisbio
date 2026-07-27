@@ -165,6 +165,7 @@ test('un fallo de la API de Mamoré no rompe el listado y cae a la BD local', fu
 
 test('la pantalla de licenciar muestra los turnos asignados del funcionario', function () {
     [$persona] = funcionarioConTurno();
+    fakeMamore([$persona->ci => 'MARIELA CRUZ PORCO']);
 
     $this->get(route('licencias.create', ['ci' => $persona->ci]))
         ->assertOk()
@@ -174,8 +175,52 @@ test('la pantalla de licenciar muestra los turnos asignados del funcionario', fu
         ->assertSee('16:00');
 });
 
+test('la ficha del funcionario elegido sale de Mamoré, no de la base local', function () {
+    // Existe también localmente y con otro nombre: no tiene que verse.
+    [$persona] = funcionarioConTurno();
+    $persona->update(['nombres' => 'IGNACIO', 'paterno' => 'MOLINA']);
+
+    fakeMamore([$persona->ci => 'MARIELA CRUZ PORCO']);
+
+    $this->get(route('licencias.create', ['ci' => $persona->ci]))
+        ->assertOk()
+        ->assertSee('MARIELA CRUZ PORCO')
+        ->assertDontSee('IGNACIO MOLINA');
+});
+
+test('avisa si el CI no figura en Mamoré y no carga sus turnos', function () {
+    [$persona] = funcionarioConTurno();
+    fakeMamore(); // padrón vacío: la API responde 404
+
+    $this->get(route('licencias.create', ['ci' => $persona->ci]))
+        ->assertOk()
+        ->assertSee('no figura en la API de Mamoré')
+        ->assertDontSee('Turno mañana');
+});
+
+test('avisa cuando la API de Mamoré no responde', function () {
+    [$persona] = funcionarioConTurno();
+
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+    Http::fake(['mamore.test/*' => Http::response('boom', 500)]);
+
+    $this->get(route('licencias.create', ['ci' => $persona->ci]))
+        ->assertOk()
+        ->assertSee('La API de Mamoré respondió con un error (500).');
+});
+
+test('avisa cuando la API de Mamoré no está configurada', function () {
+    [$persona] = funcionarioConTurno();
+
+    $this->get(route('licencias.create', ['ci' => $persona->ci]))
+        ->assertOk()
+        ->assertSee('La API de Mamoré no está configurada', escape: false);
+});
+
 test('la grilla solo lista los turnos vigentes y ofrece ver los vencidos', function () {
     $persona = Persona::factory()->create(['ci' => '7633685']);
+    fakeMamore(['7633685' => 'MARIELA CRUZ PORCO']);
 
     $vigente = Turno::factory()->create(['idTurno' => 'V01', 'dia' => '2', 'nombreTurno' => 'TURNO VIGENTE']);
     $vencido = Turno::factory()->create(['idTurno' => 'X01', 'dia' => '2', 'nombreTurno' => 'TURNO VENCIDO']);
@@ -203,6 +248,7 @@ test('la grilla solo lista los turnos vigentes y ofrece ver los vencidos', funct
 
 test('la grilla ordena los turnos vigentes por día de la semana y hora de entrada', function () {
     $persona = Persona::factory()->create(['ci' => '7633685']);
+    fakeMamore(['7633685' => 'MARIELA CRUZ PORCO']);
 
     // Se crean desordenados a propósito: viernes tarde, lunes tarde, lunes mañana.
     $orden = [
@@ -226,6 +272,7 @@ test('la grilla ordena los turnos vigentes por día de la semana y hora de entra
 
 test('con los vencidos a la vista, los vigentes van primero', function () {
     $persona = Persona::factory()->create(['ci' => '7633685']);
+    fakeMamore(['7633685' => 'MARIELA CRUZ PORCO']);
 
     $vencido = Turno::factory()->create(['idTurno' => 'X01', 'dia' => '2', 'nombreTurno' => 'EL VENCIDO']);
     $vigente = Turno::factory()->create(['idTurno' => 'V01', 'dia' => '7', 'nombreTurno' => 'EL VIGENTE']);
@@ -247,6 +294,7 @@ test('con los vencidos a la vista, los vigentes van primero', function () {
 
 test('avisa cuando el funcionario solo tiene turnos vencidos', function () {
     $persona = Persona::factory()->create(['ci' => '7633685']);
+    fakeMamore(['7633685' => 'MARIELA CRUZ PORCO']);
     $turno = Turno::factory()->create(['idTurno' => 'X01', 'dia' => '2']);
 
     AsignacionTurno::factory()->vencida()->create([
@@ -260,6 +308,7 @@ test('avisa cuando el funcionario solo tiene turnos vencidos', function () {
 
 test('la grilla ignora los turnos eliminados lógicamente', function () {
     $persona = Persona::factory()->create(['ci' => '7633685']);
+    fakeMamore(['7633685' => 'MARIELA CRUZ PORCO']);
     $turno = Turno::factory()->create(['idTurno' => 'B01', 'dia' => '2', 'nombreTurno' => 'TURNO BORRADO']);
 
     AsignacionTurno::factory()->create([
@@ -280,12 +329,45 @@ test('sin funcionario elegido pide elegir uno', function () {
         ->assertSee('Elegí un funcionario para ver sus turnos asignados.');
 });
 
-test('el combo busca funcionarios por ci o nombre', function () {
-    Persona::factory()->create(['ci' => '7633685', 'nombres' => 'IGNACIO', 'paterno' => 'MOLINA', 'pinReloj' => '55']);
+test('el combo busca funcionarios en Mamoré por ci o nombre', function () {
+    fakeMamore(['7633685' => 'MARIELA CRUZ PORCO', '1924269' => 'JUAN PEREZ ROJAS']);
+
+    $this->getJson(route('licencias.funcionarios', ['q' => 'cruz']))
+        ->assertOk()
+        ->assertJsonCount(1)
+        ->assertJsonFragment(['id' => '7633685', 'texto' => '7633685 — MARIELA CRUZ PORCO']);
+
+    $this->getJson(route('licencias.funcionarios', ['q' => '1924269']))
+        ->assertOk()
+        ->assertJsonFragment(['id' => '1924269']);
+});
+
+test('el combo no devuelve funcionarios que solo existen en la base local', function () {
+    Persona::factory()->create(['ci' => '7633685', 'nombres' => 'IGNACIO', 'paterno' => 'MOLINA']);
+    fakeMamore(); // padrón vacío
 
     $this->getJson(route('licencias.funcionarios', ['q' => 'molina']))
         ->assertOk()
-        ->assertJsonFragment(['id' => '7633685']);
+        ->assertJsonCount(0);
+});
+
+test('el combo cruza nombre y apellido aunque la API busque por un solo término', function () {
+    fakeMamore(['111' => 'MARIELA CRUZ PORCO', '222' => 'MARIELA GUZMAN TECO']);
+
+    $this->getJson(route('licencias.funcionarios', ['q' => 'mariela cruz']))
+        ->assertOk()
+        ->assertJsonCount(1)
+        ->assertJsonFragment(['id' => '111']);
+});
+
+test('el combo informa el error cuando la API de Mamoré falla', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+    Http::fake(['mamore.test/*' => Http::response('boom', 500)]);
+
+    $this->getJson(route('licencias.funcionarios', ['q' => 'cruz']))
+        ->assertStatus(502)
+        ->assertJsonPath('error', 'La API de Mamoré respondió con un error (500).');
 });
 
 test('anota una licencia por cada día del rango que coincide con el turno', function () {

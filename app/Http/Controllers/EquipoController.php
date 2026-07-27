@@ -7,6 +7,7 @@ use App\Http\Requests\StoreEquipoRequest;
 use App\Http\Requests\UpdateEquipoRequest;
 use App\Models\Asistencia;
 use App\Models\Equipo;
+use App\Models\EquipoAuditoria;
 use App\Services\DeviceService;
 use App\Services\RegistroAsistencia;
 use Illuminate\Database\Eloquent\Builder;
@@ -44,6 +45,49 @@ class EquipoController extends Controller
             ->withQueryString();
 
         return view('equipos.index', compact('equipos', 'busqueda', 'porPagina'));
+    }
+
+    /**
+     * Bitácora de acciones sobre las marcaciones de los equipos: quién exportó,
+     * quién envió a la base del SIA, quién vació un reloj y quién dio de baja
+     * un equipo, con el motivo en los dos últimos casos.
+     *
+     * Se filtra por acción (`?accion=`) y se busca por nombre/IP del equipo o
+     * por el usuario que la ejecutó.
+     */
+    public function auditoria(Request $request): View
+    {
+        $this->authorize('viewAny', Equipo::class);
+
+        $busqueda = trim((string) $request->query('q', ''));
+        $accion = (string) $request->query('accion', '');
+        $porPagina = $this->porPagina($request, 25);
+
+        $registros = EquipoAuditoria::query()
+            ->with('usuario')
+            ->when(
+                array_key_exists($accion, EquipoAuditoria::ETIQUETAS),
+                fn (Builder $query) => $query->where('accion', $accion),
+            )
+            ->when($busqueda !== '', fn (Builder $query) => $query->where(fn (Builder $query) => $query
+                // El nombre y la IP se buscan sobre la foto guardada, no sobre
+                // la tabla de equipos: así el filtro sigue funcionando para
+                // equipos que ya se dieron de baja.
+                ->where('datos_equipo', 'like', "%{$busqueda}%")
+                ->orWhere('motivo', 'like', "%{$busqueda}%")
+                ->orWhereHas('usuario', fn (Builder $usuario) => $usuario
+                    ->where('name', 'like', "%{$busqueda}%"))))
+            ->latest()
+            ->paginate($porPagina)
+            ->withQueryString();
+
+        return view('equipos.auditoria', [
+            'registros' => $registros,
+            'busqueda' => $busqueda,
+            'accion' => $accion,
+            'porPagina' => $porPagina,
+            'etiquetas' => EquipoAuditoria::ETIQUETAS,
+        ]);
     }
 
     /**
@@ -105,17 +149,30 @@ class EquipoController extends Controller
     }
 
     /**
-     * Elimina un equipo.
+     * Da de baja un equipo (eliminación lógica).
+     *
+     * Exige un motivo escrito: queda en la bitácora y también en la propia fila
+     * del equipo (`deleteObservacion`, que rellena el trait RegistersUserEvents
+     * leyéndolo del request).
      */
-    public function destroy(Equipo $equipo): RedirectResponse
+    public function destroy(Request $request, Equipo $equipo): RedirectResponse
     {
         $this->authorize('delete', $equipo);
+
+        $validado = $request->validate([
+            'deleteObservacion' => ['required', 'string', 'min:5', 'max:500'],
+        ], [], ['deleteObservacion' => 'motivo']);
+
+        // Se anota antes de borrar, para tomarle la foto al equipo todavía vivo.
+        EquipoAuditoria::registrar($equipo, EquipoAuditoria::ACCION_ELIMINAR, [
+            'motivo' => $validado['deleteObservacion'],
+        ]);
 
         $equipo->delete();
 
         return redirect()
             ->route('equipos.index')
-            ->with('estado', 'Equipo eliminado.');
+            ->with('estado', "Equipo «{$equipo->nombre}» eliminado. Queda registrado en la bitácora.");
     }
 
     /**
@@ -159,10 +216,23 @@ class EquipoController extends Controller
         [$todas, $error] = $this->marcacionesDelEquipo($equipo, $deviceService, $desde, $hasta, fresco: true);
 
         if ($error) {
+            EquipoAuditoria::registrar($equipo, EquipoAuditoria::ACCION_EXPORTAR, [
+                'desde' => $desde ?: null,
+                'hasta' => $hasta ?: null,
+                'detalle' => $error,
+                'exito' => false,
+            ]);
+
             return back()->with('error', $error);
         }
 
         $todas = $this->filtrarPorRango($todas, $desde, $hasta);
+
+        EquipoAuditoria::registrar($equipo, EquipoAuditoria::ACCION_EXPORTAR, [
+            'desde' => $desde ?: null,
+            'hasta' => $hasta ?: null,
+            'total_marcaciones' => count($todas),
+        ]);
 
         $csv = "\u{FEFF}CI/ID,Nombre,Fecha,Hora\n";
 
@@ -202,6 +272,13 @@ class EquipoController extends Controller
         [$todas, $error] = $this->marcacionesDelEquipo($equipo, $deviceService, $desde, $hasta, fresco: true);
 
         if ($error) {
+            EquipoAuditoria::registrar($equipo, EquipoAuditoria::ACCION_SINCRONIZAR, [
+                'desde' => $desde ?: null,
+                'hasta' => $hasta ?: null,
+                'detalle' => $error,
+                'exito' => false,
+            ]);
+
             return back()->with('error', $error);
         }
 
@@ -213,8 +290,56 @@ class EquipoController extends Controller
         ], $todas);
 
         $conteo = $registro->registrar($filas);
+        $mensaje = $registro->mensaje($conteo, "Sincronización de «{$equipo->nombre}»");
 
-        return back()->with('estado', $registro->mensaje($conteo, "Sincronización de «{$equipo->nombre}»"));
+        EquipoAuditoria::registrar($equipo, EquipoAuditoria::ACCION_SINCRONIZAR, [
+            'desde' => $desde ?: null,
+            'hasta' => $hasta ?: null,
+            'total_marcaciones' => count($todas),
+            'detalle' => $mensaje,
+        ]);
+
+        return back()->with('estado', $mensaje);
+    }
+
+    /**
+     * Vacía el buffer de marcaciones del equipo.
+     *
+     * El protocolo ZK solo permite borrar TODO el historial del reloj: no hay
+     * borrado por rango. Es irreversible, por eso se pide el permiso de borrado
+     * de equipos y la vista exige confirmación escrita antes de enviar.
+     *
+     * Solo se borran las marcaciones: usuarios y huellas quedan intactos, y lo
+     * que ya se sincronizó a la tabla local `asistencias` tampoco se toca.
+     */
+    public function limpiarMarcaciones(Request $request, Equipo $equipo, DeviceService $deviceService): RedirectResponse
+    {
+        $this->authorize('delete', $equipo);
+
+        $validado = $request->validate([
+            'motivo' => ['required', 'string', 'min:5', 'max:500'],
+        ]);
+
+        try {
+            $deviceService->clearAttendance($equipo);
+        } catch (DeviceServiceException $e) {
+            EquipoAuditoria::registrar($equipo, EquipoAuditoria::ACCION_LIMPIAR, [
+                'motivo' => $validado['motivo'],
+                'detalle' => $e->getMessage(),
+                'exito' => false,
+            ]);
+
+            return back()->with('error', "No se pudo limpiar: {$e->getMessage()}");
+        }
+
+        EquipoAuditoria::registrar($equipo, EquipoAuditoria::ACCION_LIMPIAR, [
+            'motivo' => $validado['motivo'],
+        ]);
+
+        // El historial cacheado quedó obsoleto: el reloj ya no tiene nada.
+        Cache::forget("equipos.{$equipo->id}.marcaciones..");
+
+        return back()->with('estado', "Se borraron las marcaciones de «{$equipo->nombre}». El equipo quedó con el historial vacío y queda registrado en la bitácora.");
     }
 
     /**

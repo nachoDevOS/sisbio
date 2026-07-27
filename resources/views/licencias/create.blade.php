@@ -5,7 +5,7 @@
 @php
     /** Abreviatura del día de la semana, como la grilla del sistema de escritorio. */
     $abreviar = fn (?int $dia): string => mb_strtoupper(mb_substr(\App\Models\Turno::DIAS[$dia] ?? '—', 0, 3));
-    $ci = $persona ? trim((string) $persona->ci) : '';
+    $nombre = $persona['nombre'] ?? '';
     $modoInicial = old('modo', 'uno');
 @endphp
 
@@ -18,6 +18,12 @@
         <a href="{{ route('licencias.index') }}" class="btn btn--gris"><x-heroicon-o-arrow-left />Volver</a>
     </div>
 
+    @if ($errorMamore)
+        <div class="aviso aviso--error">{{ $errorMamore }}</div>
+    @elseif ($ciDesconocido)
+        <div class="aviso aviso--error">El CI {{ $ci }} no figura en la API de Mamoré.</div>
+    @endif
+
     <form action="{{ route('licencias.store') }}" method="POST"
           x-data="{
               modo: @js($modoInicial),
@@ -28,25 +34,34 @@
               abierto: false,
               cargando: false,
               resultados: [],
+              errorApi: '',
               timer: null,
               buscar() {
                   clearTimeout(this.timer);
                   const texto = this.q.trim();
-                  if (texto.length < 2) { this.resultados = []; this.abierto = false; return; }
+                  if (texto.length < 2) { this.resultados = []; this.errorApi = ''; this.abierto = false; return; }
                   this.timer = setTimeout(async () => {
                       this.cargando = true;
                       this.abierto = true;
+                      this.errorApi = '';
                       try {
                           const resp = await fetch(`{{ route('licencias.funcionarios') }}?q=${encodeURIComponent(texto)}`, { headers: { 'Accept': 'application/json' } });
-                          this.resultados = resp.ok ? await resp.json() : [];
+                          const cuerpo = await resp.json().catch(() => null);
+                          if (resp.ok) {
+                              this.resultados = cuerpo ?? [];
+                          } else {
+                              this.resultados = [];
+                              this.errorApi = (cuerpo && cuerpo.error) || 'No se pudo consultar la API de Mamoré.';
+                          }
                       } catch (e) {
                           this.resultados = [];
+                          this.errorApi = 'No se pudo consultar la API de Mamoré.';
                       } finally {
                           this.cargando = false;
                       }
                   }, 300);
               },
-              cerrar() { this.abierto = false; this.resultados = []; this.q = ''; },
+              cerrar() { this.abierto = false; this.resultados = []; this.errorApi = ''; this.q = ''; },
               {{-- Un funcionario: se recarga con ?ci= para traer sus turnos del servidor. --}}
               elegirUno(item) { window.location = `{{ route('licencias.create') }}?ci=${encodeURIComponent(item.id)}`; },
               {{-- Varios: se agregan fichas del lado del cliente, sin recargar. --}}
@@ -93,16 +108,20 @@
                 <input type="text" id="combo-funcionario" class="input" x-model="q"
                        x-on:input="buscar()"
                        placeholder="Escribí CI o nombre y elegí de la lista…" autocomplete="off">
+                <p class="ayuda" style="margin-bottom: 0;">Los funcionarios se buscan en la API de Mamoré.</p>
 
                 <div x-show="abierto" x-cloak
                      style="position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin-top: .2rem;
                             background: var(--card); border: 1px solid var(--border); border-radius: .4rem;
                             max-height: 16rem; overflow-y: auto; box-shadow: 0 6px 16px rgba(0,0,0,.12);">
                     <template x-if="cargando">
-                        <div style="padding: .55rem .7rem; color: var(--muted);">Buscando…</div>
+                        <div style="padding: .55rem .7rem; color: var(--muted);">Buscando en Mamoré…</div>
                     </template>
-                    <template x-if="! cargando && resultados.length === 0">
-                        <div style="padding: .55rem .7rem; color: var(--muted);">Sin resultados.</div>
+                    <template x-if="! cargando && errorApi">
+                        <div style="padding: .55rem .7rem; color: var(--danger);" x-text="errorApi"></div>
+                    </template>
+                    <template x-if="! cargando && ! errorApi && resultados.length === 0">
+                        <div style="padding: .55rem .7rem; color: var(--muted);">Sin resultados en Mamoré.</div>
                     </template>
                     <template x-for="item in resultados" :key="item.id">
                         <button type="button" x-on:click="modo === 'uno' ? elegirUno(item) : agregar(item)" x-text="item.texto"
@@ -117,15 +136,23 @@
             {{-- Modo «uno»: el funcionario ya cargado desde el servidor. --}}
             <div x-show="modo === 'uno'" x-cloak>
                 @if ($persona)
-                    <input type="hidden" name="ci" value="{{ $ci }}">
+                    <input type="hidden" name="ci" value="{{ $persona['ci'] }}">
                     <dl class="datos grid-2" style="margin: 0;">
                         <div>
                             <dt>Funcionario</dt>
-                            <dd>{{ $persona->nombre_completo ?: 'Sin nombre' }} · CI {{ $ci }}</dd>
+                            <dd>{{ $nombre }} · CI {{ $persona['ci'] }}</dd>
+                        </div>
+                        <div>
+                            <dt>Profesión</dt>
+                            <dd>{{ $persona['profesion'] ?: '—' }}</dd>
+                        </div>
+                        <div>
+                            <dt>Fecha de nacimiento</dt>
+                            <dd>{{ $persona['nacimiento'] ?: '—' }}{{ is_null($persona['edad']) ? '' : ' · '.$persona['edad'].' años' }}</dd>
                         </div>
                         <div>
                             <dt>PIN reloj</dt>
-                            <dd>{{ trim((string) $persona->pinReloj) ?: 'Sin PIN' }}</dd>
+                            <dd>{{ $persona['pinReloj'] ?: 'Sin PIN' }}</dd>
                         </div>
                     </dl>
                 @else
@@ -169,7 +196,7 @@
             <div class="card card--padded" style="margin-top: 1rem;" x-show="modo === 'uno'" x-cloak>
                 <div class="cabecera" style="margin: 0 0 .75rem;">
                     <h2 style="margin: 0;">
-                        Turnos {{ $incluirVencidos ? '' : 'vigentes' }} de {{ $persona->nombre_completo ?: 'el funcionario' }}
+                        Turnos {{ $incluirVencidos ? '' : 'vigentes' }} de {{ $nombre ?: 'el funcionario' }}
                     </h2>
                     @if ($incluirVencidos)
                         <a class="btn btn--gris" href="{{ route('licencias.create', ['ci' => $ci]) }}">

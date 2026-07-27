@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\MamoreException;
 use App\Http\Requests\StoreLicenciaRequest;
 use App\Models\AsignacionTurno;
 use App\Models\Licencia;
-use App\Models\Persona;
+use App\Services\DirectorioMamore;
 use App\Services\RegistroLicencia;
 use App\Services\ResolutorNombres;
 use Illuminate\Database\Eloquent\Builder;
@@ -66,62 +67,76 @@ class LicenciaController extends Controller
     /**
      * Pantalla «Licenciar»: combo de funcionario y, si ya hay uno elegido, la
      * grilla de sus turnos asignados más el formulario del rango.
+     *
+     * Los datos personales salen exclusivamente de la API de Mamoré; lo local
+     * son los turnos, que se cruzan por CI.
      */
-    public function create(Request $request): View
+    public function create(Request $request, DirectorioMamore $directorio): View
     {
         $this->authorize('create', Licencia::class);
 
-        $persona = $this->ubicarFuncionario((string) $request->query('ci', ''));
+        $ci = trim((string) $request->query('ci', ''));
+        $errorMamore = null;
+        $persona = null;
+
+        if ($ci !== '') {
+            try {
+                $persona = $directorio->porCi($ci);
+            } catch (MamoreException $e) {
+                $errorMamore = $e->getMessage();
+            }
+        }
+
         // Por defecto solo los turnos vigentes: un funcionario antiguo arrastra
         // decenas de asignaciones viejas que solo son ruido.
         $incluirVencidos = $request->boolean('vencidos');
 
-        $asignaciones = $persona instanceof Persona
-            ? $this->turnosAsignados($persona, $incluirVencidos)
+        $asignaciones = $persona !== null
+            ? $this->turnosAsignados($persona['ci'], $incluirVencidos)
             : collect();
 
-        $vencidos = $persona instanceof Persona
-            ? $this->contarVencidos($persona)
+        $vencidos = $persona !== null
+            ? $this->contarVencidos($persona['ci'])
             : 0;
 
         // Si el alta grupal volvió por un error de validación, se rearman las
         // fichas de funcionarios ya elegidos con su nombre.
-        $elegidos = collect(old('cis', []))
-            ->pipe(fn (Collection $cis): Collection => $cis->isEmpty()
-                ? collect()
-                : Persona::query()->whereIn('ci', $cis->all())->get())
-            ->map(fn (Persona $elegido): array => [
-                'id' => trim((string) $elegido->ci),
-                'texto' => trim((string) $elegido->ci).' — '.($elegido->nombre_completo ?: 'Sin nombre'),
-            ])
-            ->values();
+        [$elegidos, $errorElegidos] = $this->fichasElegidas($directorio);
+        $errorMamore ??= $errorElegidos;
 
-        return view('licencias.create', compact('persona', 'asignaciones', 'incluirVencidos', 'vencidos', 'elegidos'));
+        // El CI vino por la URL y Mamoré no lo tiene: no hay a quién licenciar.
+        $ciDesconocido = $ci !== '' && $persona === null && $errorMamore === null;
+
+        return view('licencias.create', compact(
+            'persona', 'ci', 'asignaciones', 'incluirVencidos', 'vencidos', 'elegidos', 'errorMamore', 'ciDesconocido'
+        ));
     }
 
     /**
      * Búsqueda de funcionarios por CI o nombre para el combo de la pantalla
-     * «Licenciar». Devuelve hasta 20 coincidencias como JSON.
+     * «Licenciar», contra la API de Mamoré. Devuelve hasta 20 coincidencias como
+     * JSON, o un 502 con el motivo si la API no responde.
      */
-    public function buscarFuncionarios(Request $request): JsonResponse
+    public function buscarFuncionarios(Request $request, DirectorioMamore $directorio): JsonResponse
     {
         $this->authorize('create', Licencia::class);
 
         $q = trim((string) $request->query('q', ''));
 
-        $funcionarios = $q === ''
-            ? collect()
-            : Persona::query()->buscar($q)->orderBy('paterno')->limit(20)->get();
+        if ($q === '') {
+            return response()->json([]);
+        }
 
-        return response()->json($funcionarios->map(function (Persona $persona): array {
-            $ci = trim((string) $persona->ci);
-            $pin = trim((string) $persona->pinReloj);
+        try {
+            $funcionarios = $directorio->buscar($q);
+        } catch (MamoreException $e) {
+            return response()->json(['error' => $e->getMessage()], 502);
+        }
 
-            return [
-                'id' => $ci,
-                'texto' => $ci.' — '.($persona->nombre_completo ?: 'Sin nombre').($pin !== '' ? " (PIN {$pin})" : ''),
-            ];
-        })->values());
+        return response()->json($funcionarios->map(fn (array $persona): array => [
+            'id' => $persona['ci'],
+            'texto' => $persona['ci'].' — '.$persona['nombre'],
+        ])->values());
     }
 
     /**
@@ -217,7 +232,7 @@ class LicenciaController extends Controller
      *
      * @return Collection<int, AsignacionTurno>
      */
-    private function turnosAsignados(Persona $persona, bool $incluirVencidos = false): Collection
+    private function turnosAsignados(string $ci, bool $incluirVencidos = false): Collection
     {
         $hoy = now()->startOfDay();
 
@@ -227,7 +242,7 @@ class LicenciaController extends Controller
             ->join('turnos', 'turnos.id', '=', 'asignacion_turnos.turno_id')
             // El join saltea el borrado lógico de turnos: hay que excluirlos a mano.
             ->whereNull('turnos.deleted_at')
-            ->where('asignacion_turnos.ci', $persona->ci)
+            ->where('asignacion_turnos.ci', $ci)
             ->unless($incluirVencidos, fn (Builder $query) => $query->where('asignacion_turnos.hasta', '>=', $hoy))
             ->orderByRaw('CASE WHEN asignacion_turnos.hasta >= ? THEN 0 ELSE 1 END', [$hoy])
             ->orderBy('turnos.dia')
@@ -272,24 +287,45 @@ class LicenciaController extends Controller
      * Cuántas asignaciones vencidas tiene el funcionario, para ofrecer verlas
      * sin cargarlas de entrada.
      */
-    private function contarVencidos(Persona $persona): int
+    private function contarVencidos(string $ci): int
     {
         return AsignacionTurno::query()
             ->join('turnos', 'turnos.id', '=', 'asignacion_turnos.turno_id')
             ->whereNull('turnos.deleted_at')
-            ->where('asignacion_turnos.ci', $persona->ci)
+            ->where('asignacion_turnos.ci', $ci)
             ->where('asignacion_turnos.hasta', '<', now()->startOfDay())
             ->count();
     }
 
     /**
-     * Ubica al funcionario por su CI. El `ci` local ya viene sin relleno, así
-     * que basta la comparación exacta. Devuelve null si viene vacío o no existe.
+     * Fichas «CI — nombre» de los funcionarios que ya estaban en la lista del
+     * alta grupal, para rearmarlas cuando el envío vuelve por un error de
+     * validación. Los nombres salen de Mamoré; si la API falla se muestran solo
+     * los carnets para no perder la selección.
+     *
+     * @return array{0: Collection<int, array{id: string, texto: string}>, 1: ?string}
      */
-    private function ubicarFuncionario(string $ci): ?Persona
+    private function fichasElegidas(DirectorioMamore $directorio): array
     {
-        $ci = trim($ci);
+        $cis = collect(old('cis', []))
+            ->map(fn ($ci): string => trim((string) $ci))
+            ->filter()
+            ->unique()
+            ->values();
 
-        return $ci === '' ? null : Persona::query()->where('ci', $ci)->first();
+        if ($cis->isEmpty()) {
+            return [collect(), null];
+        }
+
+        try {
+            $fichas = $cis->map(fn (string $ci): array => [
+                'id' => $ci,
+                'texto' => $ci.' — '.($directorio->porCi($ci)['nombre'] ?? 'Sin datos en Mamoré'),
+            ]);
+        } catch (MamoreException $e) {
+            return [$cis->map(fn (string $ci): array => ['id' => $ci, 'texto' => $ci]), $e->getMessage()];
+        }
+
+        return [$fichas, null];
     }
 }

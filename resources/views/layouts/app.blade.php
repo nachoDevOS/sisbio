@@ -150,15 +150,20 @@
         .dropdown-toggle svg { width: .8rem; height: .8rem; }
         .dropdown-menu { position: absolute; right: 0; top: calc(100% + .3rem); z-index: 20;
             background: #fff; border: 1px solid var(--border); border-radius: .5rem;
-            box-shadow: 0 8px 20px rgba(0,0,0,.15); min-width: 9.5rem; padding: .3rem; }
+            box-shadow: 0 8px 20px rgba(0,0,0,.15); min-width: 13.5rem; padding: .3rem; }
         .dropdown-menu form { margin: 0; }
-        .dropdown-menu a, .dropdown-menu button { display: flex; align-items: center; gap: .5rem;
+        .dropdown-menu a, .dropdown-menu button { display: flex; align-items: center; gap: .55rem;
             width: 100%; text-align: left; background: none; border: 0; cursor: pointer;
-            padding: .4rem .6rem; border-radius: .35rem; font-size: .8125rem; color: var(--fg);
-            font-family: inherit; }
+            padding: .45rem .6rem; border-radius: .35rem; font-size: .8125rem; color: var(--fg);
+            font-family: inherit; white-space: nowrap; }
         .dropdown-menu a:hover, .dropdown-menu button:hover { background: #f3f4f6; }
-        .dropdown-menu .peligro { color: var(--danger); }
         .dropdown-menu svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+        /* Las acciones que destruyen información van al pie, separadas por una
+           línea y en rojo, para que no se elijan por error al apuntar a la de
+           al lado. El bloque entero se tiñe al pasar el mouse. */
+        .dropdown-menu__peligro { margin-top: .3rem; padding-top: .3rem; border-top: 1px solid var(--border); }
+        .dropdown-menu__peligro button { color: var(--danger); }
+        .dropdown-menu__peligro button:hover { background: #fee2e2; color: #b91c1c; }
         .aviso { background: #dcfce7; color: #166534; padding: .65rem .9rem; border-radius: .5rem;
             margin-bottom: 1.1rem; font-size: .85rem; }
         .aviso--error { background: #fee2e2; color: #991b1b; }
@@ -183,8 +188,40 @@
         .modal-caja { background: var(--card); border-radius: .625rem; width: 100%; max-width: 24rem;
             padding: 1.25rem; box-shadow: 0 20px 45px rgba(0,0,0,.28); text-align: left; }
         .modal-caja h2 { font-size: 1rem; margin: 0 0 1rem; }
+        .modal-caja--ancha { max-width: 30rem; }
+        .modal-caja--ancha h2 { margin-bottom: .25rem; }
+        .modal-bajada { margin: 0 0 1rem; color: var(--muted); font-size: .8125rem; line-height: 1.45; }
         .modal-acciones { display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1.25rem; flex-wrap: wrap; }
         .modal-acciones form { margin: 0; }
+
+        /* Atajos de rango: evitan tipear las dos fechas en los casos de siempre. */
+        .rangos-rapidos { display: flex; gap: .35rem; flex-wrap: wrap; margin: -.35rem 0 .25rem; }
+        .rango-chip { border: 1px solid var(--border); background: #fff; border-radius: 999px;
+            padding: .22rem .65rem; font-size: .72rem; font-family: inherit; color: var(--muted); cursor: pointer; }
+        .rango-chip:hover { border-color: var(--verde); color: var(--verde); background: #f0fdf4; }
+
+        /* Acciones del modal como bloques explicados: cada una dice qué hace, así
+           no hay que adivinar la diferencia entre bajar un archivo y grabar en la base. */
+        .modal-opciones { display: flex; flex-direction: column; gap: .55rem; margin-top: 1rem; }
+        .modal-opciones form { margin: 0; }
+        .modal-opcion { display: flex; align-items: flex-start; gap: .7rem; width: 100%; text-align: left;
+            padding: .7rem .85rem; border: 1px solid var(--border); border-radius: .55rem;
+            background: #fff; color: var(--fg); font-family: inherit; cursor: pointer; }
+        .modal-opcion:hover { border-color: var(--verde); background: #f0fdf4; }
+        .modal-opcion:disabled { opacity: .6; cursor: default; background: #fff; border-color: var(--border); }
+        .modal-opcion--principal { border-color: var(--verde); background: #f0fdf4; }
+        .modal-opcion--principal:hover { background: #dcfce7; }
+        .modal-opcion__icono { display: inline-flex; margin-top: .1rem; color: var(--verde); }
+        .modal-opcion__icono svg { width: 1.2rem; height: 1.2rem; }
+        .modal-opcion__titulo { display: block; font-weight: 600; font-size: .85rem; }
+        .modal-opcion__ayuda { display: block; color: var(--muted); font-size: .75rem; line-height: 1.35; margin-top: .1rem; }
+        .spinner-anillo--verde { border-color: rgba(0,166,90,.3); border-top-color: var(--verde); }
+
+        .modal-pie { display: flex; justify-content: flex-end; margin-top: .9rem; }
+        .enlace-cancelar { background: none; border: 0; cursor: pointer; font-family: inherit;
+            font-size: .8125rem; color: var(--muted); padding: .25rem .1rem; }
+        .enlace-cancelar:hover { color: var(--fg); text-decoration: underline; }
+        .enlace-cancelar:disabled { opacity: .5; cursor: default; text-decoration: none; }
 
         /* ===== Filtros de tabla estilo DataTables: «Mostrar N registros» a la
              izquierda y buscador pill a la derecha, en una fila sobre la tabla ===== */
@@ -219,10 +256,12 @@
         .campo label { display: block; font-weight: 600; font-size: .8rem; margin-bottom: .3rem; }
         .campo input[type=text], .campo input[type=number], .campo input[type=date],
         .campo input[type=email], .campo input[type=password], .campo input[type=time], .campo select,
+        .campo textarea,
         .input { width: 100%; padding: .5rem .7rem;
             border: 1px solid var(--border); border-radius: .5rem; font-size: .85rem;
             background: #fff; color: var(--fg); font-family: inherit; }
-        .campo input:focus, .campo select:focus, .input:focus { outline: none;
+        .campo textarea { resize: vertical; line-height: 1.4; }
+        .campo input:focus, .campo select:focus, .campo textarea:focus, .input:focus { outline: none;
             border-color: var(--verde); box-shadow: 0 0 0 2px rgba(0, 166, 90, .35); }
         .campo input[readonly] { background: var(--bg); color: var(--muted); cursor: default; }
         .campo .req { color: var(--danger); }

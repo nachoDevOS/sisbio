@@ -4,12 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\MamoreException;
 use App\Models\Persona;
+use App\Services\DirectorioMamore;
 use App\Services\MamoreClient;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator as Paginador;
-use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 
 /**
@@ -222,27 +222,7 @@ class PersonaController extends Controller
      */
     private function normalizarMamore(array $data): array
     {
-        return collect($data)
-            ->map(function (array $persona): array {
-                $ci = trim((string) ($persona['ci'] ?? ''));
-                $nacimiento = filled($persona['birthday'] ?? null) ? Carbon::parse($persona['birthday']) : null;
-
-                return [
-                    'id' => $persona['id'] ?? null,
-                    'ci' => $ci,
-                    'nombre' => trim((string) ($persona['full_name'] ?? trim(
-                        ($persona['first_name'] ?? '').' '.($persona['middle_name'] ?? '').' '
-                        .($persona['paternal_surname'] ?? '').' '.($persona['maternal_surname'] ?? '')
-                    ))) ?: '—',
-                    'profesion' => trim((string) ($persona['profession'] ?? '')),
-                    // En Mamoré el PIN del reloj es la misma cédula.
-                    'pinReloj' => $ci,
-                    'nacimiento' => $nacimiento?->format('d/m/Y'),
-                    'edad' => $nacimiento?->age,
-                    'ver' => $ci !== '' ? route('funcionarios.mamore', ['ci' => $ci]) : null,
-                ];
-            })
-            ->all();
+        return app(DirectorioMamore::class)->normalizar($data);
     }
 
     private function paginadorVacio(Request $request, int $porPagina): LengthAwarePaginator

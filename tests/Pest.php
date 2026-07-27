@@ -2,8 +2,10 @@
 
 use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -64,6 +66,59 @@ function asSuperAdmin(): User
     ]);
 
     return User::factory()->create()->assignRole($role);
+}
+
+/**
+ * Configura la API de Mamoré y falsea sus dos endpoints (`/people` y
+ * `/people/ci/{ci}`) con el padrón dado, para probar sin red las pantallas que
+ * leen los datos personales de ahí.
+ *
+ * @param  array<string, string>  $padron  ci => nombre completo
+ */
+function fakeMamore(array $padron = []): void
+{
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    $filas = collect($padron)
+        ->map(fn (string $nombre, string $ci): array => [
+            'id' => crc32($ci),
+            'ci' => (string) $ci,
+            'full_name' => $nombre,
+        ])
+        ->values();
+
+    Http::fake([
+        // El patrón del detalle va primero: el del listado también lo alcanzaría.
+        'mamore.test/api/personal/people/ci/*' => function (ClientRequest $peticion) use ($filas) {
+            $ci = urldecode(basename((string) parse_url($peticion->url(), PHP_URL_PATH)));
+            $fila = $filas->firstWhere('ci', $ci);
+
+            return $fila
+                ? Http::response(['data' => $fila])
+                : Http::response(['message' => 'not found'], 404);
+        },
+        'mamore.test/api/personal/people*' => function (ClientRequest $peticion) use ($filas) {
+            parse_str((string) parse_url($peticion->url(), PHP_URL_QUERY), $parametros);
+            $buscado = mb_strtolower(trim((string) ($parametros['search'] ?? '')));
+
+            $encontrados = $buscado === ''
+                ? $filas
+                : $filas->filter(fn (array $fila): bool => str_contains(
+                    mb_strtolower($fila['full_name'].' '.$fila['ci']),
+                    $buscado
+                ))->values();
+
+            return Http::response([
+                'data' => $encontrados->all(),
+                'meta' => [
+                    'total' => $encontrados->count(),
+                    'per_page' => (int) ($parametros['limit'] ?? 25),
+                    'current_page' => (int) ($parametros['page'] ?? 1),
+                ],
+            ]);
+        },
+    ]);
 }
 
 /**
