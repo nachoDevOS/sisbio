@@ -51,6 +51,8 @@ Route::middleware('auth')->group(function (): void {
     Route::get('funcionarios/mamore/{ci}', [PersonaController::class, 'mamoreShow'])->name('funcionarios.mamore');
     // Tabla del listado por AJAX (browse/list, con su paginación).
     Route::get('funcionarios/ajax/list', [PersonaController::class, 'list'])->name('funcionarios.list');
+    // Tabla de marcaciones de la ficha (local y Mamoré) por AJAX, filtrada por CI.
+    Route::get('funcionarios/ajax/marcaciones', [PersonaController::class, 'marcacionesList'])->name('funcionarios.marcaciones.list');
     Route::resource('funcionarios', PersonaController::class)
         ->parameters(['funcionarios' => 'persona'])
         ->only(['index', 'show']);

@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\MamoreException;
 use App\Models\Asistencia;
 use App\Models\Persona;
+use App\Services\DirectorioMamore;
+use App\Services\ResolutorNombres;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -37,16 +40,33 @@ class ReporteMarcacionController extends Controller
     /**
      * Búsqueda de funcionarios por CI o nombre para el combo (select2) del
      * formulario. Devuelve hasta 20 coincidencias como JSON.
+     *
+     * Busca en Mamoré, que además del nombre trae el cargo y la dirección. Si la
+     * API no está configurada o falla, cae a la base local (SIAT) para no dejar
+     * el reporte inutilizable.
      */
-    public function buscarFuncionarios(Request $request): JsonResponse
+    public function buscarFuncionarios(Request $request, DirectorioMamore $directorio): JsonResponse
     {
         $this->authorize('viewAny', Asistencia::class);
 
         $q = trim((string) $request->query('q', ''));
 
-        $funcionarios = $q === ''
-            ? collect()
-            : Persona::query()->buscar($q)->orderBy('paterno')->limit(20)->get();
+        if ($q === '') {
+            return response()->json([]);
+        }
+
+        if ($directorio->configurado()) {
+            try {
+                return response()->json($directorio->buscar($q)->map(fn (array $persona): array => [
+                    'id' => $persona['ci'],
+                    'texto' => $directorio->etiqueta($persona),
+                ])->values());
+            } catch (MamoreException) {
+                // Sigue con la base local.
+            }
+        }
+
+        $funcionarios = Persona::query()->buscar($q)->orderBy('paterno')->limit(20)->get();
 
         return response()->json($funcionarios->map(function (Persona $persona): array {
             $ci = trim((string) $persona->ci);
@@ -64,13 +84,13 @@ class ReporteMarcacionController extends Controller
      * Genera el reporte del funcionario elegido. El destino depende del
      * parámetro `print`: 1 = versión imprimible, 2 = CSV, otro = lista en pantalla.
      */
-    public function sinProcesarList(Request $request): View|Response|RedirectResponse
+    public function sinProcesarList(Request $request, ResolutorNombres $resolutor): View|Response|RedirectResponse
     {
         $this->authorize('viewAny', Asistencia::class);
 
-        $persona = $this->ubicarFuncionario((string) $request->query('persona', ''));
+        $persona = $resolutor->fichaPorCi((string) $request->query('persona', ''));
 
-        if (! $persona instanceof Persona) {
+        if ($persona === null) {
             return redirect()
                 ->route('reportes.marcaciones.sin-procesar')
                 ->with('error', 'Elegí un funcionario para generar el reporte.');
@@ -80,7 +100,10 @@ class ReporteMarcacionController extends Controller
         $hasta = (string) $request->query('hasta', now()->toDateString());
         $tipo = (string) $request->query('tipo', '');
 
-        $marcaciones = $persona->marcaciones()
+        // Las marcaciones se cruzan por CI: la ficha puede venir de Mamoré, que
+        // no tiene relación con la tabla local de asistencia.
+        $marcaciones = Asistencia::query()
+            ->where('ci', $persona['ci'])
             ->when($desde !== '', fn (Builder $query) => $query->whereDate('fecha', '>=', $desde))
             ->when($hasta !== '', fn (Builder $query) => $query->whereDate('fecha', '<=', $hasta))
             ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
@@ -98,26 +121,12 @@ class ReporteMarcacionController extends Controller
     }
 
     /**
-     * Ubica al funcionario por su CI. El `ci` local ya viene sin relleno, así
-     * que basta la comparación exacta. Devuelve null si viene vacío o no existe.
-     */
-    private function ubicarFuncionario(string $ci): ?Persona
-    {
-        $ci = trim($ci);
-
-        if ($ci === '') {
-            return null;
-        }
-
-        return Persona::query()->where('ci', $ci)->first();
-    }
-
-    /**
      * Arma el CSV de las marcaciones (Fecha, Hora, Tipo) para descargar.
      *
+     * @param  array<string, mixed>  $persona
      * @param  Collection<int, Asistencia>  $marcaciones
      */
-    private function descargarCsv(Persona $persona, $marcaciones): Response
+    private function descargarCsv(array $persona, $marcaciones): Response
     {
         $csv = "\u{FEFF}Fecha,Hora,Tipo\n";
 
@@ -129,7 +138,7 @@ class ReporteMarcacionController extends Controller
             ])."\n";
         }
 
-        $archivo = 'marcaciones-'.Str::slug(trim((string) $persona->ci)).'-'.now()->format('Y-m-d').'.csv';
+        $archivo = 'marcaciones-'.Str::slug($persona['ci']).'-'.now()->format('Y-m-d').'.csv';
 
         return response($csv, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',

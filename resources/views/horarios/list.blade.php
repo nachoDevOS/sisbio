@@ -3,7 +3,7 @@
         <thead>
             <tr>
                 <th>Día</th>
-                <th>Horario</th>
+                <th>Turno</th>
                 <th>Entrada</th>
                 <th>Salida</th>
                 <th>Tol. entrada</th>
@@ -33,7 +33,7 @@
                             <a href="{{ route('horarios.show', $horario) }}" class="btn-icon btn-icon--gris" title="Ver" aria-label="Ver"><x-heroicon-o-eye /></a>
                             <a href="{{ route('horarios.edit', $horario) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
                             <form action="{{ route('horarios.destroy', $horario) }}" method="POST"
-                                  onsubmit="return confirm('¿Eliminar el horario «{{ trim($horario->nombreTurno) }}»?');">
+                                  onsubmit="return confirm('¿Eliminar el turno «{{ trim($horario->nombreTurno) }}»?');">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn-icon btn-icon--peligro" title="Eliminar" aria-label="Eliminar"><x-heroicon-o-trash /></button>
@@ -43,7 +43,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="9" class="vacio">Aún no hay horarios registrados.</td>
+                    <td colspan="9" class="vacio">Aún no hay turnos registrados.</td>
                 </tr>
             @endforelse
         </tbody>

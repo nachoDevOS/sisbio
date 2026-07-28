@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('titulo', 'Horarios')
+@section('titulo', 'Turnos')
 
 @section('contenido')
     <div class="cabecera">
         <div class="cabecera__titulo">
             <span class="cabecera__icono"><x-heroicon-o-clock /></span>
-            <h1>Administrador de horarios</h1>
+            <h1>Administrador de turnos</h1>
         </div>
-        <a href="{{ route('horarios.create') }}" class="btn"><x-heroicon-o-plus />Nuevo horario</a>
+        <a href="{{ route('horarios.create') }}" class="btn"><x-heroicon-o-plus />Nuevo turno</a>
     </div>
 
     {{-- Filtros del listado (browse): disparan la carga AJAX de la tabla. --}}
@@ -34,7 +34,7 @@
 
         <div class="buscador">
             <x-heroicon-o-magnifying-glass />
-            <input type="text" id="f-buscar" value="{{ $buscar }}" placeholder="Buscar por nombre del horario…">
+            <input type="text" id="f-buscar" value="{{ $buscar }}" placeholder="Buscar por nombre del turno…">
         </div>
     </div>
 

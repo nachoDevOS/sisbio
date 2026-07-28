@@ -143,6 +143,19 @@
                             <dd>{{ $nombre }} · CI {{ $persona['ci'] }}</dd>
                         </div>
                         <div>
+                            <dt>Cargo</dt>
+                            <dd>
+                                {{ $persona['cargo'] ?: '—' }}
+                                @if (!$persona['cargo'])
+                                    <span class="pill pill--no">Sin contrato</span>
+                                @endif
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>Dirección administrativa</dt>
+                            <dd>{{ $persona['direccion'] ?: '—' }}</dd>
+                        </div>
+                        <div>
                             <dt>Profesión</dt>
                             <dd>{{ $persona['profesion'] ?: '—' }}</dd>
                         </div>

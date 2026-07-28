@@ -27,6 +27,13 @@
                 <option value="mamore">Mamoré</option>
                 <option value="siat">SIAT</option>
             </select>
+
+            {{-- Solo Mamoré conoce los contratos: con SIAT el select se oculta. --}}
+            <select id="f-contrato" aria-label="Situación de contrato">
+                <option value="todos">Todos</option>
+                <option value="con">Con contrato</option>
+                <option value="sin">Sin contrato</option>
+            </select>
         </div>
 
         <div class="buscador">
@@ -47,11 +54,34 @@
             const inputBuscar = document.getElementById('f-buscar');
             const selPaginate = document.getElementById('f-paginate');
             const selFuente = document.getElementById('f-fuente');
+            const selContrato = document.getElementById('f-contrato');
             let temporizador = null;
+
+            // El filtro por contrato solo aplica a Mamoré (SIAT no tiene contratos).
+            function sincronizarContrato() {
+                const esMamore = selFuente.value === 'mamore';
+                selContrato.hidden = !esMamore;
+                if (!esMamore) { selContrato.value = 'todos'; }
+            }
+
+            // La API devuelve cuántos hay en cada situación (ya con la búsqueda
+            // aplicada): se muestran en la etiqueta de cada opción.
+            const etiquetas = { todos: 'Todos', con: 'Con contrato', sin: 'Sin contrato' };
+
+            function actualizarTotales() {
+                const datos = resultados.querySelector('#totales-contrato');
+                for (const opcion of selContrato.options) {
+                    const total = datos ? datos.dataset[opcion.value] : '';
+                    opcion.textContent = total
+                        ? `${etiquetas[opcion.value]} (${Number(total).toLocaleString('es-BO')})`
+                        : etiquetas[opcion.value];
+                }
+            }
 
             async function cargar(page = 1) {
                 const params = new URLSearchParams({
                     fuente: selFuente.value,
+                    contrato: selContrato.value,
                     q: inputBuscar.value,
                     por_pagina: selPaginate.value,
                     page: page,
@@ -62,6 +92,7 @@
                         headers: { 'X-Requested-With': 'XMLHttpRequest' },
                     });
                     resultados.innerHTML = await resp.text();
+                    actualizarTotales();
                 } catch (e) {
                     resultados.innerHTML = '<div class="aviso aviso--error">No se pudo cargar el listado. Reintentá.</div>';
                 }
@@ -78,7 +109,8 @@
             });
 
             selPaginate.addEventListener('change', () => cargar(1));
-            selFuente.addEventListener('change', () => cargar(1));
+            selContrato.addEventListener('change', () => cargar(1));
+            selFuente.addEventListener('change', () => { sincronizarContrato(); cargar(1); });
             inputBuscar.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') { e.preventDefault(); clearTimeout(temporizador); cargar(1); }
             });
@@ -87,6 +119,7 @@
                 temporizador = setTimeout(() => cargar(1), 500);
             });
 
+            sincronizarContrato();
             cargar(1);
         })();
     </script>

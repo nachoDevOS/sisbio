@@ -1,17 +1,20 @@
 @php
-    $nombreEmpleado = collect([$persona->paterno, $persona->materno, $persona->nombres])
-        ->map(fn ($parte) => trim((string) $parte))
-        ->filter()
-        ->implode(' ');
-    $parametros = ['persona' => trim($persona->ci), 'desde' => $desde, 'hasta' => $hasta, 'tipo' => $tipo];
+    // $persona es la ficha resuelta (Mamoré, con la base local como respaldo).
+    $nombreEmpleado = $persona['nombreFormal'] ?: $persona['nombre'];
+    $parametros = ['persona' => $persona['ci'], 'desde' => $desde, 'hasta' => $hasta, 'tipo' => $tipo];
 @endphp
 
 {{-- Partial: se inyecta bajo el filtro del reporte vía AJAX (no lleva layout). --}}
 <div class="card card--padded">
     <div class="cabecera" style="margin-bottom: 1rem;">
         <div>
-            <strong>{{ $nombreEmpleado ?: 'Funcionario' }}</strong> · CI {{ trim($persona->ci) }} ·
-            PIN reloj {{ trim((string) $persona->pinReloj) ?: '—' }}<br>
+            <strong>{{ $nombreEmpleado ?: 'Funcionario' }}</strong> · CI {{ $persona['ci'] }} ·
+            PIN reloj {{ $persona['pinReloj'] ?: '—' }}<br>
+            @if (!empty($persona['cargo']))
+                <span style="color: var(--muted);">
+                    {{ $persona['cargo'] }}{{ empty($persona['direccion']) ? '' : ' · '.$persona['direccion'] }}
+                </span><br>
+            @endif
             <span style="color: var(--muted);">
                 Rango: {{ $desde ?: '—' }} a {{ $hasta ?: '—' }} · Total: {{ $marcaciones->count() }} registro(s)
             </span>

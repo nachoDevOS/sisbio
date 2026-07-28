@@ -57,11 +57,11 @@ class LicenciaController extends Controller
             ->paginate($porPagina)
             ->withQueryString();
 
-        // La columna «Funcionario» sale de Mamoré y, si el CI no está ahí, de
-        // la base local (App\Services\ResolutorNombres).
-        $nombres = $resolutor->porCi($licencias->pluck('ci'));
+        // La columna «Funcionario» (nombre y cargo) sale de Mamoré y, si el CI no
+        // está ahí, de la base local (App\Services\ResolutorNombres).
+        $fichas = $resolutor->fichasPorCi($licencias->pluck('ci'));
 
-        return view('licencias.list', compact('licencias', 'nombres', 'busqueda'));
+        return view('licencias.list', compact('licencias', 'fichas', 'busqueda'));
     }
 
     /**
@@ -135,7 +135,7 @@ class LicenciaController extends Controller
 
         return response()->json($funcionarios->map(fn (array $persona): array => [
             'id' => $persona['ci'],
-            'texto' => $persona['ci'].' — '.$persona['nombre'],
+            'texto' => $directorio->etiqueta($persona),
         ])->values());
     }
 
@@ -318,10 +318,16 @@ class LicenciaController extends Controller
         }
 
         try {
-            $fichas = $cis->map(fn (string $ci): array => [
-                'id' => $ci,
-                'texto' => $ci.' — '.($directorio->porCi($ci)['nombre'] ?? 'Sin datos en Mamoré'),
-            ]);
+            $fichas = $cis->map(function (string $ci) use ($directorio): array {
+                $persona = $directorio->porCi($ci);
+
+                return [
+                    'id' => $ci,
+                    'texto' => $persona === null
+                        ? $ci.' — Sin datos en Mamoré'
+                        : $directorio->etiqueta($persona),
+                ];
+            });
         } catch (MamoreException $e) {
             return [$cis->map(fn (string $ci): array => ['id' => $ci, 'texto' => $ci]), $e->getMessage()];
         }

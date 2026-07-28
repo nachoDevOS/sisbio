@@ -114,6 +114,8 @@ class DirectorioMamore
     {
         $ci = trim((string) ($persona['ci'] ?? ''));
         $nacimiento = filled($persona['birthday'] ?? null) ? Carbon::parse($persona['birthday']) : null;
+        // La API embute el contrato firmado en cada persona (null si no tiene).
+        $contrato = is_array($persona['contrato'] ?? null) ? $persona['contrato'] : null;
 
         return [
             'id' => $persona['id'] ?? null,
@@ -122,13 +124,56 @@ class DirectorioMamore
                 ($persona['first_name'] ?? '').' '.($persona['middle_name'] ?? '').' '
                 .($persona['paternal_surname'] ?? '').' '.($persona['maternal_surname'] ?? '')
             ))) ?: '—',
+            // «Apellidos Nombres», como los imprime el reporte de marcaciones
+            // desde el sistema de escritorio viejo.
+            'nombreFormal' => trim(preg_replace('/\s+/', ' ', implode(' ', array_filter([
+                trim((string) ($persona['paternal_surname'] ?? '')),
+                trim((string) ($persona['maternal_surname'] ?? '')),
+                trim((string) ($persona['first_name'] ?? '')),
+                trim((string) ($persona['middle_name'] ?? '')),
+            ]))) ?? ''),
             'profesion' => trim((string) ($persona['profession'] ?? '')),
             // En Mamoré el PIN del reloj es la misma cédula.
             'pinReloj' => $ci,
             'nacimiento' => $nacimiento?->format('d/m/Y'),
             'edad' => $nacimiento?->age,
             'ver' => $ci !== '' ? route('funcionarios.mamore', ['ci' => $ci]) : null,
+            // Del contrato firmado, cuando la persona tiene uno.
+            'cargo' => $contrato === null ? null : trim((string) (
+                $contrato['cargo_completo'] ?? $contrato['cargo'] ?? $contrato['denominacion'] ?? ''
+            )),
+            'direccion' => $contrato === null ? null : trim((string) (
+                $contrato['direccion_administrativa']['sigla']
+                ?? $contrato['direccion_administrativa']['nombre']
+                ?? ''
+            )),
+            // `has_contract` lo informa la API; null si no vino en la respuesta.
+            'conContrato' => isset($persona['has_contract']) ? (bool) $persona['has_contract'] : null,
         ];
+    }
+
+    /**
+     * Texto de una fila para los combos de funcionario: «CI — NOMBRE · cargo
+     * (SIGLA)». El cargo y la dirección salen del contrato firmado, así que en
+     * quien no tiene contrato queda solo «CI — NOMBRE».
+     *
+     * @param  array<string, mixed>  $fila
+     */
+    public function etiqueta(array $fila): string
+    {
+        $texto = trim((string) ($fila['ci'] ?? '')).' — '.trim((string) ($fila['nombre'] ?? 'Sin nombre'));
+        $cargo = trim((string) ($fila['cargo'] ?? ''));
+        $direccion = trim((string) ($fila['direccion'] ?? ''));
+
+        if ($cargo !== '') {
+            $texto .= ' · '.$cargo;
+        }
+
+        if ($direccion !== '') {
+            $texto .= ' ('.$direccion.')';
+        }
+
+        return $texto;
     }
 
     /**

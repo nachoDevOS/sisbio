@@ -18,12 +18,18 @@
                     <td>{{ $licencia->id }}</td>
                     <td><strong>{{ $licencia->fecha?->format('d/m/Y') }}</strong></td>
                     <td>
-                        @if ($nombres[trim((string) $licencia->ci)] ?? null)
-                            {{ $nombres[trim((string) $licencia->ci)] }}
+                        @php($ficha = $fichas[trim((string) $licencia->ci)] ?? null)
+                        @if ($ficha)
+                            {{ $ficha['nombre'] }}
                         @else
                             <span style="color: var(--muted); font-style: italic;">Sin persona</span>
                         @endif
-                        <div class="ayuda">CI {{ trim((string) $licencia->ci) }}</div>
+                        <div class="ayuda">
+                            CI {{ trim((string) $licencia->ci) }}
+                            @if (!empty($ficha['cargo']))
+                                · {{ $ficha['cargo'] }}
+                            @endif
+                        </div>
                     </td>
                     <td>{{ $licencia->resumen_turno }}</td>
                     <td>

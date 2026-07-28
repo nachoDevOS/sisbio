@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Http;
 /**
  * Cliente HTTP de la API externa de Datos Personales «Mamoré» (solo lectura).
  * Consulta la lista y el detalle de personas con el header X-API-KEY.
+ *
+ * La API tiene un único listado: `/people` devuelve todas las personas, y cada
+ * una trae su contrato firmado en la clave `contrato` (o `null` si no tiene).
  */
 class MamoreClient
 {
@@ -25,9 +28,12 @@ class MamoreClient
      * Lista paginada de personas (con búsqueda). Devuelve el JSON tal cual
      * (`data`, `meta`, `links`).
      *
+     * El filtro `$contrato` («todos», «con» o «sin») lo resuelve la propia API
+     * con el parámetro `?contrato=`, así que la paginación sigue siendo la suya.
+     *
      * @return array{data?: array<int, array<string, mixed>>, meta?: array<string, mixed>, links?: array<string, mixed>}
      */
-    public function people(int $page, int $limit, string $search = ''): array
+    public function people(int $page, int $limit, string $search = '', string $contrato = 'todos'): array
     {
         $parametros = ['page' => $page, 'limit' => $limit];
 
@@ -35,17 +41,11 @@ class MamoreClient
             $parametros['search'] = $search;
         }
 
-        try {
-            $respuesta = $this->http()->get('/people', $parametros);
-        } catch (ConnectionException) {
-            throw new MamoreException('No se pudo conectar con la API de Mamoré.');
+        if (in_array($contrato, ['con', 'sin'], true)) {
+            $parametros['contrato'] = $contrato;
         }
 
-        if ($respuesta->failed()) {
-            throw new MamoreException($this->motivo($respuesta->status()));
-        }
-
-        return $respuesta->json();
+        return $this->pedir('/people', $parametros);
     }
 
     /**
@@ -70,6 +70,27 @@ class MamoreClient
         }
 
         return $respuesta->json('data');
+    }
+
+    /**
+     * GET a la API traduciendo fallos de red y estados de error a MamoreException.
+     *
+     * @param  array<string, mixed>  $parametros
+     * @return array<string, mixed>
+     */
+    private function pedir(string $ruta, array $parametros): array
+    {
+        try {
+            $respuesta = $this->http()->get($ruta, $parametros);
+        } catch (ConnectionException) {
+            throw new MamoreException('No se pudo conectar con la API de Mamoré.');
+        }
+
+        if ($respuesta->failed()) {
+            throw new MamoreException($this->motivo($respuesta->status()));
+        }
+
+        return $respuesta->json();
     }
 
     private function http(): PendingRequest

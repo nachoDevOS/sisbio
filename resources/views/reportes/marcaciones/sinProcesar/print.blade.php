@@ -23,11 +23,12 @@
 @php
     use Illuminate\Support\Carbon;
 
-    $nombreEmpleado = collect([$persona->paterno, $persona->materno, $persona->nombres])
-        ->map(fn ($parte) => trim((string) $parte))
-        ->filter()
-        ->implode(' ');
-    $pin = trim((string) $persona->pinReloj) ?: '—';
+    // $persona es la ficha resuelta (Mamoré, con la base local como respaldo).
+    // El reporte imprime «Apellidos Nombres», como el sistema de escritorio viejo.
+    $nombreEmpleado = $persona['nombreFormal'] ?: $persona['nombre'];
+    $pin = $persona['pinReloj'] ?: '—';
+    $cargo = $persona['cargo'] ?? null;
+    $direccionAdmin = $persona['direccion'] ?? null;
     $desdeFmt = $desde ? Carbon::parse($desde)->format('j/n/Y') : '—';
     $hastaFmt = $hasta ? Carbon::parse($hasta)->format('j/n/Y') : '—';
 
@@ -35,7 +36,8 @@
     // prólogo XML del SVG para poder incrustarlo dentro del HTML.
     $qrTexto = "REPORTE DE MARCACIONES - GAD BENI\n"
         ."Funcionario: {$nombreEmpleado}\n"
-        .'CI: '.trim((string) $persona->ci)." | PIN: {$pin}\n"
+        .'CI: '.$persona['ci']." | PIN: {$pin}\n"
+        .($cargo ? "Cargo: {$cargo}\n" : '')
         ."Rango: {$desdeFmt} a {$hastaFmt}\n"
         .'Total: '.$marcaciones->count()."\n"
         .'Impreso: '.now()->format('d/m/Y H:i:s');
@@ -70,6 +72,9 @@
 
     <p style="font-size: 13px; margin: 10px 0 5px;">
         <b>Empleado:</b> {{ $nombreEmpleado }}, <b>PIN Reloj:</b> {{ $pin }}, desde el {{ $desdeFmt }} hasta el {{ $hastaFmt }}
+        @if ($cargo)
+            <br><b>Cargo:</b> {{ $cargo }}@if ($direccionAdmin), <b>Dirección:</b> {{ $direccionAdmin }}@endif
+        @endif
     </p>
 
     <table style="width: 100%; font-size: 12px" border="1" cellspacing="0" cellpadding="5">

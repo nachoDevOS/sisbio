@@ -73,7 +73,11 @@ function asSuperAdmin(): User
  * `/people/ci/{ci}`) con el padrón dado, para probar sin red las pantallas que
  * leen los datos personales de ahí.
  *
- * @param  array<string, string>  $padron  ci => nombre completo
+ * Cada persona puede darse como `ci => 'NOMBRE COMPLETO'` (sin contrato) o como
+ * `ci => ['nombre' => ..., 'cargo' => ..., 'direccion' => ...]` para que salga
+ * con contrato firmado, igual que lo entrega la API real.
+ *
+ * @param  array<string, string|array<string, mixed>>  $padron
  */
 function fakeMamore(array $padron = []): void
 {
@@ -81,11 +85,27 @@ function fakeMamore(array $padron = []): void
     config()->set('services.mamore.key', 'secreta');
 
     $filas = collect($padron)
-        ->map(fn (string $nombre, string $ci): array => [
-            'id' => crc32($ci),
-            'ci' => (string) $ci,
-            'full_name' => $nombre,
-        ])
+        ->map(function (string|array $datos, string $ci): array {
+            $datos = is_array($datos) ? $datos : ['nombre' => $datos];
+            $cargo = $datos['cargo'] ?? null;
+
+            return [
+                'id' => crc32($ci),
+                'ci' => (string) $ci,
+                'full_name' => $datos['nombre'],
+                'has_contract' => $cargo !== null,
+                'contrato' => $cargo === null ? null : [
+                    'code' => $datos['code'] ?? 'COD-1/2026',
+                    'denominacion' => $datos['denominacion'] ?? $cargo,
+                    'cargo' => $cargo,
+                    'cargo_completo' => $cargo,
+                    'direccion_administrativa' => ['nombre' => $datos['direccion'] ?? 'Dirección', 'sigla' => $datos['direccion'] ?? null],
+                    'unidad_administrativa' => null,
+                    'start' => '2026-01-01',
+                    'finish' => '2026-12-31',
+                ],
+            ];
+        })
         ->values();
 
     Http::fake([
@@ -109,12 +129,24 @@ function fakeMamore(array $padron = []): void
                     $buscado
                 ))->values();
 
+            // La API filtra por situación de contrato del lado del servidor.
+            $contrato = (string) ($parametros['contrato'] ?? 'todos');
+
+            if ($contrato === 'con') {
+                $encontrados = $encontrados->filter(fn (array $fila): bool => $fila['has_contract'])->values();
+            } elseif ($contrato === 'sin') {
+                $encontrados = $encontrados->filter(fn (array $fila): bool => ! $fila['has_contract'])->values();
+            }
+
             return Http::response([
                 'data' => $encontrados->all(),
                 'meta' => [
                     'total' => $encontrados->count(),
                     'per_page' => (int) ($parametros['limit'] ?? 25),
                     'current_page' => (int) ($parametros['page'] ?? 1),
+                    'contrato' => $contrato,
+                    'total_con_contrato' => $filas->where('has_contract', true)->count(),
+                    'total_sin_contrato' => $filas->where('has_contract', false)->count(),
                 ],
             ]);
         },

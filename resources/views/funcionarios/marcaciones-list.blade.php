@@ -8,9 +8,6 @@
     <table>
         <thead>
             <tr>
-                <th>ID</th>
-                <th>CI</th>
-                <th>Funcionario</th>
                 <th>Fecha</th>
                 <th>Hora</th>
                 <th>Tipo</th>
@@ -19,25 +16,12 @@
         <tbody>
             @forelse ($marcaciones as $marcacion)
                 <tr>
-                    <td>{{ $marcacion->id }}</td>
-                    <td>{{ trim((string) $marcacion->ci) }}</td>
-                    <td>
-                        @php($ficha = $fichas[trim((string) $marcacion->ci)] ?? null)
-                        @if ($ficha)
-                            {{ $ficha['nombre'] }}
-                            @if (!empty($ficha['cargo']))
-                                <div class="ayuda">{{ $ficha['cargo'] }}</div>
-                            @endif
-                        @else
-                            <span style="color: var(--muted); font-style: italic;">Sin persona</span>
-                        @endif
-                    </td>
                     <td>{{ $marcacion->fecha?->format('d/m/Y') }}</td>
                     <td>{{ $marcacion->hora?->format('H:i:s') }}</td>
                     <td><span class="pill {{ $pillPorTipo[trim((string) $marcacion->tipo)] ?? 'pill--info' }}">{{ trim((string) $marcacion->tipo) }}</span></td>
                 </tr>
             @empty
-                <tr><td colspan="6" class="vacio">Sin marcaciones en el rango seleccionado.</td></tr>
+                <tr><td colspan="3" class="vacio">Sin marcaciones en el rango seleccionado.</td></tr>
             @endforelse
         </tbody>
     </table>

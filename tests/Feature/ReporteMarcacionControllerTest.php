@@ -4,6 +4,7 @@ use App\Models\Asistencia;
 use App\Models\Persona;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
@@ -50,6 +51,50 @@ test('el endpoint del combo devuelve funcionarios en JSON', function () {
         ->assertOk()
         ->assertJsonFragment(['id' => '7633685'])
         ->assertJsonFragment(['texto' => '7633685 — Ignacio Molina Guzman (PIN 7633685)']);
+});
+
+test('el combo busca en Mamoré y muestra el cargo cuando la API está configurada', function () {
+    funcionarioConMarcaciones();
+    fakeMamore(['7633685' => ['nombre' => 'IGNACIO MOLINA GUZMAN', 'cargo' => 'Analista II', 'direccion' => 'SDAF']]);
+
+    $this->getJson(route('reportes.marcaciones.funcionarios', ['q' => 'molina']))
+        ->assertOk()
+        ->assertJsonFragment(['id' => '7633685', 'texto' => '7633685 — IGNACIO MOLINA GUZMAN · Analista II (SDAF)']);
+});
+
+test('el combo cae a la base local si Mamoré falla', function () {
+    funcionarioConMarcaciones();
+
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+    Http::fake(['mamore.test/*' => Http::response('boom', 500)]);
+
+    $this->getJson(route('reportes.marcaciones.funcionarios', ['q' => 'ignacio molina']))
+        ->assertOk()
+        ->assertJsonFragment(['id' => '7633685']);
+});
+
+test('el reporte imprimible muestra el cargo que informa Mamoré', function () {
+    $persona = funcionarioConMarcaciones();
+    fakeMamore([
+        '7633685' => [
+            'nombre' => 'IGNACIO MOLINA GUZMAN',
+            'cargo' => 'Analista II',
+            'direccion' => 'SDAF',
+        ],
+    ]);
+
+    $this->get(route('reportes.marcaciones.sin-procesar.generar', [
+        'persona' => trim($persona->ci),
+        'desde' => today()->startOfMonth()->toDateString(),
+        'hasta' => today()->toDateString(),
+        'print' => 1,
+    ]))
+        ->assertOk()
+        ->assertSee('REPORTE DE MARCACIONES')
+        ->assertSee('Analista II')
+        ->assertSee('SDAF')
+        ->assertSee('08:15:00');
 });
 
 test('el combo no devuelve nada sin término de búsqueda', function () {

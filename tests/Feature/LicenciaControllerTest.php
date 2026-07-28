@@ -342,6 +342,32 @@ test('el combo busca funcionarios en Mamoré por ci o nombre', function () {
         ->assertJsonFragment(['id' => '1924269']);
 });
 
+test('el combo muestra el cargo y la dirección del funcionario', function () {
+    fakeMamore([
+        '7604314' => ['nombre' => 'LUIS ALPIRE DURAN', 'cargo' => 'Analista II', 'direccion' => 'SDAF'],
+        '1924269' => 'JUAN PEREZ ROJAS',
+    ]);
+
+    // Con contrato: el combo agrega el cargo y la sigla de la dirección.
+    $this->getJson(route('licencias.funcionarios', ['q' => 'alpire']))
+        ->assertOk()
+        ->assertJsonFragment(['id' => '7604314', 'texto' => '7604314 — LUIS ALPIRE DURAN · Analista II (SDAF)']);
+
+    // Sin contrato: sigue apareciendo, solo que sin cargo.
+    $this->getJson(route('licencias.funcionarios', ['q' => 'perez']))
+        ->assertOk()
+        ->assertJsonFragment(['id' => '1924269', 'texto' => '1924269 — JUAN PEREZ ROJAS']);
+});
+
+test('la pantalla de licenciar muestra el cargo del funcionario elegido', function () {
+    fakeMamore(['7604314' => ['nombre' => 'LUIS ALPIRE DURAN', 'cargo' => 'Analista II', 'direccion' => 'SDAF']]);
+
+    $this->get(route('licencias.create', ['ci' => '7604314']))
+        ->assertOk()
+        ->assertSee('Analista II')
+        ->assertSee('Dirección administrativa');
+});
+
 test('el combo no devuelve funcionarios que solo existen en la base local', function () {
     Persona::factory()->create(['ci' => '7633685', 'nombres' => 'IGNACIO', 'paterno' => 'MOLINA']);
     fakeMamore(); // padrón vacío

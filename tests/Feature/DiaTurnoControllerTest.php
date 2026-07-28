@@ -39,7 +39,8 @@ test('el listado muestra los horarios registrados', function () {
 test('muestra el formulario de alta', function () {
     $this->get(route('horarios.create'))
         ->assertOk()
-        ->assertSee('Nuevo horario');
+        ->assertSee('Nuevo turno')
+        ->assertSee('Nombre del turno');
 });
 
 test('muestra la ficha de un horario', function () {

@@ -72,6 +72,161 @@ test('el listado por defecto usa Mamoré y muestra sus personas', function () {
         && str_contains($request->url(), '/people'));
 });
 
+test('el filtro «sin contrato» le pide a la API el listado de personas sin contrato', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people*' => Http::response([
+            'data' => [
+                ['id' => 9, 'ci' => '999', 'full_name' => 'PERSONA SIN CONTRATO', 'has_contract' => false],
+            ],
+            'meta' => ['current_page' => 1, 'per_page' => 10, 'total' => 1, 'contrato' => 'sin'],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.list', ['contrato' => 'sin']))
+        ->assertOk()
+        ->assertSee('PERSONA SIN CONTRATO')
+        // Sin contrato no hay cargo ni dirección que mostrar.
+        ->assertSee('<td>—</td>', false);
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/people')
+        && str_contains($request->url(), 'contrato=sin'));
+});
+
+test('el listado publica los totales por situación de contrato para el select', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people*' => Http::response([
+            'data' => [['id' => 1, 'ci' => '111', 'full_name' => 'CUALQUIERA', 'has_contract' => true]],
+            'meta' => [
+                'current_page' => 1, 'per_page' => 10, 'total' => 4595,
+                'total_con_contrato' => 1040, 'total_sin_contrato' => 3555,
+            ],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.list'))
+        ->assertOk()
+        ->assertSee('data-con="1040"', false)
+        ->assertSee('data-sin="3555"', false)
+        // «Todos» es la suma de las dos situaciones.
+        ->assertSee('data-todos="4595"', false);
+});
+
+test('la lista muestra juntas a las personas con contrato y sin contrato', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    // Un único listado: la persona con contrato lo trae embebido, la que no
+    // tiene viene con `contrato: null` y aparece igual en la tabla.
+    Http::fake([
+        'mamore.test/api/personal/people*' => Http::response([
+            'data' => [
+                [
+                    'id' => 4772,
+                    'ci' => '7604314',
+                    'full_name' => 'LUIS CARLOS ALPIRE DURAN',
+                    'has_contract' => true,
+                    'contrato' => [
+                        'id' => 16437,
+                        'code' => 'SDAF-132/2026',
+                        'cargo_completo' => 'APOYO ADMINISTRATIVO - (Analista II)',
+                        'direccion_administrativa' => ['id' => 16, 'nombre' => 'Secretaria Departamental de Administracion y Finanzas', 'sigla' => 'SDAF'],
+                    ],
+                ],
+                [
+                    'id' => 500,
+                    'ci' => '1938650',
+                    'full_name' => 'CLAUDIA VARGAS',
+                    'has_contract' => false,
+                    'contrato' => null,
+                ],
+            ],
+            'meta' => ['current_page' => 1, 'per_page' => 10, 'total' => 2, 'total_con_contrato' => 1, 'total_sin_contrato' => 1],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.list'))
+        ->assertOk()
+        // La que tiene contrato, con su cargo y su dirección.
+        ->assertSee('LUIS CARLOS ALPIRE DURAN')
+        ->assertSee('APOYO ADMINISTRATIVO - (Analista II)')
+        ->assertSee('SDAF')
+        ->assertSee('Con contrato')
+        // La que no tiene, igual en la lista.
+        ->assertSee('CLAUDIA VARGAS')
+        ->assertSee('Sin contrato');
+
+    // Una sola petición, al único listado de la API.
+    Http::assertSentCount(1);
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/people'));
+});
+
+test('el filtro «con contrato» le pide a la API solo los que tienen contrato', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people*' => Http::response([
+            'data' => [
+                [
+                    'id' => 4772,
+                    'ci' => '7604314',
+                    'full_name' => 'LUIS CARLOS ALPIRE DURAN',
+                    'has_contract' => true,
+                    'contrato' => [
+                        'cargo_completo' => 'APOYO ADMINISTRATIVO - (Analista II)',
+                        'direccion_administrativa' => ['sigla' => 'SDAF'],
+                    ],
+                ],
+            ],
+            'meta' => ['current_page' => 1, 'per_page' => 10, 'total' => 1040, 'total_con_contrato' => 1040, 'total_sin_contrato' => 3555],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.list', ['contrato' => 'con']))
+        ->assertOk()
+        ->assertSee('LUIS CARLOS ALPIRE DURAN')
+        ->assertSee('APOYO ADMINISTRATIVO - (Analista II)')
+        ->assertSee('SDAF');
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/people')
+        && str_contains($request->url(), 'contrato=con'));
+});
+
+test('el filtro por contrato no aplica a la fuente SIAT', function () {
+    Persona::factory()->create(['ci' => '333', 'paterno' => 'Local', 'nombres' => 'Sin Contratos']);
+
+    Http::fake();
+
+    $this->get(route('funcionarios.list', ['fuente' => 'siat', 'contrato' => 'con']))
+        ->assertOk()
+        ->assertSee('Local');
+
+    Http::assertNothingSent();
+});
+
+test('un valor raro en el filtro de contrato cae en «todos»', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people*' => Http::response([
+            'data' => [['id' => 1, 'ci' => '111', 'full_name' => 'CUALQUIERA']],
+            'meta' => ['current_page' => 1, 'per_page' => 10, 'total' => 1],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.list', ['contrato' => 'inventado']))->assertOk();
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/people')
+        && ! str_contains($request->url(), 'contrato='));
+});
+
 test('la búsqueda Mamoré por varias palabras filtra localmente (nombre + apellido)', function () {
     config()->set('services.mamore.url', 'http://mamore.test/api/personal');
     config()->set('services.mamore.key', 'secreta');
@@ -131,6 +286,93 @@ test('la ficha de una persona de Mamoré se ve por cédula', function () {
         ->assertSee('7654321-BE');
 });
 
+test('la ficha de Mamoré muestra el contrato vigente del funcionario', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people/ci/*' => Http::response([
+            'data' => [
+                'id' => 4772, 'full_name' => 'LUIS CARLOS ALPIRE DURAN', 'ci' => '7604314',
+                'has_contract' => true,
+                'contrato' => [
+                    'code' => 'SDAF-132/2026',
+                    'denominacion' => 'APOYO ADMINISTRATIVO',
+                    'cargo_completo' => 'APOYO ADMINISTRATIVO - (Analista II)',
+                    'direccion_administrativa' => ['nombre' => 'Secretaria Departamental de Administracion y Finanzas', 'sigla' => 'SDAF'],
+                    'unidad_administrativa' => ['nombre' => 'DIRECCIÓN DPTAL. DE RECURSOS HUMANOS', 'sigla' => 'DRRHH'],
+                    'procedure_type' => 'eventual',
+                    'start' => '2026-07-14',
+                    'finish' => '2026-12-31',
+                ],
+            ],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.mamore', ['ci' => '7604314']))
+        ->assertOk()
+        ->assertSee('Contrato vigente')
+        ->assertSee('APOYO ADMINISTRATIVO - (Analista II)')
+        ->assertSee('DRRHH')
+        ->assertSee('Con contrato');
+});
+
+test('la ficha de Mamoré avisa cuando la persona no tiene contrato', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people/ci/*' => Http::response([
+            'data' => ['id' => 500, 'full_name' => 'CLAUDIA VARGAS', 'ci' => '1938650', 'has_contract' => false, 'contrato' => null],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.mamore', ['ci' => '1938650']))
+        ->assertOk()
+        ->assertSee('CLAUDIA VARGAS')
+        ->assertSee('Sin contrato')
+        ->assertSee('no tiene un contrato firmado en Mamoré')
+        ->assertDontSee('Contrato vigente');
+});
+
+test('la ficha de Mamoré trae el panel AJAX de marcaciones con esa cédula', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people/ci/*' => Http::response([
+            'data' => ['id' => 25, 'full_name' => 'IGNACIO MOLINA GUZMAN', 'ci' => '7633685'],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.mamore', ['ci' => '7633685']))
+        ->assertOk()
+        ->assertSee('Marcaciones')
+        ->assertSee('id="m-results"', false)
+        ->assertSee('const ci = "7633685"', false);
+});
+
+test('la ficha de Mamoré ofrece el reporte imprimible solo si la cédula está en la base local', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people/ci/*' => Http::response([
+            'data' => ['id' => 25, 'full_name' => 'IGNACIO MOLINA GUZMAN', 'ci' => '7633685'],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.mamore', ['ci' => '7633685']))
+        ->assertOk()
+        ->assertDontSee('Imprimir reporte');
+
+    Persona::factory()->create(['ci' => '7633685']);
+
+    $this->get(route('funcionarios.mamore', ['ci' => '7633685']))
+        ->assertOk()
+        ->assertSee('Imprimir reporte');
+});
+
 test('la ficha de Mamoré da 404 si la cédula no existe', function () {
     config()->set('services.mamore.url', 'http://mamore.test/api/personal');
     config()->set('services.mamore.key', 'secreta');
@@ -181,57 +423,61 @@ test('un usuario sin permiso no puede entrar al listado', function () {
     $this->get(route('funcionarios.index'))->assertForbidden();
 });
 
-test('la ficha muestra las marcaciones del funcionario dentro del rango por defecto', function () {
+test('la ficha trae el panel AJAX de marcaciones del funcionario', function () {
     $persona = Persona::factory()->create(['ci' => '7778888']);
 
+    $this->get(route('funcionarios.show', $persona))
+        ->assertOk()
+        ->assertSee('Marcaciones')
+        ->assertSee('id="m-results"', false)
+        ->assertSee('const ci = "7778888"', false)
+        ->assertSee('Imprimir reporte');
+});
+
+test('el listado AJAX muestra las marcaciones de la cédula dentro del rango por defecto', function () {
     Asistencia::factory()->create([
-        'ci' => $persona->ci,
+        'ci' => '7778888',
         'fecha' => today(),
         'hora' => '1899-12-30 08:15:00',
         'tipo' => Asistencia::TIPO_RELOJ,
     ]);
 
-    $this->get(route('funcionarios.show', $persona))
+    $this->get(route('funcionarios.marcaciones.list', ['ci' => '7778888']))
         ->assertOk()
         ->assertSee('08:15:00');
 });
 
-test('la ficha no mezcla marcaciones de otro funcionario', function () {
-    $persona = Persona::factory()->create(['ci' => '7778888']);
-    $otro = Persona::factory()->create(['ci' => '1112222']);
+test('el listado AJAX no mezcla marcaciones de otra cédula', function () {
+    Asistencia::factory()->create(['ci' => '7778888', 'fecha' => today(), 'hora' => '1899-12-30 08:00:00']);
+    Asistencia::factory()->create(['ci' => '1112222', 'fecha' => today(), 'hora' => '1899-12-30 09:00:00']);
 
-    Asistencia::factory()->create(['ci' => $persona->ci, 'fecha' => today(), 'hora' => '1899-12-30 08:00:00']);
-    Asistencia::factory()->create(['ci' => $otro->ci, 'fecha' => today(), 'hora' => '1899-12-30 09:00:00']);
-
-    $this->get(route('funcionarios.show', $persona))
+    $this->get(route('funcionarios.marcaciones.list', ['ci' => '7778888']))
         ->assertOk()
         ->assertSee('08:00:00')
         ->assertDontSee('09:00:00');
 });
 
-test('la ficha filtra las marcaciones por rango de fechas y tipo', function () {
-    $persona = Persona::factory()->create(['ci' => '7778888']);
-
+test('el listado AJAX de marcaciones filtra por rango de fechas y tipo', function () {
     Asistencia::factory()->create([
-        'ci' => $persona->ci,
+        'ci' => '7778888',
         'fecha' => today()->subMonths(3),
         'hora' => '1899-12-30 07:00:00',
         'tipo' => Asistencia::TIPO_MANUAL,
     ]);
     Asistencia::factory()->create([
-        'ci' => $persona->ci,
+        'ci' => '7778888',
         'fecha' => today(),
         'hora' => '1899-12-30 08:00:00',
         'tipo' => Asistencia::TIPO_RELOJ,
     ]);
 
-    $this->get(route('funcionarios.show', $persona))
+    $this->get(route('funcionarios.marcaciones.list', ['ci' => '7778888']))
         ->assertOk()
         ->assertSee('08:00:00')
         ->assertDontSee('07:00:00');
 
-    $this->get(route('funcionarios.show', [
-        'persona' => $persona,
+    $this->get(route('funcionarios.marcaciones.list', [
+        'ci' => '7778888',
         'desde' => today()->subMonths(4)->toDateString(),
         'hasta' => today()->toDateString(),
         'tipo' => Asistencia::TIPO_MANUAL,
@@ -239,6 +485,20 @@ test('la ficha filtra las marcaciones por rango de fechas y tipo', function () {
         ->assertOk()
         ->assertSee('07:00:00')
         ->assertDontSee('08:00:00');
+});
+
+test('el listado AJAX de marcaciones respeta el selector de registros por página', function () {
+    Asistencia::factory()->count(12)->create(['ci' => '7778888', 'fecha' => today()]);
+
+    $this->get(route('funcionarios.marcaciones.list', ['ci' => '7778888', 'por_pagina' => 10]))
+        ->assertOk()
+        ->assertViewHas('marcaciones', fn ($marcaciones): bool => $marcaciones->count() === 10);
+});
+
+test('un usuario sin permiso no puede pedir las marcaciones por AJAX', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('funcionarios.marcaciones.list', ['ci' => '7778888']))->assertForbidden();
 });
 
 test('el reporte imprimible lista las marcaciones crudas del rango', function () {

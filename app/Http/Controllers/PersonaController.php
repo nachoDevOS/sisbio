@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\MamoreException;
+use App\Models\Asistencia;
 use App\Models\Persona;
 use App\Services\DirectorioMamore;
 use App\Services\MamoreClient;
+use App\Services\ResolutorNombres;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -43,20 +45,25 @@ class PersonaController extends Controller
         $busqueda = trim((string) $request->query('q', ''));
         $porPagina = $this->porPagina($request);
         $fuente = $request->query('fuente') === 'siat' ? 'siat' : 'mamore';
+        $contrato = $this->contrato($request);
         $errorFuente = null;
+        $totales = ['con' => null, 'sin' => null];
 
         if ($fuente === 'siat') {
+            // SIAT no conoce los contratos: el filtro es solo de Mamoré.
+            $contrato = 'todos';
             $funcionarios = $this->funcionariosLocales($busqueda, $porPagina);
         } else {
-            [$funcionarios, $errorFuente] = $this->funcionariosMamore($request, $mamore, $busqueda, $porPagina);
+            [$funcionarios, $errorFuente, $totales] = $this->funcionariosMamore($request, $mamore, $busqueda, $porPagina, $contrato);
         }
 
-        return view('funcionarios.list', compact('funcionarios', 'fuente', 'errorFuente'));
+        return view('funcionarios.list', compact('funcionarios', 'fuente', 'contrato', 'totales', 'errorFuente'));
     }
 
     /**
-     * Ficha de detalle de un funcionario local (SIAT), con sus marcaciones
-     * filtradas por rango de fechas y tipo.
+     * Ficha de detalle de un funcionario local (SIAT). Las marcaciones no van
+     * en esta respuesta: el panel las carga por AJAX contra
+     * `marcacionesList()`, como el listado principal.
      */
     public function show(Request $request, Persona $persona): View
     {
@@ -68,28 +75,48 @@ class PersonaController extends Controller
         $hasta = $request->query('hasta', now()->toDateString());
         $tipo = $request->query('tipo', '');
 
-        $marcaciones = $persona->marcaciones()
-            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('fecha', '>=', $d))
-            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('fecha', '<=', $h))
-            ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
-            ->orderByDesc('fecha')
-            ->orderByDesc('hora')
-            ->paginate(25, pageName: 'marcaciones_page')
-            ->withQueryString();
-
         $licencias = $persona->licencias()
             ->with('turno')
             ->orderByDesc('fecha')
             ->paginate(10, pageName: 'licencias_page')
             ->withQueryString();
 
-        return view('funcionarios.show', compact('persona', 'marcaciones', 'licencias', 'desde', 'hasta', 'tipo'));
+        return view('funcionarios.show', compact('persona', 'licencias', 'desde', 'hasta', 'tipo'));
+    }
+
+    /**
+     * Devuelve el parcial de las marcaciones de una cédula (tabla +
+     * paginación) para el AJAX del panel de la ficha. Sirve tanto a la ficha
+     * local como a la de Mamoré: `asistencias` se cruza por CI, así que no
+     * hace falta que la persona exista en la base local.
+     */
+    public function marcacionesList(Request $request): View
+    {
+        $this->authorize('viewAny', Persona::class);
+
+        $ci = trim((string) $request->query('ci', ''));
+        $desde = $request->query('desde', now()->startOfMonth()->toDateString());
+        $hasta = $request->query('hasta', now()->toDateString());
+        $tipo = $request->query('tipo', '');
+
+        $marcaciones = Asistencia::query()
+            ->where('ci', $ci)
+            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('fecha', '>=', $d))
+            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('fecha', '<=', $h))
+            ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora')
+            ->paginate($this->porPagina($request, 25))
+            ->withQueryString();
+
+        return view('funcionarios.marcaciones-list', compact('marcaciones'));
     }
 
     /**
      * Ficha de solo lectura de una persona de la API de Mamoré (por cédula).
+     * Sus marcaciones las carga el panel por AJAX contra `marcacionesList()`.
      */
-    public function mamoreShow(string $ci, MamoreClient $mamore): View
+    public function mamoreShow(Request $request, string $ci, MamoreClient $mamore): View
     {
         $this->authorize('viewAny', Persona::class);
 
@@ -101,7 +128,16 @@ class PersonaController extends Controller
 
         abort_if($persona === null, 404);
 
-        return view('funcionarios.mamore-show', ['persona' => $persona]);
+        $ciMarcaciones = trim((string) ($persona['ci'] ?? $ci));
+        $desde = $request->query('desde', now()->startOfMonth()->toDateString());
+        $hasta = $request->query('hasta', now()->toDateString());
+        $tipo = $request->query('tipo', '');
+
+        // El reporte imprimible cuelga del funcionario local: solo se ofrece si
+        // esta cédula también está en la base local.
+        $personaLocal = Persona::query()->where('ci', $ciMarcaciones)->first();
+
+        return view('funcionarios.mamore-show', compact('persona', 'personaLocal', 'desde', 'hasta', 'tipo'));
     }
 
     /**
@@ -109,7 +145,7 @@ class PersonaController extends Controller
      * todas las marcaciones crudas del rango (sin paginar, en orden
      * cronológico), con el formato del sistema de escritorio viejo.
      */
-    public function reporteMarcaciones(Request $request, Persona $persona): View
+    public function reporteMarcaciones(Request $request, Persona $persona, ResolutorNombres $resolutor): View
     {
         $this->authorize('view', $persona);
 
@@ -125,7 +161,38 @@ class PersonaController extends Controller
             ->orderBy('hora')
             ->get();
 
-        return view('reportes.marcaciones.sinProcesar.print', compact('persona', 'marcaciones', 'desde', 'hasta', 'tipo'));
+        // El reporte se imprime con la ficha resuelta (Mamoré primero, para que
+        // salga el cargo), con la base local como respaldo.
+        $ficha = $resolutor->fichaPorCi((string) $persona->ci) ?? [
+            'ci' => trim((string) $persona->ci),
+            'nombre' => $persona->nombre_completo ?: '—',
+            'nombreFormal' => collect([$persona->paterno, $persona->materno, $persona->nombres])
+                ->map(fn ($parte): string => trim((string) $parte))
+                ->filter()
+                ->implode(' ') ?: '—',
+            'cargo' => null,
+            'direccion' => null,
+            'pinReloj' => trim((string) $persona->pinReloj),
+        ];
+
+        return view('reportes.marcaciones.sinProcesar.print', [
+            'persona' => $ficha,
+            'marcaciones' => $marcaciones,
+            'desde' => $desde,
+            'hasta' => $hasta,
+            'tipo' => $tipo,
+        ]);
+    }
+
+    /**
+     * Filtro de contrato del listado: «todos» (por defecto), «con» o «sin».
+     * Cualquier otro valor cae en «todos» para no dejar la tabla vacía.
+     */
+    private function contrato(Request $request): string
+    {
+        $contrato = (string) $request->query('contrato', 'todos');
+
+        return in_array($contrato, ['con', 'sin'], true) ? $contrato : 'todos';
     }
 
     /**
@@ -149,6 +216,10 @@ class PersonaController extends Controller
                 'nacimiento' => $persona->fechaNacimiento?->format('d/m/Y'),
                 'edad' => $persona->fechaNacimiento?->age,
                 'ver' => route('funcionarios.show', $persona),
+                // SIAT no tiene contratos: las columnas de Mamoré van vacías.
+                'cargo' => null,
+                'direccion' => null,
+                'conContrato' => null,
             ]);
     }
 
@@ -156,20 +227,24 @@ class PersonaController extends Controller
      * Funcionarios de la API de Mamoré, normalizados a la forma común de la
      * tabla. Si la API falla, devuelve un paginador vacío y el mensaje de error.
      *
+     * La fuente es siempre `/people`: devuelve todas las personas y cada una
+     * trae su contrato firmado (de donde salen el cargo y la dirección) o `null`.
+     * El filtro por situación de contrato lo resuelve la propia API.
+     *
      * La API busca por un solo término (no cruza nombre + apellido). Para
      * buscar por varias palabras, se trae un lote por el término más largo y se
      * filtra localmente por todas las palabras.
      *
-     * @return array{0: LengthAwarePaginator, 1: ?string}
+     * @return array{0: LengthAwarePaginator, 1: ?string, 2: array{con: ?int, sin: ?int}}
      */
-    private function funcionariosMamore(Request $request, MamoreClient $mamore, string $busqueda, int $porPagina): array
+    private function funcionariosMamore(Request $request, MamoreClient $mamore, string $busqueda, int $porPagina, string $contrato): array
     {
         $terminos = preg_split('/\s+/', trim($busqueda), -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $pagina = max(1, (int) $request->query('page', 1));
 
         try {
             if (count($terminos) <= 1) {
-                $respuesta = $mamore->people($pagina, $porPagina, $busqueda);
+                $respuesta = $mamore->people($pagina, $porPagina, $busqueda, $contrato);
                 $meta = $respuesta['meta'] ?? [];
 
                 $paginador = new Paginador(
@@ -180,11 +255,11 @@ class PersonaController extends Controller
                     ['path' => $request->url(), 'query' => $request->query()],
                 );
 
-                return [$paginador, null];
+                return [$paginador, null, $this->totalesPorContrato($meta)];
             }
 
             $terminoMasLargo = collect($terminos)->sortByDesc(fn (string $t): int => mb_strlen($t))->first();
-            $respuesta = $mamore->people(1, 100, (string) $terminoMasLargo);
+            $respuesta = $mamore->people(1, 100, (string) $terminoMasLargo, $contrato);
 
             $filtrados = collect($this->normalizarMamore($respuesta['data'] ?? []))
                 ->filter(function (array $fila) use ($terminos): bool {
@@ -208,10 +283,27 @@ class PersonaController extends Controller
                 ['path' => $request->url(), 'query' => $request->query()],
             );
 
-            return [$paginador, null];
+            // Con búsqueda de varias palabras el filtrado es local, así que los
+            // totales de la API no corresponden a lo que se está mostrando.
+            return [$paginador, null, ['con' => null, 'sin' => null]];
         } catch (MamoreException $e) {
-            return [$this->paginadorVacio($request, $porPagina), $e->getMessage()];
+            return [$this->paginadorVacio($request, $porPagina), $e->getMessage(), ['con' => null, 'sin' => null]];
         }
+    }
+
+    /**
+     * Totales de cada situación de contrato para etiquetar el select. La API los
+     * entrega en su `meta`, ya con la búsqueda aplicada.
+     *
+     * @param  array<string, mixed>  $meta
+     * @return array{con: ?int, sin: ?int}
+     */
+    private function totalesPorContrato(array $meta): array
+    {
+        return [
+            'con' => isset($meta['total_con_contrato']) ? (int) $meta['total_con_contrato'] : null,
+            'sin' => isset($meta['total_sin_contrato']) ? (int) $meta['total_sin_contrato'] : null,
+        ];
     }
 
     /**

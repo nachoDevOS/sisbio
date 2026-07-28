@@ -259,6 +259,19 @@ test('la columna funcionario usa el nombre de Mamoré cuando existe', function (
         ->assertDontSee('Eva Diaz');
 });
 
+test('la columna funcionario muestra el cargo que informa Mamoré', function () {
+    fakeMamore(['777' => ['nombre' => 'MARIELA CRUZ PORCO', 'cargo' => 'Analista II', 'direccion' => 'SDAF']]);
+
+    DB::table('asistencias')->insert([
+        'ci' => '777', 'fecha' => today(), 'hora' => '1899-12-30 08:00:00', 'tipo' => 'R',
+    ]);
+
+    $this->get(route('marcaciones.list'))
+        ->assertOk()
+        ->assertSee('MARIELA CRUZ PORCO')
+        ->assertSee('Analista II');
+});
+
 test('la columna funcionario cae a la BD local si no está en Mamoré', function () {
     config()->set('services.mamore.url', 'http://mamore.test/api/personal');
     config()->set('services.mamore.key', 'secreta');

@@ -65,11 +65,11 @@ class MarcacionController extends Controller
             ->paginate($porPagina)
             ->withQueryString();
 
-        // La columna «Funcionario» sale de Mamoré y, si el CI no está ahí, de
-        // la base local (App\Services\ResolutorNombres).
-        $nombres = $resolutor->porCi($marcaciones->pluck('ci'));
+        // La columna «Funcionario» (nombre y cargo) sale de Mamoré y, si el CI no
+        // está ahí, de la base local (App\Services\ResolutorNombres).
+        $fichas = $resolutor->fichasPorCi($marcaciones->pluck('ci'));
 
-        return view('marcaciones.list', compact('marcaciones', 'nombres'));
+        return view('marcaciones.list', compact('marcaciones', 'fichas'));
     }
 
     /**

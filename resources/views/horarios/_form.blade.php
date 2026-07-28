@@ -17,7 +17,7 @@
      }"
      x-effect="nombre = (abreviaturas[dia] && hEntrada && hSalida) ? (abreviaturas[dia] + ': ' + hEntrada + ' - ' + hSalida) : ''">
     <div class="tarjeta" style="grid-column: 1 / -1;">
-        <h2>Descripción del horario</h2>
+        <h2>Descripción del turno</h2>
         <div class="grid-2">
             <div class="campo">
                 <label for="Dia">Día <span class="req">*</span></label>
@@ -31,7 +31,7 @@
             </div>
 
             <div class="campo">
-                <label for="NombreTurno">Nombre del horario <span class="req">*</span></label>
+                <label for="NombreTurno">Nombre del turno <span class="req">*</span></label>
                 <input type="text" id="NombreTurno" name="NombreTurno" maxlength="25"
                        :value="nombre" readonly required>
                 <div class="ayuda">Se arma solo con el día y las horas de entrada/salida.</div>

@@ -107,7 +107,7 @@ class DiaTurnoController extends Controller
 
         return redirect()
             ->route('horarios.index')
-            ->with('estado', 'Horario registrado correctamente.');
+            ->with('estado', 'Turno registrado correctamente.');
     }
 
     /**
@@ -132,7 +132,7 @@ class DiaTurnoController extends Controller
 
         return redirect()
             ->route('horarios.index')
-            ->with('estado', 'Horario actualizado correctamente.');
+            ->with('estado', 'Turno actualizado correctamente.');
     }
 
     /**
@@ -150,12 +150,12 @@ class DiaTurnoController extends Controller
             // se avisa en vez de reventar con un error 500.
             return redirect()
                 ->route('horarios.index')
-                ->with('error', 'No se puede eliminar el horario: está en uso por licencias o asignaciones.');
+                ->with('error', 'No se puede eliminar el turno: está en uso por licencias o asignaciones.');
         }
 
         return redirect()
             ->route('horarios.index')
-            ->with('estado', 'Horario eliminado.');
+            ->with('estado', 'Turno eliminado.');
     }
 
     /**

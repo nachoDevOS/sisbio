@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('titulo', 'Horario ' . trim($horario->nombreTurno))
+@section('titulo', 'Turno ' . trim($horario->nombreTurno))
 
 @php
     $hm = fn ($valor) => $valor?->format('H:i') ?? '—';
@@ -10,7 +10,7 @@
     <div class="cabecera">
         <div class="cabecera__titulo">
             <span class="cabecera__icono"><x-heroicon-o-clock /></span>
-            <h1>{{ trim($horario->nombreTurno) ?: 'Horario' }}</h1>
+            <h1>{{ trim($horario->nombreTurno) ?: 'Turno' }}</h1>
         </div>
         <div class="acciones">
             <a href="{{ route('horarios.edit', $horario) }}" class="btn"><x-heroicon-o-pencil-square />Editar</a>
@@ -20,14 +20,14 @@
 
     <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
         <div class="tarjeta" style="grid-column: 1 / -1;">
-            <h2>Descripción del horario</h2>
+            <h2>Descripción del turno</h2>
             <dl class="datos grid-2">
                 <div>
                     <dt>Día</dt>
                     <dd>{{ $horario->nombre_dia }}</dd>
                 </div>
                 <div>
-                    <dt>Nombre del horario</dt>
+                    <dt>Nombre del turno</dt>
                     <dd>{{ trim($horario->nombreTurno) }}</dd>
                 </div>
             </dl>
