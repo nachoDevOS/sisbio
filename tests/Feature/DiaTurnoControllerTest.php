@@ -122,10 +122,13 @@ test('actualiza un horario existente', function () {
 test('elimina un horario (lógicamente)', function () {
     $horario = Turno::factory()->create();
 
-    $this->delete(route('horarios.destroy', $horario))
+    $this->delete(route('horarios.destroy', $horario), ['deleteObservacion' => 'Turno que ya no se usa.'])
         ->assertRedirect(route('horarios.index'));
 
-    $this->assertSoftDeleted('turnos', ['id' => $horario->id]);
+    $this->assertSoftDeleted('turnos', [
+        'id' => $horario->id,
+        'deleteObservacion' => 'Turno que ya no se usa.',
+    ]);
 });
 
 test('un invitado no puede entrar al listado', function () {

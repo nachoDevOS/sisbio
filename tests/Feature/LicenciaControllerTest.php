@@ -951,7 +951,7 @@ test('elimina una licencia de forma lógica y registra quién la borró', functi
     $licencia = Licencia::factory()->create();
 
     $this->from(route('licencias.index'))
-        ->delete(route('licencias.destroy', $licencia))
+        ->delete(route('licencias.destroy', $licencia), ['deleteObservacion' => 'Anotada en la fecha equivocada.'])
         ->assertRedirect(route('licencias.index'));
 
     expect(Licencia::query()->whereKey($licencia->getKey())->exists())->toBeFalse();
@@ -959,7 +959,8 @@ test('elimina una licencia de forma lógica y registra quién la borró', functi
     $borrada = Licencia::onlyTrashed()->find($licencia->getKey());
 
     expect($borrada)->not->toBeNull()
-        ->and($borrada->deleteUser_id)->toBe($admin->id);
+        ->and($borrada->deleteUser_id)->toBe($admin->id)
+        ->and($borrada->deleteObservacion)->toBe('Anotada en la fecha equivocada.');
 });
 
 test('la ficha del funcionario ofrece registrar licencia y lista las suyas', function () {

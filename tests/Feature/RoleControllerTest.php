@@ -65,19 +65,24 @@ test('actualiza los permisos de un rol existente', function () {
 test('elimina un rol de forma lógica', function () {
     $rol = Role::create(['name' => 'temporal', 'guard_name' => 'web']);
 
-    $this->delete(route('roles.destroy', $rol))
+    $this->delete(route('roles.destroy', $rol), ['deleteObservacion' => 'Rol de prueba que ya no se usa.'])
         ->assertRedirect(route('roles.index'));
 
     // Borrado lógico: desaparece de las consultas normales pero sigue en la
-    // base marcado con deleted_at.
-    expect(Role::where('name', 'temporal')->exists())->toBeFalse()
-        ->and(Role::onlyTrashed()->where('name', 'temporal')->exists())->toBeTrue();
+    // base marcado con deleted_at, con quién lo borró y por qué.
+    expect(Role::where('name', 'temporal')->exists())->toBeFalse();
+
+    $borrado = Role::onlyTrashed()->where('name', 'temporal')->first();
+
+    expect($borrado)->not->toBeNull()
+        ->and($borrado->deleteUser_id)->toBe(auth()->id())
+        ->and($borrado->deleteObservacion)->toBe('Rol de prueba que ya no se usa.');
 });
 
 test('nunca se puede eliminar el rol super_admin', function () {
     $superAdmin = Role::where('name', 'super_admin')->first();
 
-    $this->delete(route('roles.destroy', $superAdmin))
+    $this->delete(route('roles.destroy', $superAdmin), ['deleteObservacion' => 'Intento de baja del rol raíz.'])
         ->assertRedirect()
         ->assertSessionHas('error');
 

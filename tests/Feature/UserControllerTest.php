@@ -97,11 +97,16 @@ test('actualiza la contraseña cuando se envía una nueva', function () {
 test('elimina un usuario (lógicamente)', function () {
     $user = User::factory()->create();
 
-    $this->delete(route('usuarios.destroy', $user))
+    $this->delete(route('usuarios.destroy', $user), ['deleteObservacion' => 'Dejó la institución.'])
         ->assertRedirect(route('usuarios.index'));
 
-    // Eliminación lógica: la fila queda con deleted_at, no se borra.
-    $this->assertSoftDeleted('users', ['id' => $user->id]);
+    // Eliminación lógica: la fila queda con deleted_at, no se borra, y con el
+    // motivo y el usuario que dio la baja.
+    $this->assertSoftDeleted('users', [
+        'id' => $user->id,
+        'deleteUser_id' => auth()->id(),
+        'deleteObservacion' => 'Dejó la institución.',
+    ]);
 });
 
 test('un usuario sin permiso no puede entrar al listado', function () {

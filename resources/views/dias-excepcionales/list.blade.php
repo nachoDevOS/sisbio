@@ -16,12 +16,8 @@
                     <td>{{ $dia->motivoInasistencia ?: '—' }}</td>
                     <td class="acciones">
                         <a href="{{ route('dias-excepcionales.edit', $dia) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
-                        <form action="{{ route('dias-excepcionales.destroy', $dia) }}" method="POST"
-                              onsubmit="return confirm('¿Eliminar el día excepcional del {{ $dia->fecha?->format('d/m/Y') }}?');">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn-icon btn-icon--peligro" title="Eliminar" aria-label="Eliminar"><x-heroicon-o-trash /></button>
-                        </form>
+                        <x-boton-eliminar :accion="route('dias-excepcionales.destroy', $dia)"
+                                          :mensaje="'Se elimina el día excepcional del '.$dia->fecha?->format('d/m/Y').'.'" />
                     </td>
                 </tr>
             @empty

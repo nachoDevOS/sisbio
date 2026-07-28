@@ -32,12 +32,8 @@
                         <div class="acciones">
                             <a href="{{ route('horarios.show', $horario) }}" class="btn-icon btn-icon--gris" title="Ver" aria-label="Ver"><x-heroicon-o-eye /></a>
                             <a href="{{ route('horarios.edit', $horario) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
-                            <form action="{{ route('horarios.destroy', $horario) }}" method="POST"
-                                  onsubmit="return confirm('¿Eliminar el turno «{{ trim($horario->nombreTurno) }}»?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn-icon btn-icon--peligro" title="Eliminar" aria-label="Eliminar"><x-heroicon-o-trash /></button>
-                            </form>
+                            <x-boton-eliminar :accion="route('horarios.destroy', $horario)"
+                                              :mensaje="'Se elimina el turno «'.trim($horario->nombreTurno).'».'" />
                         </div>
                     </td>
                 </tr>

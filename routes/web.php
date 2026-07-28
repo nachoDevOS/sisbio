@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AsignacionTurnoController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DiaExcepcionalController;
@@ -61,6 +62,11 @@ Route::middleware('auth')->group(function (): void {
     Route::get('horarios/ajax/list', [DiaTurnoController::class, 'list'])->name('horarios.list');
     Route::resource('horarios', DiaTurnoController::class)
         ->parameters(['horarios' => 'horario']);
+
+    // Turnos asignados a cada funcionario (solo lectura): la asignación se cruza
+    // con el funcionario por CI, y con el turno por la FK `turno_id`.
+    Route::get('turnos-asignados/ajax/list', [AsignacionTurnoController::class, 'list'])->name('turnos-asignados.list');
+    Route::get('turnos-asignados', [AsignacionTurnoController::class, 'index'])->name('turnos-asignados.index');
 
     // Licencias/permisos de personal: listado AJAX + pantalla «Licenciar»
     // (turnos asignados + rango de fechas). Sin edición: se anota o se elimina.

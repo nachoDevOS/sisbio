@@ -260,6 +260,21 @@
         .enlace-cancelar:hover { color: var(--fg); text-decoration: underline; }
         .enlace-cancelar:disabled { opacity: .5; cursor: default; text-decoration: none; }
 
+        /* ===== Modal global de eliminación: el mismo aviso para todas las
+             bajas del sistema, con casilla de confirmación ===== */
+        .modal-caja--peligro { max-width: 26rem; text-align: center; }
+        .modal-caja--peligro h2 { margin: .8rem 0 .4rem; }
+        .modal-caja--peligro form { margin: 0; }
+        .modal-peligro__icono { display: inline-flex; align-items: center; justify-content: center;
+            width: 3.25rem; height: 3.25rem; border-radius: 50%; background: #fee2e2; color: var(--danger); }
+        .modal-peligro__icono svg { width: 1.6rem; height: 1.6rem; }
+        .modal-peligro__motivo { text-align: left; margin: 1rem 0 0; }
+        .modal-peligro__confirmar { display: flex; align-items: flex-start; gap: .55rem; text-align: left;
+            margin-top: 1rem; padding: .65rem .8rem; border: 1px solid var(--border); border-radius: .55rem;
+            background: var(--bg); font-size: .8125rem; line-height: 1.4; cursor: pointer; }
+        .modal-peligro__confirmar input { width: 1.05rem; height: 1.05rem; margin: .1rem 0 0; flex-shrink: 0; }
+        .modal-acciones--centro { justify-content: center; }
+
         /* ===== Filtros de tabla estilo DataTables: «Mostrar N registros» a la
              izquierda y buscador pill a la derecha, en una fila sobre la tabla ===== */
         .tabla-filtros { display: flex; align-items: center; justify-content: space-between;
@@ -423,6 +438,7 @@
                 'marcaciones' => request()->routeIs('marcaciones.*'),
                 'dias-excepcionales' => request()->routeIs('dias-excepcionales.*'),
                 'horarios' => request()->routeIs('horarios.*'),
+                'turnos-asignados' => request()->routeIs('turnos-asignados.*'),
                 'licencias' => request()->routeIs('licencias.*'),
                 'reportes' => request()->routeIs('reportes.*'),
                 'equipos' => request()->routeIs('equipos.*'),
@@ -431,7 +447,8 @@
             ];
             // El grupo «Parámetros» arranca desplegado cuando la pantalla actual
             // es una de las suyas; si no, el ítem activo quedaría escondido.
-            $enParametros = $enMenu['dias-excepcionales'] || $enMenu['horarios'] || $enMenu['licencias'];
+            $enParametros = $enMenu['dias-excepcionales'] || $enMenu['horarios']
+                || $enMenu['turnos-asignados'] || $enMenu['licencias'];
         @endphp
 
         {{-- El texto de cada opción va en su propio span: plegado queda solo el
@@ -462,6 +479,9 @@
                     </a>
                     <a href="{{ route('horarios.index') }}" @class(['sidebar__sublink', 'activo' => $enMenu['horarios']]) title="Turnos"@if ($enMenu['horarios']) aria-current="page"@endif>
                         <x-heroicon-o-clock /><span class="sidebar__texto">Turnos</span>
+                    </a>
+                    <a href="{{ route('turnos-asignados.index') }}" @class(['sidebar__sublink', 'activo' => $enMenu['turnos-asignados']]) title="Turnos asignados"@if ($enMenu['turnos-asignados']) aria-current="page"@endif>
+                        <x-heroicon-o-user-group /><span class="sidebar__texto">Turnos asignados</span>
                     </a>
                     <a href="{{ route('licencias.index') }}" @class(['sidebar__sublink', 'activo' => $enMenu['licencias']]) title="Licencias"@if ($enMenu['licencias']) aria-current="page"@endif>
                         <x-heroicon-o-clipboard-document-check /><span class="sidebar__texto">Licencias</span>
@@ -539,11 +559,100 @@
         </main>
     </div>
 
+    {{--
+        Modal global de eliminación. Los botones <x-boton-eliminar> no envían
+        nada por su cuenta: cargan aquí la URL del destroy y el texto de lo que
+        se va a borrar, y este único formulario manda el DELETE. El estado vive
+        en un store de Alpine (no en un x-data) para que también lo puedan abrir
+        los botones de las tablas que se inyectan por AJAX.
+    --}}
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('eliminar', {
+                abierto: false,
+                url: '',
+                mensaje: '',
+                motivo: '',
+                confirmado: false,
+                enviando: false,
+                // Mismo mínimo que valida el servidor: un motivo de una palabra
+                // no le sirve a nadie cuando después se revisa por qué se borró.
+                motivoMinimo: 5,
+                abrir(url, mensaje) {
+                    this.url = url;
+                    this.mensaje = mensaje;
+                    this.motivo = '';
+                    this.confirmado = false;
+                    this.enviando = false;
+                    this.abierto = true;
+                },
+                get motivoValido() {
+                    return this.motivo.trim().length >= this.motivoMinimo;
+                },
+                cerrar() {
+                    // Ya salió el DELETE: cerrar dejaría creer que no pasó nada.
+                    if (this.enviando) { return; }
+
+                    this.abierto = false;
+                },
+            });
+        });
+    </script>
+    <div class="modal-fondo" x-data x-show="$store.eliminar.abierto" x-cloak
+         x-on:click.self="$store.eliminar.cerrar()"
+         x-on:keydown.escape.window="$store.eliminar.cerrar()"
+         role="dialog" aria-modal="true" aria-labelledby="titulo-eliminar-global">
+        <div class="modal-caja modal-caja--peligro">
+            <span class="modal-peligro__icono"><x-heroicon-o-trash /></span>
+            <h2 id="titulo-eliminar-global">¿Seguro que querés eliminar?</h2>
+            <p class="modal-bajada" x-text="$store.eliminar.mensaje"></p>
+
+            <form method="POST" id="form-eliminar-global" :action="$store.eliminar.url"
+                  x-on:submit="$store.eliminar.enviando = true">
+                @csrf
+                @method('DELETE')
+                {{-- El motivo viaja como `deleteObservacion`: el trait
+                     RegistersUserEvents lo graba en la fila junto con el usuario
+                     que dio la baja, antes de que SoftDeletes marque deleted_at. --}}
+                <div class="campo modal-peligro__motivo">
+                    <label for="motivo-eliminar-global">¿Por qué se elimina? <span class="req">*</span></label>
+                    <textarea id="motivo-eliminar-global" name="deleteObservacion" rows="2" required
+                              minlength="5" maxlength="500" x-model="$store.eliminar.motivo"
+                              placeholder="Ej.: cargado por error, ya no corresponde al funcionario"></textarea>
+                    <p class="ayuda">Queda guardado con la baja: es lo que se lee después para saber qué pasó.</p>
+                </div>
+                <label class="modal-peligro__confirmar">
+                    <input type="checkbox" required x-model="$store.eliminar.confirmado">
+                    <span>Sí, confirmo la eliminación. Esta acción no se puede deshacer.</span>
+                </label>
+                <div class="modal-acciones modal-acciones--centro">
+                    <button type="button" class="btn btn--gris" x-on:click="$store.eliminar.cerrar()"
+                            :disabled="$store.eliminar.enviando">Cancelar</button>
+                    <button type="submit" class="btn btn--peligro"
+                            :disabled="! $store.eliminar.confirmado || ! $store.eliminar.motivoValido || $store.eliminar.enviando">
+                        <span class="btn__contenido" x-show="! $store.eliminar.enviando"><x-heroicon-o-trash />Sí, eliminar</span>
+                        <span class="btn__contenido" x-show="$store.eliminar.enviando" x-cloak><span class="spinner-anillo"></span>Eliminando…</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     {{-- Toaster global: cualquier acción que redirija con flash 'estado'
          (éxito) o 'error' aparece aquí. El éxito se oculta solo; el error
          queda hasta que el usuario lo cierra. --}}
-    @if (session('estado') || session('error'))
+    @if (session('estado') || session('error') || $errors->has('deleteObservacion'))
         <div class="toaster" aria-live="polite">
+            {{-- El motivo de la baja se pide en un modal, no en una pantalla con
+                 sus errores: si el servidor lo rechaza, se avisa acá. --}}
+            @error('deleteObservacion')
+                <div class="toast toast--error" x-data="{ show: true }" x-show="show" x-cloak
+                     x-transition.opacity.duration.200ms>
+                    <x-heroicon-o-exclamation-triangle />
+                    <div class="toast__cuerpo">{{ $message }}</div>
+                    <button type="button" class="toast__cerrar" x-on:click="show = false" aria-label="Cerrar">&times;</button>
+                </div>
+            @enderror
             @if (session('estado'))
                 <div class="toast toast--ok" x-data="{ show: true }" x-show="show" x-cloak
                      x-init="setTimeout(() => show = false, 5000)"

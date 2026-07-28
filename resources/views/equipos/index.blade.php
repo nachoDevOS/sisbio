@@ -67,8 +67,6 @@
                                          respaldando: false,
                                          confirmacion: '',
                                          motivo: '',
-                                         modalEliminar: false,
-                                         motivoBaja: '',
                                          errorCsv: '',
                                          errorLimpiar: '',
                                          desde: '{{ now()->startOfMonth()->toDateString() }}',
@@ -179,7 +177,10 @@
 
                                         <div class="dropdown-menu__peligro">
                                             <button type="button" x-on:click="modalLimpiar = true; open = false; confirmacion = ''; motivo = ''"><x-heroicon-o-archive-box-x-mark />Borrar marcaciones</button>
-                                            <button type="button" x-on:click="modalEliminar = true; open = false; motivoBaja = ''"><x-heroicon-o-trash />Eliminar equipo</button>
+                                            <x-boton-eliminar variante="menu" etiqueta="Eliminar equipo"
+                                                              al-hacer-clic="open = false"
+                                                              :accion="route('equipos.destroy', $equipo)"
+                                                              :mensaje="'Se elimina el equipo «'.$equipo->nombre.'»: deja de aparecer en el listado y de participar en las sincronizaciones. Las marcaciones que ya estén en la base del SIA no se tocan, y el reloj tampoco se borra.'" />
                                         </div>
                                     </div>
 
@@ -300,36 +301,6 @@
                                         </div>
                                     </div>
 
-                                    {{-- Modal de baja del equipo. El motivo va como deleteObservacion:
-                                         el trait RegistersUserEvents lo guarda en la fila del equipo, y
-                                         el controlador lo copia además a la bitácora. --}}
-                                    <div class="modal-fondo" x-show="modalEliminar" x-cloak
-                                         x-on:click.self="modalEliminar = false" x-on:keydown.escape.window="modalEliminar = false">
-                                        <div class="modal-caja">
-                                            <h2>Eliminar el equipo «{{ $equipo->nombre }}»</h2>
-                                            <p style="margin: 0 0 1rem; font-size: .8125rem; line-height: 1.5;">
-                                                El equipo deja de aparecer en el listado y de participar en las
-                                                sincronizaciones. Las marcaciones que ya estén en la base del SIA
-                                                no se tocan, y el reloj tampoco se borra.
-                                            </p>
-                                            <div class="campo">
-                                                <label for="motivo-baja-{{ $equipo->id }}">¿Por qué se elimina? (queda en la bitácora)</label>
-                                                <textarea id="motivo-baja-{{ $equipo->id }}" x-model="motivoBaja" rows="2"
-                                                          placeholder="Ej.: equipo dado de baja por falla de hardware"></textarea>
-                                            </div>
-                                            <div class="modal-acciones">
-                                                <button type="button" class="btn btn--gris" x-on:click="modalEliminar = false">Cancelar</button>
-                                                <form method="POST" action="{{ route('equipos.destroy', $equipo) }}">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <input type="hidden" name="deleteObservacion" :value="motivoBaja">
-                                                    <button type="submit" class="btn btn--peligro" :disabled="motivoBaja.trim().length < 5">
-                                                        <x-heroicon-o-trash />Eliminar equipo
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </td>

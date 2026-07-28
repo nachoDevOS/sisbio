@@ -116,7 +116,7 @@ test('elimina un día excepcional de forma lógica y registra quién lo borró',
 
     $dia = DiaExcepcional::factory()->create();
 
-    $this->delete(route('dias-excepcionales.destroy', $dia))
+    $this->delete(route('dias-excepcionales.destroy', $dia), ['deleteObservacion' => 'Cargado por error.'])
         ->assertRedirect(route('dias-excepcionales.index'));
 
     expect(DiaExcepcional::query()->whereKey($dia->getKey())->exists())->toBeFalse();
@@ -124,7 +124,8 @@ test('elimina un día excepcional de forma lógica y registra quién lo borró',
     $borrado = DiaExcepcional::onlyTrashed()->find($dia->getKey());
 
     expect($borrado)->not->toBeNull()
-        ->and($borrado->deleteUser_id)->toBe($admin->id);
+        ->and($borrado->deleteUser_id)->toBe($admin->id)
+        ->and($borrado->deleteObservacion)->toBe('Cargado por error.');
 });
 
 test('un invitado no puede ver los días excepcionales', function () {

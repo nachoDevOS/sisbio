@@ -16,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -151,24 +152,25 @@ class EquipoController extends Controller
     /**
      * Da de baja un equipo (eliminación lógica).
      *
-     * Exige un motivo escrito: queda en la bitácora y también en la propia fila
-     * del equipo (`deleteObservacion`, que rellena el trait RegistersUserEvents
-     * leyéndolo del request).
+     * Quién borra y con qué motivo los graba el trait RegistersUserEvents en la
+     * fila del equipo. Acá el motivo se valida y se copia a la bitácora, que es
+     * lo propio de este módulo: un equipo no se da de baja sin dejar rastro.
      */
     public function destroy(Request $request, Equipo $equipo): RedirectResponse
     {
         $this->authorize('delete', $equipo);
 
-        $validado = $request->validate([
+        $request->validate([
             'deleteObservacion' => ['required', 'string', 'min:5', 'max:500'],
         ], [], ['deleteObservacion' => 'motivo']);
 
-        // Se anota antes de borrar, para tomarle la foto al equipo todavía vivo.
-        EquipoAuditoria::registrar($equipo, EquipoAuditoria::ACCION_ELIMINAR, [
-            'motivo' => $validado['deleteObservacion'],
-        ]);
+        DB::transaction(function () use ($equipo): void {
+            $equipo->delete();
 
-        $equipo->delete();
+            EquipoAuditoria::registrar($equipo, EquipoAuditoria::ACCION_ELIMINAR, [
+                'motivo' => $equipo->deleteObservacion,
+            ]);
+        });
 
         return redirect()
             ->route('equipos.index')

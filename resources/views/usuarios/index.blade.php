@@ -46,12 +46,11 @@
                                         Mas <x-heroicon-o-chevron-down />
                                     </button>
                                     <div class="dropdown-menu" x-show="open" x-cloak x-transition.opacity.duration.100ms>
-                                        <form action="{{ route('usuarios.destroy', $usuario) }}" method="POST"
-                                              onsubmit="return confirm('¿Eliminar al usuario «{{ $usuario->name }}»?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="peligro"><x-heroicon-o-trash />Eliminar</button>
-                                        </form>
+                                        <div class="dropdown-menu__peligro">
+                                            <x-boton-eliminar variante="menu"
+                                                              :accion="route('usuarios.destroy', $usuario)"
+                                                              :mensaje="'Se elimina el usuario «'.$usuario->name.'» y su acceso al sistema.'" />
+                                        </div>
                                     </div>
                                 </div>
                             </div>

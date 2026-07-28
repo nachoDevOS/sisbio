@@ -46,12 +46,8 @@
                     </td>
                     <td>{{ $licencia->motivo ?: '—' }}</td>
                     <td class="acciones">
-                        <form action="{{ route('licencias.destroy', $licencia) }}" method="POST"
-                              onsubmit="return confirm('¿Eliminar la licencia del {{ $licencia->fecha?->format('d/m/Y') }}?');">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="btn-icon btn-icon--peligro" title="Eliminar" aria-label="Eliminar"><x-heroicon-o-trash /></button>
-                        </form>
+                        <x-boton-eliminar :accion="route('licencias.destroy', $licencia)"
+                                          :mensaje="'Se elimina la licencia del '.$licencia->fecha?->format('d/m/Y').'.'" />
                     </td>
                 </tr>
             @empty

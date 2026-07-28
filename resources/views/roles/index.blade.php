@@ -32,12 +32,8 @@
                             <div class="acciones">
                                 <a href="{{ route('roles.edit', $rol) }}" class="btn-icon" title="Editar" aria-label="Editar"><x-heroicon-o-pencil-square /></a>
                                 @if ($rol->name !== 'super_admin')
-                                    <form action="{{ route('roles.destroy', $rol) }}" method="POST"
-                                          onsubmit="return confirm('¿Eliminar el rol «{{ $rol->name }}»?');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn-icon btn-icon--peligro" title="Eliminar" aria-label="Eliminar"><x-heroicon-o-trash /></button>
-                                    </form>
+                                    <x-boton-eliminar :accion="route('roles.destroy', $rol)"
+                                                      :mensaje="'Se elimina el rol «'.$rol->name.'». Los usuarios que lo tengan pierden sus permisos.'" />
                                 @endif
                             </div>
                         </td>
