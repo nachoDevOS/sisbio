@@ -137,6 +137,18 @@
             box-shadow: 0 1px 2px rgba(0,0,0,.05); }
         .card--padded { padding: 1.25rem; }
 
+        /* ===== Solapas (pie de la ficha del funcionario) ===== */
+        .tabs { display: flex; gap: .25rem; flex-wrap: wrap; border-bottom: 1px solid var(--border);
+            margin-bottom: 1rem; }
+        .tabs__boton { display: inline-flex; align-items: center; gap: .45rem; cursor: pointer;
+            background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+            padding: .55rem .9rem; font-family: inherit; font-size: .8125rem; font-weight: 600;
+            color: var(--muted); }
+        .tabs__boton svg { width: 1.05rem; height: 1.05rem; }
+        .tabs__boton:hover { color: var(--fg); background: var(--bg); border-radius: .4rem .4rem 0 0; }
+        .tabs__boton.activo { color: var(--thead); border-bottom-color: var(--verde); }
+        .tabs__panel[hidden] { display: none; }
+
         table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
         thead th { text-align: left; background: var(--thead); color: var(--thead-fg); font-size: .7rem;
             text-transform: uppercase; letter-spacing: .04em; padding: .6rem .75rem; }
@@ -230,6 +242,11 @@
         .modal-bajada { margin: 0 0 1rem; color: var(--muted); font-size: .8125rem; line-height: 1.45; }
         .modal-acciones { display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1.25rem; flex-wrap: wrap; }
         .modal-acciones form { margin: 0; }
+        /* Turnos vigentes dentro del modal de licencia: la caja no crece con
+           quien tiene muchos, la tabla se desplaza sola. */
+        .modal-licencia__turnos { max-height: 13rem; overflow-y: auto; margin-bottom: 1rem; }
+        .modal-licencia__turnos table { font-size: .75rem; }
+        .modal-licencia__turnos .paginacion { margin-top: .5rem; }
 
         /* Atajos de rango: evitan tipear las dos fechas en los casos de siempre. */
         .rangos-rapidos { display: flex; gap: .35rem; flex-wrap: wrap; margin: -.35rem 0 .25rem; }
@@ -578,9 +595,13 @@
                 // Mismo mínimo que valida el servidor: un motivo de una palabra
                 // no le sirve a nadie cuando después se revisa por qué se borró.
                 motivoMinimo: 5,
-                abrir(url, mensaje) {
+                // `ancla` es la solapa desde la que se borró: el controlador la
+                // usa para devolver al usuario ahí y no a la primera.
+                ancla: '',
+                abrir(url, mensaje, ancla = '') {
                     this.url = url;
                     this.mensaje = mensaje;
+                    this.ancla = ancla;
                     this.motivo = '';
                     this.confirmado = false;
                     this.enviando = false;
@@ -611,6 +632,7 @@
                   x-on:submit="$store.eliminar.enviando = true">
                 @csrf
                 @method('DELETE')
+                <input type="hidden" name="ancla" :value="$store.eliminar.ancla">
                 {{-- El motivo viaja como `deleteObservacion`: el trait
                      RegistersUserEvents lo graba en la fila junto con el usuario
                      que dio la baja, antes de que SoftDeletes marque deleted_at. --}}
@@ -632,6 +654,74 @@
                             :disabled="! $store.eliminar.confirmado || ! $store.eliminar.motivoValido || $store.eliminar.enviando">
                         <span class="btn__contenido" x-show="! $store.eliminar.enviando"><x-heroicon-o-trash />Sí, eliminar</span>
                         <span class="btn__contenido" x-show="$store.eliminar.enviando" x-cloak><span class="spinner-anillo"></span>Eliminando…</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{--
+        Modal global para concluir una asignación de turno. Mismo mecanismo que
+        el de eliminación (store de Alpine + un solo formulario), porque los
+        botones también viajan en tablas que se cargan por AJAX.
+
+        Concluir no borra: le pone fecha de fin a la asignación, así el turno
+        deja de estar vigente pero sigue explicando la historia del funcionario.
+    --}}
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.store('concluir', {
+                abierto: false,
+                url: '',
+                mensaje: '',
+                hasta: '',
+                origen: '',
+                enviando: false,
+                abrir(url, mensaje, hasta, origen = '') {
+                    this.url = url;
+                    this.mensaje = mensaje;
+                    this.hasta = hasta;
+                    this.origen = origen;
+                    this.enviando = false;
+                    this.abierto = true;
+                },
+                cerrar() {
+                    if (this.enviando) { return; }
+
+                    this.abierto = false;
+                },
+            });
+        });
+    </script>
+    <div class="modal-fondo" x-data x-show="$store.concluir.abierto" x-cloak
+         x-on:click.self="$store.concluir.cerrar()"
+         x-on:keydown.escape.window="$store.concluir.cerrar()"
+         role="dialog" aria-modal="true" aria-labelledby="titulo-concluir-global">
+        <div class="modal-caja">
+            <h2 id="titulo-concluir-global">Concluir el turno</h2>
+            <p class="modal-bajada" x-text="$store.concluir.mensaje"></p>
+
+            <form method="POST" :action="$store.concluir.url" x-on:submit="$store.concluir.enviando = true">
+                @csrf
+                @method('PATCH')
+                <input type="hidden" name="origen" :value="$store.concluir.origen">
+                <div class="campo">
+                    <label for="hasta-concluir-global">Vigente hasta <span class="req">*</span></label>
+                    <input type="date" id="hasta-concluir-global" name="hasta" required
+                           x-model="$store.concluir.hasta">
+                    <p class="ayuda">
+                        Desde el día siguiente el funcionario deja de tener este turno.
+                        La asignación no se borra: queda como historia.
+                    </p>
+                </div>
+                <div class="modal-acciones">
+                    <button type="button" class="btn btn--gris" x-on:click="$store.concluir.cerrar()"
+                            :disabled="$store.concluir.enviando">
+                        <x-heroicon-o-x-mark />Cancelar
+                    </button>
+                    <button type="submit" class="btn" :disabled="$store.concluir.enviando">
+                        <span class="btn__contenido" x-show="! $store.concluir.enviando"><x-heroicon-o-check />Concluir</span>
+                        <span class="btn__contenido" x-show="$store.concluir.enviando" x-cloak><span class="spinner-anillo"></span>Concluyendo…</span>
                     </button>
                 </div>
             </form>

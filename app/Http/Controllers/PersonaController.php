@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\MamoreException;
+use App\Models\AsignacionTurno;
 use App\Models\Asistencia;
+use App\Models\Licencia;
 use App\Models\Persona;
 use App\Services\DirectorioMamore;
 use App\Services\MamoreClient;
@@ -61,9 +63,9 @@ class PersonaController extends Controller
     }
 
     /**
-     * Ficha de detalle de un funcionario local (SIAT). Las marcaciones no van
-     * en esta respuesta: el panel las carga por AJAX contra
-     * `marcacionesList()`, como el listado principal.
+     * Ficha de detalle de un funcionario local (SIAT). Marcaciones, licencias y
+     * turnos no van en esta respuesta: son las tres solapas del pie de la
+     * ficha, y cada una carga su tabla por AJAX cuando se la abre.
      */
     public function show(Request $request, Persona $persona): View
     {
@@ -75,13 +77,7 @@ class PersonaController extends Controller
         $hasta = $request->query('hasta', now()->toDateString());
         $tipo = $request->query('tipo', '');
 
-        $licencias = $persona->licencias()
-            ->with('turno')
-            ->orderByDesc('fecha')
-            ->paginate(10, pageName: 'licencias_page')
-            ->withQueryString();
-
-        return view('funcionarios.show', compact('persona', 'licencias', 'desde', 'hasta', 'tipo'));
+        return view('funcionarios.show', compact('persona', 'desde', 'hasta', 'tipo'));
     }
 
     /**
@@ -106,10 +102,68 @@ class PersonaController extends Controller
             ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
             ->orderByDesc('fecha')
             ->orderByDesc('hora')
-            ->paginate($this->porPagina($request, 25))
+            ->paginate($this->porPagina($request))
             ->withQueryString();
 
         return view('funcionarios.marcaciones-list', compact('marcaciones'));
+    }
+
+    /**
+     * Parcial de las licencias de una cédula para la solapa de la ficha.
+     * También se cruza por CI, así que sirve a las dos fichas.
+     */
+    public function licenciasList(Request $request): View
+    {
+        $this->authorize('viewAny', Licencia::class);
+
+        $ci = trim((string) $request->query('ci', ''));
+
+        $licencias = Licencia::query()
+            ->with('turno')
+            ->where('ci', $ci)
+            ->orderByDesc('fecha')
+            ->paginate($this->porPagina($request))
+            ->withQueryString();
+
+        return view('funcionarios.licencias-list', compact('licencias'));
+    }
+
+    /**
+     * Parcial de los turnos asignados de una cédula para la solapa de la ficha.
+     *
+     * Por defecto salen todos, con los que siguen en pie primero; el filtro
+     * permite quedarse solo con los vigentes o mirar solo los vencidos.
+     */
+    public function turnosList(Request $request): View
+    {
+        $this->authorize('viewAny', AsignacionTurno::class);
+
+        $ci = trim((string) $request->query('ci', ''));
+        $situacion = $this->situacionTurnos($request);
+        // De qué ficha se pidió la tabla: los botones de la fila lo devuelven
+        // al concluir un turno, para volver a esta misma solapa.
+        $origenFicha = in_array($request->query('origen'), ['local', 'mamore'], true)
+            ? (string) $request->query('origen')
+            : '';
+
+        $asignaciones = AsignacionTurno::query()
+            ->delFuncionario($ci, incluirVencidas: $situacion !== 'vigentes')
+            ->when($situacion === 'vencidas', fn (Builder $query) => $query->whereDate('asignacion_turnos.hasta', '<', today()))
+            ->paginate($this->porPagina($request))
+            ->withQueryString();
+
+        return view('funcionarios.turnos-list', compact('asignaciones', 'origenFicha'));
+    }
+
+    /**
+     * Filtro de la solapa de turnos: «todas» (por defecto), «vigentes» o
+     * «vencidas». Un valor desconocido cae en «todas».
+     */
+    private function situacionTurnos(Request $request): string
+    {
+        $situacion = (string) $request->query('situacion', 'todas');
+
+        return in_array($situacion, ['vigentes', 'vencidas'], true) ? $situacion : 'todas';
     }
 
     /**

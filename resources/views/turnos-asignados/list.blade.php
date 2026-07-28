@@ -22,6 +22,7 @@
                 <th>Desde</th>
                 <th>Hasta</th>
                 <th>Situación</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -60,10 +61,26 @@
                             {{ $etiquetaSituacion[$asignacion->situacion] ?? $asignacion->situacion }}
                         </span>
                     </td>
+                    <td>
+                        <div class="acciones">
+                            {{-- Concluir cuando el funcionario dejó el turno; eliminar,
+                                 solo si la asignación se cargó mal. --}}
+                            @if ($asignacion->situacion !== 'vencida')
+                                @can('update', $asignacion)
+                                    <x-boton-concluir :accion="route('turnos-asignados.concluir', $asignacion)"
+                                                      :mensaje="'Turno «'.trim((string) $asignacion->turno?->nombreTurno).'» de CI '.trim((string) $asignacion->ci).'.'" />
+                                @endcan
+                            @endif
+                            @can('delete', $asignacion)
+                                <x-boton-eliminar :accion="route('turnos-asignados.destroy', $asignacion)"
+                                                  :mensaje="'Se elimina la asignación del turno «'.trim((string) $asignacion->turno?->nombreTurno).'». Si el funcionario dejó ese turno, concluilo en vez de borrarlo.'" />
+                            @endcan
+                        </div>
+                    </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="vacio">
+                    <td colspan="9" class="vacio">
                         {{ $buscar !== '' ? 'Sin turnos asignados para la búsqueda.' : 'Aún no hay turnos asignados.' }}
                     </td>
                 </tr>

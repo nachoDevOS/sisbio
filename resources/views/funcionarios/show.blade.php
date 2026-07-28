@@ -104,51 +104,11 @@
         </div>
     </div>
 
-    @include('funcionarios.marcaciones-panel', [
+    @include('funcionarios.paneles', [
         'ci' => trim((string) $persona->ci),
         'reporteUrl' => route('funcionarios.reporte', ['persona' => $persona]),
+        'hayPersonaLocal' => true,
+        'origen' => 'local',
     ])
 
-    @can('viewAny', \App\Models\Licencia::class)
-        <div class="tarjeta" style="margin-top: 1.5rem;">
-            <h2>Licencias</h2>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Turno</th>
-                        <th>Alcance</th>
-                        <th>Haberes</th>
-                        <th>Motivo</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($licencias as $licencia)
-                        <tr>
-                            <td><strong>{{ $licencia->fecha?->format('d/m/Y') }}</strong></td>
-                            <td>{{ $licencia->resumen_turno }}</td>
-                            <td>
-                                @if ($licencia->tCompleto)
-                                    <span class="pill pill--info">Turno completo</span>
-                                @else
-                                    {{ $licencia->lEntra?->format('H:i') ?? '—' }} – {{ $licencia->lSale?->format('H:i') ?? '—' }}
-                                @endif
-                            </td>
-                            <td>
-                                <span class="pill {{ $licencia->goceHaberes ? 'pill--ok' : 'pill--no' }}">
-                                    {{ $licencia->goceHaberes ? 'Con goce' : 'Sin goce' }}
-                                </span>
-                            </td>
-                            <td>{{ $licencia->motivo ?: '—' }}</td>
-                        </tr>
-                    @empty
-                        <tr><td colspan="5" class="vacio">El funcionario no tiene licencias registradas.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-
-            <div class="paginacion">{{ $licencias->links() }}</div>
-        </div>
-    @endcan
 @endsection

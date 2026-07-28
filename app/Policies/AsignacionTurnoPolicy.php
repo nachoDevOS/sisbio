@@ -26,4 +26,22 @@ class AsignacionTurnoPolicy
     {
         return $authUser->can('View:DiaTurno');
     }
+
+    public function create(AuthUser $authUser): bool
+    {
+        return $authUser->can('Create:DiaTurno');
+    }
+
+    /**
+     * Concluir una asignación (ponerle fecha de fin) es editarla.
+     */
+    public function update(AuthUser $authUser, AsignacionTurno $asignacion): bool
+    {
+        return $authUser->can('Update:DiaTurno');
+    }
+
+    public function delete(AuthUser $authUser, AsignacionTurno $asignacion): bool
+    {
+        return $authUser->can('Delete:DiaTurno');
+    }
 }

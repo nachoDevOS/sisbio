@@ -52,8 +52,10 @@ Route::middleware('auth')->group(function (): void {
     Route::get('funcionarios/mamore/{ci}', [PersonaController::class, 'mamoreShow'])->name('funcionarios.mamore');
     // Tabla del listado por AJAX (browse/list, con su paginación).
     Route::get('funcionarios/ajax/list', [PersonaController::class, 'list'])->name('funcionarios.list');
-    // Tabla de marcaciones de la ficha (local y Mamoré) por AJAX, filtrada por CI.
+    // Tablas de las solapas de la ficha (local y Mamoré) por AJAX, todas por CI.
     Route::get('funcionarios/ajax/marcaciones', [PersonaController::class, 'marcacionesList'])->name('funcionarios.marcaciones.list');
+    Route::get('funcionarios/ajax/licencias', [PersonaController::class, 'licenciasList'])->name('funcionarios.licencias.list');
+    Route::get('funcionarios/ajax/turnos', [PersonaController::class, 'turnosList'])->name('funcionarios.turnos.list');
     Route::resource('funcionarios', PersonaController::class)
         ->parameters(['funcionarios' => 'persona'])
         ->only(['index', 'show']);
@@ -66,6 +68,14 @@ Route::middleware('auth')->group(function (): void {
     // Turnos asignados a cada funcionario (solo lectura): la asignación se cruza
     // con el funcionario por CI, y con el turno por la FK `turno_id`.
     Route::get('turnos-asignados/ajax/list', [AsignacionTurnoController::class, 'list'])->name('turnos-asignados.list');
+    // Búsqueda JSON de funcionarios para el combo del formulario de asignación.
+    Route::get('turnos-asignados/ajax/funcionarios', [AsignacionTurnoController::class, 'buscarFuncionarios'])->name('turnos-asignados.funcionarios');
+    Route::get('turnos-asignados/create', [AsignacionTurnoController::class, 'create'])->name('turnos-asignados.create');
+    Route::post('turnos-asignados', [AsignacionTurnoController::class, 'store'])->name('turnos-asignados.store');
+    // Concluir = ponerle fecha de fin (el funcionario dejó ese turno, pero la
+    // historia queda). Eliminar = la asignación se cargó por error.
+    Route::patch('turnos-asignados/{asignacion}/concluir', [AsignacionTurnoController::class, 'concluir'])->name('turnos-asignados.concluir');
+    Route::delete('turnos-asignados/{asignacion}', [AsignacionTurnoController::class, 'destroy'])->name('turnos-asignados.destroy');
     Route::get('turnos-asignados', [AsignacionTurnoController::class, 'index'])->name('turnos-asignados.index');
 
     // Licencias/permisos de personal: listado AJAX + pantalla «Licenciar»

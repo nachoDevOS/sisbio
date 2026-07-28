@@ -8,6 +8,9 @@
             <span class="cabecera__icono"><x-heroicon-o-user-group /></span>
             <h1>Turnos asignados</h1>
         </div>
+        @can('create', \App\Models\AsignacionTurno::class)
+            <a href="{{ route('turnos-asignados.create') }}" class="btn"><x-heroicon-o-plus />Asignar turno</a>
+        @endcan
     </div>
 
     {{-- Filtros del listado (browse): disparan la carga AJAX de la tabla. --}}

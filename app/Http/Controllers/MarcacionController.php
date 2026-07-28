@@ -101,9 +101,23 @@ class MarcacionController extends Controller
             'tipo' => Asistencia::TIPO_MANUAL,
         ]);
 
-        return redirect()
-            ->route('marcaciones.index')
+        return redirect($this->destino($request, $ci))
             ->with('estado', 'Marcación manual registrada correctamente.');
+    }
+
+    /**
+     * A dónde volver después de registrar: a la ficha desde la que se abrió el
+     * modal (`local` o `mamore`) o, si se registró desde el listado, al
+     * listado. Solo se aceptan esos dos orígenes conocidos, así un valor
+     * manipulado nunca redirige fuera del sitio.
+     */
+    private function destino(Request $request, string $ci): string
+    {
+        return match ((string) $request->input('origen', '')) {
+            'local' => route('funcionarios.show', ['persona' => $ci]),
+            'mamore' => route('funcionarios.mamore', ['ci' => $ci]),
+            default => route('marcaciones.index'),
+        };
     }
 
     /**

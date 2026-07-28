@@ -87,8 +87,10 @@
         </div>
     </div>
 
-    @include('funcionarios.marcaciones-panel', [
+    @include('funcionarios.paneles', [
         'ci' => $ci,
         'reporteUrl' => $personaLocal ? route('funcionarios.reporte', ['persona' => $personaLocal]) : null,
+        'hayPersonaLocal' => (bool) $personaLocal,
+        'origen' => 'mamore',
     ])
 @endsection

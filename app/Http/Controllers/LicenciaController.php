@@ -186,11 +186,35 @@ class LicenciaController extends Controller
                 ->with('error', 'No se anotó ninguna licencia: '.$registro->mensaje($conteo));
         }
 
-        // Con un solo funcionario el listado queda filtrado por su carnet; con
-        // varios se muestra completo, porque no hay un filtro que los agrupe.
-        return redirect()
-            ->route('licencias.index', $modo === 'uno' ? ['q' => $cis[0]] : [])
+        return redirect($this->destino($request, $modo, $cis[0] ?? ''))
             ->with('estado', $registro->mensaje($conteo));
+    }
+
+    /**
+     * A dónde volver después de anotar: a la ficha desde la que se abrió el
+     * modal (`local` o `mamore`) o, si se anotó desde la pantalla «Licenciar»,
+     * al listado —filtrado por el carnet cuando fue un solo funcionario, porque
+     * con varios no hay un filtro que los agrupe—.
+     *
+     * Solo se aceptan los dos orígenes conocidos, así un valor manipulado nunca
+     * redirige fuera del sitio.
+     */
+    private function destino(Request $request, string $modo, string $ci): string
+    {
+        if ($ci !== '') {
+            $origen = (string) $request->input('origen', '');
+
+            // El ancla deja abierta la solapa de licencias al volver.
+            if ($origen === 'local') {
+                return route('funcionarios.show', ['persona' => $ci]).'#licencias';
+            }
+
+            if ($origen === 'mamore') {
+                return route('funcionarios.mamore', ['ci' => $ci]).'#licencias';
+            }
+        }
+
+        return route('licencias.index', $modo === 'uno' ? ['q' => $ci] : []);
     }
 
     /**
@@ -222,33 +246,15 @@ class LicenciaController extends Controller
     }
 
     /**
-     * Turnos asignados al funcionario para la grilla «Turnos asignados a …»:
-     * los vigentes primero y, dentro de cada grupo, por día de la semana y hora
-     * de entrada.
-     *
-     * El orden se resuelve en SQL con un join a `turnos` a propósito: ordenar
-     * en memoria con `sortBy([...])` no sirve, porque ahí un closure se toma
-     * como comparador de dos argumentos, no como extractor del valor a ordenar.
+     * Turnos asignados al funcionario para la grilla «Turnos asignados a …».
+     * El orden y el filtro por vigencia viven en el scope del modelo, que es el
+     * mismo que usa la ficha del funcionario.
      *
      * @return Collection<int, AsignacionTurno>
      */
     private function turnosAsignados(string $ci, bool $incluirVencidos = false): Collection
     {
-        $hoy = now()->startOfDay();
-
-        return AsignacionTurno::query()
-            ->select('asignacion_turnos.*')
-            ->with('turno')
-            ->join('turnos', 'turnos.id', '=', 'asignacion_turnos.turno_id')
-            // El join saltea el borrado lógico de turnos: hay que excluirlos a mano.
-            ->whereNull('turnos.deleted_at')
-            ->where('asignacion_turnos.ci', $ci)
-            ->unless($incluirVencidos, fn (Builder $query) => $query->where('asignacion_turnos.hasta', '>=', $hoy))
-            ->orderByRaw('CASE WHEN asignacion_turnos.hasta >= ? THEN 0 ELSE 1 END', [$hoy])
-            ->orderBy('turnos.dia')
-            ->orderBy('turnos.hEntrada')
-            ->orderByDesc('asignacion_turnos.hasta')
-            ->get();
+        return AsignacionTurno::query()->delFuncionario($ci, $incluirVencidos)->get();
     }
 
     /**

@@ -3,12 +3,14 @@
 use App\Models\AsignacionTurno;
 use App\Models\Licencia;
 use App\Models\Persona;
+use App\Models\Role;
 use App\Models\Turno;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Spatie\Permission\Models\Permission;
 
 uses(RefreshDatabase::class);
 
@@ -967,10 +969,104 @@ test('la ficha del funcionario ofrece registrar licencia y lista las suyas', fun
     $persona = Persona::factory()->create(['ci' => '7633685']);
     Licencia::factory()->create(['ci' => $persona->ci, 'motivo' => 'COMISION DE VIAJE']);
 
+    // Las licencias son una solapa de la ficha: la tabla llega por AJAX.
     $this->get(route('funcionarios.show', $persona))
         ->assertOk()
         ->assertSee('Registrar licencia')
+        ->assertSee('data-tab="licencias"', escape: false);
+
+    $this->get(route('funcionarios.licencias.list', ['ci' => $persona->ci]))
+        ->assertOk()
         ->assertSee('COMISION DE VIAJE');
+});
+
+test('la solapa de licencias de la ficha permite eliminarlas', function () {
+    $persona = Persona::factory()->create(['ci' => '7633685']);
+    $licencia = Licencia::factory()->create(['ci' => $persona->ci, 'fecha' => today()]);
+
+    // La URL viaja dentro del `x-on:click` del modal global, ya como JSON.
+    $this->get(route('funcionarios.licencias.list', ['ci' => $persona->ci]))
+        ->assertOk()
+        ->assertSee(str_replace('/', '\/', route('licencias.destroy', $licencia)), escape: false)
+        ->assertSee('$store.eliminar.abrir(', escape: false);
+
+    $this->delete(route('licencias.destroy', $licencia), ['deleteObservacion' => 'Cargada por error.'])
+        ->assertRedirect();
+
+    $this->assertSoftDeleted('licencias', ['id' => $licencia->id]);
+});
+
+test('sin permiso de eliminar, la solapa de licencias no ofrece la baja', function () {
+    $persona = Persona::factory()->create(['ci' => '7633685']);
+    $licencia = Licencia::factory()->create(['ci' => $persona->ci]);
+
+    foreach (['ViewAny:Licencia', 'ViewAny:Persona'] as $permiso) {
+        Permission::firstOrCreate(['name' => $permiso, 'guard_name' => 'web']);
+    }
+
+    $rol = Role::create(['name' => 'solo_lectura_licencias', 'guard_name' => 'web']);
+    $rol->givePermissionTo('ViewAny:Licencia', 'ViewAny:Persona');
+
+    $this->actingAs(User::factory()->create()->assignRole($rol));
+
+    $this->get(route('funcionarios.licencias.list', ['ci' => $persona->ci]))
+        ->assertOk()
+        ->assertDontSee(str_replace('/', '\/', route('licencias.destroy', $licencia)), escape: false);
+});
+
+test('la ficha licencia al funcionario desde un modal, sin pasar por la pantalla general', function () {
+    $persona = Persona::factory()->create(['ci' => '7633685']);
+
+    $this->get(route('funcionarios.show', $persona))
+        ->assertOk()
+        ->assertSee('Licenciar a CI 7633685')
+        // El alcance ya está resuelto: es este funcionario y ningún otro.
+        ->assertSee('<input type="hidden" name="modo" value="uno">', escape: false)
+        ->assertSee('<input type="hidden" name="ci" value="7633685">', escape: false)
+        ->assertSee('<input type="hidden" name="origen" value="local">', escape: false)
+        // Los turnos vigentes se piden a su propio endpoint al abrir el modal.
+        ->assertSee('x-ref="turnos"', escape: false)
+        ->assertSee('situacion=vigentes', escape: false)
+        // Nada de los modos de la pantalla general.
+        ->assertDontSee('Varios funcionarios')
+        ->assertDontSee('Todos los que trabajen en el rango');
+});
+
+test('anotada desde la ficha, la licencia vuelve a la ficha', function () {
+    $persona = Persona::factory()->create(['ci' => '7633685']);
+    $turno = Turno::factory()->create(['dia' => (string) (today()->dayOfWeek + 1)]);
+    AsignacionTurno::factory()->create([
+        'ci' => $persona->ci,
+        'turno_id' => $turno->id,
+        'desde' => today()->subMonth(),
+        'hasta' => today()->addMonth(),
+    ]);
+
+    $datos = [
+        'modo' => 'uno',
+        'ci' => $persona->ci,
+        'desde' => today()->toDateString(),
+        'hasta' => today()->toDateString(),
+        'tCompleto' => '1',
+        'goceHaberes' => '1',
+        'motivo' => 'REUNION SINDICAL',
+    ];
+
+    // El ancla deja abierta la solapa de licencias al volver.
+    $this->post(route('licencias.store'), $datos + ['origen' => 'local'])
+        ->assertRedirect(route('funcionarios.show', ['persona' => $persona->ci]).'#licencias');
+
+    // Cada envío usa otra semana: la misma fecha sería una licencia repetida.
+    $siguiente = ['desde' => today()->addWeek()->toDateString(), 'hasta' => today()->addWeek()->toDateString()];
+    $ultima = ['desde' => today()->addWeeks(2)->toDateString(), 'hasta' => today()->addWeeks(2)->toDateString()];
+
+    // Sin origen sigue yendo al listado filtrado por el carnet, como antes.
+    $this->post(route('licencias.store'), array_merge($datos, $siguiente))
+        ->assertRedirect(route('licencias.index', ['q' => $persona->ci]));
+
+    // Un origen desconocido no saca al usuario del sistema.
+    $this->post(route('licencias.store'), array_merge($datos, $ultima, ['origen' => 'https://otro-sitio.test']))
+        ->assertRedirect(route('licencias.index', ['q' => $persona->ci]));
 });
 
 test('un invitado no puede ver las licencias', function () {

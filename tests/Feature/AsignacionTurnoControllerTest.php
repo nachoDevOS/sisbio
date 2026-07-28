@@ -131,6 +131,241 @@ test('el listado respeta el selector de registros por página', function () {
         ->assertViewHas('asignaciones', fn ($asignaciones): bool => $asignaciones->count() === 10);
 });
 
+test('el formulario de asignación lista los turnos disponibles', function () {
+    Turno::factory()->create(['dia' => '2', 'nombreTurno' => 'LUN: 08:00 - 16:00']);
+
+    $this->get(route('turnos-asignados.create'))
+        ->assertOk()
+        ->assertSee('Asignar turno')
+        ->assertSee('LUN: 08:00 - 16:00')
+        ->assertSee('Lunes');
+});
+
+test('asigna un turno a un funcionario y vincula por turno_id', function () {
+    $turno = Turno::factory()->create(['idTurno' => '007']);
+
+    $this->post(route('turnos-asignados.store'), [
+        'ci' => '7633685',
+        'turno_id' => $turno->id,
+        'desde' => today()->toDateString(),
+        'hasta' => today()->addYear()->toDateString(),
+        'observacion' => 'Turno de verano.',
+    ])
+        ->assertRedirect(route('turnos-asignados.index', ['buscar' => '7633685']))
+        ->assertSessionHas('estado');
+
+    $this->assertDatabaseHas('asignacion_turnos', [
+        'ci' => '7633685',
+        'turno_id' => $turno->id,
+        // El código histórico se copia del turno, no llega del formulario.
+        'idTurno' => '007',
+        'observacion' => 'Turno de verano.',
+    ]);
+});
+
+test('al asignar desde la ficha vuelve a la ficha, en la solapa de turnos', function () {
+    $turno = Turno::factory()->create();
+
+    $this->post(route('turnos-asignados.store'), [
+        'ci' => '7633685',
+        'turno_id' => $turno->id,
+        'desde' => today()->toDateString(),
+        'hasta' => today()->addYear()->toDateString(),
+        'origen' => 'mamore',
+    ])->assertRedirect(route('funcionarios.mamore', ['ci' => '7633685']).'#turnos');
+});
+
+test('la solapa de turnos asigna desde un modal, sin salir de la ficha', function () {
+    $persona = Persona::factory()->create(['ci' => '7633685']);
+    Turno::factory()->create(['dia' => '2', 'nombreTurno' => 'LUN: 08:00 - 16:00']);
+
+    $this->get(route('funcionarios.show', $persona))
+        ->assertOk()
+        ->assertSee('Asignar turno a CI 7633685')
+        ->assertSee('<input type="hidden" name="_form" value="turno-asignado">', escape: false)
+        ->assertSee('<input type="hidden" name="ci" value="7633685">', escape: false)
+        ->assertSee('<input type="hidden" name="origen" value="local">', escape: false)
+        // Los turnos del select salen agrupados por día.
+        ->assertSee('<optgroup label="Lunes">', escape: false)
+        ->assertSee('LUN: 08:00 - 16:00');
+});
+
+test('un origen desconocido no saca al usuario del listado', function () {
+    $turno = Turno::factory()->create();
+
+    $this->post(route('turnos-asignados.store'), [
+        'ci' => '7633685',
+        'turno_id' => $turno->id,
+        'desde' => today()->toDateString(),
+        'hasta' => today()->addYear()->toDateString(),
+        'origen' => 'https://otro-sitio.test',
+    ])->assertRedirect(route('turnos-asignados.index', ['buscar' => '7633685']));
+});
+
+test('el alta valida los campos obligatorios y el orden de las fechas', function () {
+    $this->post(route('turnos-asignados.store'), [])
+        ->assertSessionHasErrors(['ci', 'turno_id', 'desde', 'hasta']);
+
+    $turno = Turno::factory()->create();
+
+    $this->post(route('turnos-asignados.store'), [
+        'ci' => '7633685',
+        'turno_id' => $turno->id,
+        'desde' => today()->toDateString(),
+        'hasta' => today()->subDay()->toDateString(),
+    ])->assertSessionHasErrors('hasta');
+
+    $this->assertDatabaseCount('asignacion_turnos', 0);
+});
+
+test('el alta rechaza un turno inexistente o eliminado', function () {
+    $borrado = Turno::factory()->create();
+    $borrado->delete();
+
+    foreach ([99999, $borrado->id] as $turnoId) {
+        $this->post(route('turnos-asignados.store'), [
+            'ci' => '7633685',
+            'turno_id' => $turnoId,
+            'desde' => today()->toDateString(),
+            'hasta' => today()->addYear()->toDateString(),
+        ])->assertSessionHasErrors('turno_id');
+    }
+
+    $this->assertDatabaseCount('asignacion_turnos', 0);
+});
+
+test('el alta avisa si el funcionario ya tiene ese turno desde esa fecha', function () {
+    $turno = Turno::factory()->create(['idTurno' => '007']);
+    AsignacionTurno::factory()->create([
+        'ci' => '7633685',
+        'turno_id' => $turno->id,
+        'idTurno' => '007',
+        'desde' => today(),
+    ]);
+
+    $this->post(route('turnos-asignados.store'), [
+        'ci' => '7633685',
+        'turno_id' => $turno->id,
+        'desde' => today()->toDateString(),
+        'hasta' => today()->addYear()->toDateString(),
+    ])->assertSessionHasErrors('turno_id');
+
+    $this->assertDatabaseCount('asignacion_turnos', 1);
+});
+
+test('la asignación repetida se detecta aunque la anterior esté eliminada', function () {
+    // La clave única de la tabla incluye las filas borradas lógicamente: sin
+    // esta comprobación el alta reventaría contra la base.
+    $turno = Turno::factory()->create(['idTurno' => '007']);
+    $asignacion = AsignacionTurno::factory()->create([
+        'ci' => '7633685',
+        'turno_id' => $turno->id,
+        'idTurno' => '007',
+        'desde' => today(),
+    ]);
+    $asignacion->delete();
+
+    $this->post(route('turnos-asignados.store'), [
+        'ci' => '7633685',
+        'turno_id' => $turno->id,
+        'desde' => today()->toDateString(),
+        'hasta' => today()->addYear()->toDateString(),
+    ])->assertSessionHasErrors('turno_id');
+});
+
+test('un usuario sin permiso no puede asignar turnos', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('turnos-asignados.create'))->assertForbidden();
+    $this->post(route('turnos-asignados.store'), [])->assertForbidden();
+    $this->get(route('turnos-asignados.funcionarios', ['q' => 'perez']))->assertForbidden();
+});
+
+test('concluir una asignación le pone fecha de fin sin borrarla', function () {
+    $turno = Turno::factory()->create();
+    $asignacion = AsignacionTurno::factory()->create([
+        'ci' => '7633685',
+        'turno_id' => $turno->id,
+        'desde' => today()->subMonth(),
+        'hasta' => today()->addYear(),
+    ]);
+
+    $this->patch(route('turnos-asignados.concluir', $asignacion), ['hasta' => today()->toDateString()])
+        ->assertRedirect()
+        ->assertSessionHas('estado');
+
+    $asignacion->refresh();
+
+    expect($asignacion->hasta->toDateString())->toBe(today()->toDateString())
+        ->and($asignacion->trashed())->toBeFalse()
+        ->and($asignacion->situacion)->toBe('vigente');
+
+    // Al día siguiente ya no cuenta como vigente: eso es concluir.
+    $this->travel(1)->day();
+    expect($asignacion->fresh()->situacion)->toBe('vencida');
+});
+
+test('concluir desde la ficha vuelve a la solapa de turnos', function () {
+    $asignacion = AsignacionTurno::factory()->create(['ci' => '7633685', 'turno_id' => Turno::factory()]);
+
+    $this->patch(route('turnos-asignados.concluir', $asignacion), [
+        'hasta' => today()->toDateString(),
+        'origen' => 'mamore',
+    ])->assertRedirect(route('funcionarios.mamore', ['ci' => '7633685']).'#turnos');
+});
+
+test('no se puede concluir una asignación antes de que empiece', function () {
+    $asignacion = AsignacionTurno::factory()->create([
+        'turno_id' => Turno::factory(),
+        'desde' => today(),
+        'hasta' => today()->addYear(),
+    ]);
+
+    $this->patch(route('turnos-asignados.concluir', $asignacion), ['hasta' => today()->subDay()->toDateString()])
+        ->assertSessionHasErrors('hasta');
+
+    expect($asignacion->fresh()->hasta->toDateString())->toBe(today()->addYear()->toDateString());
+});
+
+test('eliminar una asignación la borra lógicamente con su motivo', function () {
+    $asignacion = AsignacionTurno::factory()->create(['ci' => '7633685', 'turno_id' => Turno::factory()]);
+
+    $this->delete(route('turnos-asignados.destroy', $asignacion), [
+        'deleteObservacion' => 'Se cargó al funcionario equivocado.',
+    ])->assertRedirect();
+
+    $this->assertSoftDeleted('asignacion_turnos', [
+        'id' => $asignacion->id,
+        'deleteObservacion' => 'Se cargó al funcionario equivocado.',
+    ]);
+});
+
+test('la tabla ofrece concluir en las vigentes y eliminar en todas', function () {
+    $turno = Turno::factory()->create(['nombreTurno' => 'LUN: 08:00 - 16:00']);
+    $vigente = AsignacionTurno::factory()->create(['ci' => '7633685', 'turno_id' => $turno->id]);
+    $vencida = AsignacionTurno::factory()->vencida()->create(['ci' => '7633685', 'turno_id' => $turno->id]);
+
+    $respuesta = $this->get(route('funcionarios.turnos.list', ['ci' => '7633685']))->assertOk();
+
+    // Concluir solo tiene sentido en lo que sigue en pie.
+    $respuesta->assertSee(str_replace('/', '\/', route('turnos-asignados.concluir', $vigente)), escape: false)
+        ->assertDontSee(str_replace('/', '\/', route('turnos-asignados.concluir', $vencida)), escape: false)
+        // La baja está disponible en las dos, para lo cargado por error.
+        ->assertSee(str_replace('/', '\/', route('turnos-asignados.destroy', $vigente)), escape: false)
+        ->assertSee(str_replace('/', '\/', route('turnos-asignados.destroy', $vencida)), escape: false);
+});
+
+test('un usuario sin permiso no puede concluir ni eliminar asignaciones', function () {
+    $asignacion = AsignacionTurno::factory()->create(['turno_id' => Turno::factory()]);
+
+    $this->actingAs(User::factory()->create());
+
+    $this->patch(route('turnos-asignados.concluir', $asignacion), ['hasta' => today()->toDateString()])
+        ->assertForbidden();
+    $this->delete(route('turnos-asignados.destroy', $asignacion), ['deleteObservacion' => 'Motivo cualquiera.'])
+        ->assertForbidden();
+});
+
 test('un invitado no puede ver los turnos asignados', function () {
     auth()->logout();
 

@@ -1,10 +1,12 @@
 <?php
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Spatie\Permission\Models\Permission;
 
 uses(RefreshDatabase::class);
 
@@ -321,6 +323,69 @@ test('registra una marcación manual de tipo M', function () {
         ->and(trim($marcacion->tipo))->toBe('M')
         ->and($marcacion->fecha)->toContain('2026-07-20')
         ->and($marcacion->hora)->toContain('08:30:00');
+});
+
+test('registrada desde la ficha, la marcación vuelve a la ficha', function () {
+    DB::table('personas')->insert([
+        'ci' => '888', 'paterno' => 'Roca', 'materno' => null, 'nombres' => 'Luis', 'pinReloj' => null, 'marcaDirecta' => false,
+    ]);
+
+    $this->post(route('marcaciones.store'), [
+        'ci' => '888', 'fecha' => '2026-07-20', 'hora' => '08:30', 'origen' => 'local',
+    ])->assertRedirect(route('funcionarios.show', ['persona' => '888']));
+
+    $this->post(route('marcaciones.store'), [
+        'ci' => '888', 'fecha' => '2026-07-20', 'hora' => '09:30', 'origen' => 'mamore',
+    ])->assertRedirect(route('funcionarios.mamore', ['ci' => '888']));
+
+    // Un origen desconocido no saca al usuario del sistema.
+    $this->post(route('marcaciones.store'), [
+        'ci' => '888', 'fecha' => '2026-07-20', 'hora' => '10:30', 'origen' => 'https://otro-sitio.test',
+    ])->assertRedirect(route('marcaciones.index'));
+});
+
+test('el modal de marcación manual está en el listado y en la ficha del funcionario', function () {
+    DB::table('personas')->insert([
+        'ci' => '888', 'paterno' => 'Roca', 'materno' => null, 'nombres' => 'Luis', 'pinReloj' => null, 'marcaDirecta' => false,
+    ]);
+
+    // En el listado el CI se escribe a mano.
+    $this->get(route('marcaciones.index'))
+        ->assertOk()
+        ->assertSee('Nueva marcación')
+        ->assertSee('Nueva marcación manual')
+        ->assertSee('id="ci-global"', escape: false);
+
+    // En la ficha el funcionario ya viene dado y el origen hace que se vuelva ahí.
+    $this->get(route('funcionarios.show', ['persona' => '888']))
+        ->assertOk()
+        ->assertSee('Nueva marcación manual')
+        ->assertSee('<input type="hidden" name="ci" value="888">', escape: false)
+        ->assertSee('<input type="hidden" name="origen" value="local">', escape: false)
+        ->assertDontSee('id="ci-global"', escape: false);
+});
+
+test('un usuario sin permiso de crear no ve el modal de marcación manual', function () {
+    DB::table('personas')->insert([
+        'ci' => '888', 'paterno' => 'Roca', 'materno' => null, 'nombres' => 'Luis', 'pinReloj' => null, 'marcaDirecta' => false,
+    ]);
+
+    foreach (['ViewAny:Asistencia', 'ViewAny:Persona', 'View:Persona'] as $permiso) {
+        Permission::firstOrCreate(['name' => $permiso, 'guard_name' => 'web']);
+    }
+
+    $rol = Role::create(['name' => 'solo_lectura_marcaciones', 'guard_name' => 'web']);
+    $rol->givePermissionTo('ViewAny:Asistencia', 'ViewAny:Persona', 'View:Persona');
+
+    $this->actingAs(User::factory()->create()->assignRole($rol));
+
+    $this->get(route('marcaciones.index'))
+        ->assertOk()
+        ->assertDontSee('Nueva marcación manual');
+
+    $this->get(route('funcionarios.show', ['persona' => '888']))
+        ->assertOk()
+        ->assertDontSee('Nueva marcación manual');
 });
 
 test('la marcación manual valida CI, fecha y hora', function () {

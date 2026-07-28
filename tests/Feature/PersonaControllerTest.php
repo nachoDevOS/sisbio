@@ -1,11 +1,16 @@
 <?php
 
+use App\Models\AsignacionTurno;
 use App\Models\Asistencia;
+use App\Models\Licencia;
 use App\Models\Persona;
 use App\Models\Profesion;
+use App\Models\Role;
+use App\Models\Turno;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Spatie\Permission\Models\Permission;
 
 uses(RefreshDatabase::class);
 
@@ -488,11 +493,16 @@ test('el listado AJAX de marcaciones filtra por rango de fechas y tipo', functio
 });
 
 test('el listado AJAX de marcaciones respeta el selector de registros por página', function () {
-    Asistencia::factory()->count(12)->create(['ci' => '7778888', 'fecha' => today()]);
+    Asistencia::factory()->count(30)->create(['ci' => '7778888', 'fecha' => today()]);
 
-    $this->get(route('funcionarios.marcaciones.list', ['ci' => '7778888', 'por_pagina' => 10]))
+    // Sin pedir nada, 10 por página como el resto de los listados.
+    $this->get(route('funcionarios.marcaciones.list', ['ci' => '7778888']))
         ->assertOk()
         ->assertViewHas('marcaciones', fn ($marcaciones): bool => $marcaciones->count() === 10);
+
+    $this->get(route('funcionarios.marcaciones.list', ['ci' => '7778888', 'por_pagina' => 25]))
+        ->assertOk()
+        ->assertViewHas('marcaciones', fn ($marcaciones): bool => $marcaciones->count() === 25);
 });
 
 test('un usuario sin permiso no puede pedir las marcaciones por AJAX', function () {
@@ -537,4 +547,126 @@ test('el reporte imprimible lista las marcaciones crudas del rango', function ()
         ->assertDontSee('07:00:00')
         ->assertSee('Total registros:')
         ->assertSee('descarga directa desde reloj');
+});
+
+test('la ficha del funcionario trae las tres solapas del pie', function () {
+    $persona = Persona::factory()->create(['ci' => '7633685']);
+
+    $this->get(route('funcionarios.show', $persona))
+        ->assertOk()
+        ->assertSee('data-tab="marcaciones"', escape: false)
+        ->assertSee('data-tab="licencias"', escape: false)
+        ->assertSee('data-tab="turnos"', escape: false)
+        ->assertSee('id="m-results"', escape: false)
+        ->assertSee('id="l-results"', escape: false)
+        ->assertSee('id="t-results"', escape: false);
+});
+
+test('la ficha de Mamoré trae las mismas solapas', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people/ci/*' => Http::response([
+            'data' => ['id' => 25, 'full_name' => 'Juan Carlos Perez Gomez', 'ci' => '7654321'],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.mamore', ['ci' => '7654321']))
+        ->assertOk()
+        ->assertSee('data-tab="marcaciones"', escape: false)
+        ->assertSee('data-tab="licencias"', escape: false)
+        ->assertSee('data-tab="turnos"', escape: false)
+        ->assertSee('const ci = "7654321"', escape: false);
+});
+
+test('el listado AJAX de turnos de la ficha lista los del funcionario', function () {
+    $turno = Turno::factory()->create(['nombreTurno' => 'LUN: 08:00 - 16:00', 'dia' => '2']);
+    AsignacionTurno::factory()->create(['ci' => '7633685', 'turno_id' => $turno->id]);
+
+    $otro = Turno::factory()->create(['nombreTurno' => 'TURNO AJENO']);
+    AsignacionTurno::factory()->create(['ci' => '1112222', 'turno_id' => $otro->id]);
+
+    $this->get(route('funcionarios.turnos.list', ['ci' => '7633685']))
+        ->assertOk()
+        ->assertSee('LUN: 08:00 - 16:00')
+        ->assertSee('Lunes')
+        ->assertSee('Vigente')
+        ->assertDontSee('TURNO AJENO');
+});
+
+test('el listado AJAX de turnos filtra por situación', function () {
+    $vigente = Turno::factory()->create(['nombreTurno' => 'TURNO VIGENTE']);
+    $viejo = Turno::factory()->create(['nombreTurno' => 'TURNO VIEJO']);
+
+    AsignacionTurno::factory()->create(['ci' => '7633685', 'turno_id' => $vigente->id]);
+    AsignacionTurno::factory()->vencida()->create(['ci' => '7633685', 'turno_id' => $viejo->id]);
+
+    // Por defecto salen los dos, con el vigente primero.
+    $this->get(route('funcionarios.turnos.list', ['ci' => '7633685']))
+        ->assertOk()
+        ->assertSee('TURNO VIGENTE')
+        ->assertSee('TURNO VIEJO');
+
+    $this->get(route('funcionarios.turnos.list', ['ci' => '7633685', 'situacion' => 'vigentes']))
+        ->assertOk()
+        ->assertSee('TURNO VIGENTE')
+        ->assertDontSee('TURNO VIEJO');
+
+    $this->get(route('funcionarios.turnos.list', ['ci' => '7633685', 'situacion' => 'vencidas']))
+        ->assertOk()
+        ->assertSee('TURNO VIEJO')
+        ->assertSee('Vencida')
+        ->assertDontSee('TURNO VIGENTE');
+});
+
+test('el listado AJAX de turnos avisa cuando el funcionario no tiene ninguno', function () {
+    $this->get(route('funcionarios.turnos.list', ['ci' => '7633685']))
+        ->assertOk()
+        ->assertSee('El funcionario no tiene turnos asignados en este filtro.');
+});
+
+test('el listado AJAX de licencias trae las de la cédula, paginadas', function () {
+    Licencia::factory()->create(['ci' => '7633685', 'motivo' => 'COMISION DE VIAJE']);
+    Licencia::factory()->create(['ci' => '1112222', 'motivo' => 'LICENCIA AJENA']);
+
+    $this->get(route('funcionarios.licencias.list', ['ci' => '7633685']))
+        ->assertOk()
+        ->assertSee('COMISION DE VIAJE')
+        ->assertDontSee('LICENCIA AJENA');
+
+    Licencia::factory()->count(12)->create(['ci' => '7633685']);
+
+    $this->get(route('funcionarios.licencias.list', ['ci' => '7633685', 'por_pagina' => 10]))
+        ->assertOk()
+        ->assertViewHas('licencias', fn ($licencias): bool => $licencias->count() === 10);
+});
+
+test('un usuario sin permiso no puede pedir las solapas de licencias ni de turnos', function () {
+    $this->actingAs(User::factory()->create());
+
+    $this->get(route('funcionarios.licencias.list', ['ci' => '7633685']))->assertForbidden();
+    $this->get(route('funcionarios.turnos.list', ['ci' => '7633685']))->assertForbidden();
+});
+
+test('sin permiso sobre los turnos, la ficha no muestra el panel', function () {
+    $persona = Persona::factory()->create(['ci' => '7633685']);
+    $turno = Turno::factory()->create(['nombreTurno' => 'LUN: 08:00 - 16:00']);
+    AsignacionTurno::factory()->create(['ci' => $persona->ci, 'turno_id' => $turno->id]);
+
+    foreach (['ViewAny:Persona', 'View:Persona'] as $permiso) {
+        Permission::firstOrCreate(['name' => $permiso, 'guard_name' => 'web']);
+    }
+
+    $rol = Role::create(['name' => 'solo_funcionarios', 'guard_name' => 'web']);
+    $rol->givePermissionTo('ViewAny:Persona', 'View:Persona');
+
+    $this->actingAs(User::factory()->create()->assignRole($rol));
+
+    // «Turnos asignados» a secas también es la opción del menú: lo que no tiene
+    // que aparecer es el contenido del panel.
+    $this->get(route('funcionarios.show', $persona))
+        ->assertOk()
+        ->assertDontSee('LUN: 08:00 - 16:00')
+        ->assertDontSee(route('turnos-asignados.index', ['buscar' => '7633685']), escape: false);
 });

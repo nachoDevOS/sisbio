@@ -4,13 +4,16 @@
     'variante' => 'icono',
     'etiqueta' => 'Eliminar',
     'alHacerClic' => null,
+    'ancla' => '',
 ])
 
 @php
     // `alHacerClic` corre antes de abrir el modal: sirve para cerrar el menú
     // desplegable desde el que se eligió la baja (p. ej. `open = false`).
+    // `ancla` es la solapa desde la que se borra, para volver ahí después.
     $abrirModal = trim(($alHacerClic ? $alHacerClic.'; ' : '')
-        .'$store.eliminar.abrir('.\Illuminate\Support\Js::from($accion).', '.\Illuminate\Support\Js::from($mensaje).')');
+        .'$store.eliminar.abrir('.\Illuminate\Support\Js::from($accion).', '.\Illuminate\Support\Js::from($mensaje)
+        .', '.\Illuminate\Support\Js::from($ancla).')');
 @endphp
 
 {{-- Botón de baja. No envía nada por sí mismo: carga la URL del destroy y el

@@ -91,6 +91,33 @@ class AsignacionTurno extends Model
     }
 
     /**
+     * Turnos asignados a un funcionario: los que siguen en pie primero y,
+     * dentro de cada grupo, por día de la semana y hora de entrada. Con
+     * `$incluirVencidas` se suman al final las que ya terminaron.
+     *
+     * El orden se resuelve en SQL con un join a `turnos` a propósito: ordenar
+     * en memoria con `sortBy([...])` no sirve, porque ahí un closure se toma
+     * como comparador de dos argumentos, no como extractor del valor a ordenar.
+     */
+    public function scopeDelFuncionario(Builder $query, string $ci, bool $incluirVencidas = false): Builder
+    {
+        $hoy = today();
+
+        return $query
+            ->select('asignacion_turnos.*')
+            ->with('turno')
+            ->join('turnos', 'turnos.id', '=', 'asignacion_turnos.turno_id')
+            // El join saltea el borrado lógico de turnos: hay que excluirlos a mano.
+            ->whereNull('turnos.deleted_at')
+            ->where('asignacion_turnos.ci', $ci)
+            ->unless($incluirVencidas, fn (Builder $sub) => $sub->where('asignacion_turnos.hasta', '>=', $hoy))
+            ->orderByRaw('CASE WHEN asignacion_turnos.hasta >= ? THEN 0 ELSE 1 END', [$hoy])
+            ->orderBy('turnos.dia')
+            ->orderBy('turnos.hEntrada')
+            ->orderByDesc('asignacion_turnos.hasta');
+    }
+
+    /**
      * Situación de la asignación respecto de hoy: `vigente`, `vencida` (ya
      * terminó) o `futura` (todavía no empieza).
      */
