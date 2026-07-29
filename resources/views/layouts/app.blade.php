@@ -216,6 +216,7 @@
         .aviso { background: #dcfce7; color: #166534; padding: .65rem .9rem; border-radius: .5rem;
             margin-bottom: 1.1rem; font-size: .85rem; }
         .aviso--error { background: #fee2e2; color: #991b1b; }
+        .aviso--advertencia { background: #fef3c7; color: #92400e; }
 
         /* ===== Toaster (avisos flotantes) ===== */
         .toaster { position: fixed; top: 1rem; right: 1rem; z-index: 80; display: flex;
@@ -247,6 +248,60 @@
         .modal-licencia__turnos { max-height: 13rem; overflow-y: auto; margin-bottom: 1rem; }
         .modal-licencia__turnos table { font-size: .75rem; }
         .modal-licencia__turnos .paginacion { margin-top: .5rem; }
+
+        /* ===== Selector de turno (modal de asignar turno) =====
+           Un turno se reconoce por su horario, no por su nombre, así que en vez
+           de un <select> se listan tarjetas con día, entrada y salida a la vista. */
+        .modal-caja--turnos { max-width: 38rem; }
+        .turno-picker { border: 1px solid var(--border); border-radius: .55rem; background: #fff; overflow: hidden; }
+        .turno-picker__buscador { display: flex; align-items: center; gap: .45rem; padding: .5rem .7rem;
+            border-bottom: 1px solid var(--border); color: var(--muted); }
+        .turno-picker__buscador > svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+        .turno-picker__buscador input { flex: 1; min-width: 0; border: 0; outline: 0; padding: .1rem 0;
+            background: none; font-family: inherit; font-size: .85rem; color: var(--fg); }
+        .turno-picker__buscador input::-webkit-search-cancel-button { display: none; }
+        .turno-picker__buscador:focus-within { color: var(--verde); }
+        .turno-picker__limpiar { display: inline-flex; background: none; border: 0; cursor: pointer;
+            color: var(--muted); padding: .1rem; }
+        .turno-picker__limpiar:hover { color: var(--fg); }
+        .turno-picker__limpiar svg { width: .95rem; height: .95rem; }
+        .turno-picker__dias { display: flex; align-items: center; gap: .3rem; flex-wrap: wrap;
+            padding: .55rem .6rem; border-bottom: 1px solid var(--border); background: var(--bg); }
+        /* El conteo se va al extremo: dice cuántos quedaron tras filtrar. */
+        .turno-picker__conteo { margin-left: auto; font-size: .7rem; color: var(--muted); white-space: nowrap; }
+        .chip { border: 1px solid var(--border); background: #fff; border-radius: 999px;
+            padding: .22rem .7rem; font-size: .72rem; font-family: inherit; color: var(--muted); cursor: pointer; }
+        .chip:hover { border-color: var(--verde); color: var(--verde); }
+        .chip--activo { background: var(--verde); border-color: var(--verde); color: #fff; font-weight: 600; }
+        .chip--activo:hover { background: var(--verde-osc); border-color: var(--verde-osc); color: #fff; }
+        .turno-picker__lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
+            gap: .5rem; padding: .6rem; max-height: 17rem; overflow-y: auto; }
+        .turno-opcion { display: block; position: relative; padding: .6rem .7rem; cursor: pointer;
+            border: 1px solid var(--border); border-radius: .5rem; background: #fff; }
+        /* El radio queda oculto pero enfocable: la tarjeta entera es el control. */
+        .turno-opcion input { position: absolute; opacity: 0; width: 0; height: 0; }
+        .turno-opcion:hover { border-color: var(--verde); background: #f0fdf4; }
+        .turno-opcion:has(input:focus-visible) { outline: 2px solid var(--verde); outline-offset: 2px; }
+        .turno-opcion--elegido { border-color: var(--verde); background: #f0fdf4;
+            box-shadow: inset 0 0 0 1px var(--verde); }
+        .turno-opcion__cuerpo { display: flex; flex-direction: column; gap: .25rem; }
+        .turno-opcion__titulo { display: flex; align-items: center; gap: .4rem;
+            font-size: .8125rem; font-weight: 600; line-height: 1.25; }
+        .turno-opcion__dia { flex-shrink: 0; background: var(--bg); border: 1px solid var(--border);
+            border-radius: .3rem; padding: .05rem .35rem; font-size: .65rem; letter-spacing: .03em; color: var(--muted); }
+        .turno-opcion--elegido .turno-opcion__dia { background: #dcfce7; border-color: #86efac; color: #166534; }
+        .turno-opcion__horario { font-size: .95rem; font-weight: 700; color: var(--verde);
+            font-variant-numeric: tabular-nums; }
+        .turno-opcion__meta { display: flex; flex-wrap: wrap; gap: .35rem .6rem;
+            font-size: .7rem; color: var(--muted); }
+        .turno-picker__lista .vacio { grid-column: 1 / -1; }
+
+        /* Confirmación de lo elegido, al pie del selector: es el dato que se
+           mira antes de dar Asignar. */
+        .turno-elegido { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap;
+            margin: .55rem 0 0; padding: .5rem .7rem; border-radius: .5rem;
+            background: #f0fdf4; border: 1px solid #86efac; color: #166534; font-size: .8125rem; }
+        .turno-elegido svg { width: 1rem; height: 1rem; flex-shrink: 0; }
 
         /* Atajos de rango: evitan tipear las dos fechas en los casos de siempre. */
         .rangos-rapidos { display: flex; gap: .35rem; flex-wrap: wrap; margin: -.35rem 0 .25rem; }

@@ -157,7 +157,7 @@ class RegistroLicencia
 
                     $candidatos[self::clave((string) $ci, $fecha->toDateString(), (int) $turno->id)] = [
                         'ci' => (string) $ci,
-                        'fecha' => $fecha->toDateString().' 00:00:00',
+                        'fecha' => $fecha->toDateString(),
                         'turno_id' => (int) $turno->id,
                     ];
                 }
@@ -181,7 +181,7 @@ class RegistroLicencia
     {
         return Licencia::withTrashed()
             ->whereIn('ci', $cis)
-            ->whereBetween('fecha', [$desde->copy()->startOfDay(), $hasta->copy()->endOfDay()])
+            ->whereBetween('fecha', [$desde->toDateString(), $hasta->toDateString()])
             ->get(['id', 'ci', 'fecha', 'turno_id', 'deleted_at'])
             ->keyBy(fn (Licencia $licencia): string => self::clave(
                 trim((string) $licencia->ci),

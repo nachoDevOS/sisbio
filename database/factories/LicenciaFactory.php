@@ -19,7 +19,7 @@ class LicenciaFactory extends Factory
         return [
             'fechaPedido' => now(),
             'usuario' => fake()->name(),
-            'fecha' => fake()->dateTimeBetween('-1 year', 'now')->format('Y-m-d 00:00:00'),
+            'fecha' => fake()->dateTimeBetween('-1 year', 'now')->format('Y-m-d'),
             'ci' => (string) fake()->unique()->numberBetween(1000000, 9999999),
             'turno_id' => Turno::factory(),
             // El horario va por la FK; `idTurno` solo existe en lo migrado del SIA.

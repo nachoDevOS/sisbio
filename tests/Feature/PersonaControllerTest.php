@@ -620,6 +620,24 @@ test('el listado AJAX de turnos filtra por situación', function () {
         ->assertDontSee('TURNO VIGENTE');
 });
 
+test('el listado AJAX de turnos oculta concluir y eliminar cuando se pide sin acciones', function () {
+    $turno = Turno::factory()->create(['nombreTurno' => 'LUN: 08:00 - 16:00']);
+    AsignacionTurno::factory()->create(['ci' => '7633685', 'turno_id' => $turno->id]);
+
+    // En la ficha los botones están.
+    $this->get(route('funcionarios.turnos.list', ['ci' => '7633685']))
+        ->assertOk()
+        ->assertSee('aria-label="Concluir"', escape: false)
+        ->assertSee('aria-label="Eliminar"', escape: false);
+
+    // En el modal de licencia la tabla es solo de referencia.
+    $this->get(route('funcionarios.turnos.list', ['ci' => '7633685', 'acciones' => 0]))
+        ->assertOk()
+        ->assertSee('LUN: 08:00 - 16:00')
+        ->assertDontSee('aria-label="Concluir"', escape: false)
+        ->assertDontSee('aria-label="Eliminar"', escape: false);
+});
+
 test('el listado AJAX de turnos avisa cuando el funcionario no tiene ninguno', function () {
     $this->get(route('funcionarios.turnos.list', ['ci' => '7633685']))
         ->assertOk()

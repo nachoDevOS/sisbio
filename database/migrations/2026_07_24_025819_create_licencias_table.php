@@ -30,7 +30,7 @@ return new class extends Migration
             $table->id();
             $table->dateTime('fechaPedido');
             $table->string('usuario', 50);
-            $table->dateTime('fecha');
+            $table->date('fecha');
             $table->char('ci', 12);
             // Solo histórico (lo que trajo el SIA); el sistema no lo escribe.
             $table->char('idTurno', 3)->nullable();

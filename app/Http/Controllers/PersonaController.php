@@ -145,6 +145,9 @@ class PersonaController extends Controller
         $origenFicha = in_array($request->query('origen'), ['local', 'mamore'], true)
             ? (string) $request->query('origen')
             : '';
+        // El modal de licencia muestra esta misma tabla solo como referencia:
+        // pide `acciones=0` para que no aparezcan concluir ni eliminar.
+        $conAcciones = $request->boolean('acciones', true);
 
         $asignaciones = AsignacionTurno::query()
             ->delFuncionario($ci, incluirVencidas: $situacion !== 'vigentes')
@@ -152,7 +155,7 @@ class PersonaController extends Controller
             ->paginate($this->porPagina($request))
             ->withQueryString();
 
-        return view('funcionarios.turnos-list', compact('asignaciones', 'origenFicha'));
+        return view('funcionarios.turnos-list', compact('asignaciones', 'origenFicha', 'conAcciones'));
     }
 
     /**

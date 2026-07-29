@@ -55,7 +55,7 @@ class Licencia extends Model
     {
         return [
             'fechaPedido' => 'datetime',
-            'fecha' => 'datetime',
+            'fecha' => 'date',
             'lEntra' => 'datetime',
             'lSale' => 'datetime',
             'tCompleto' => 'boolean',

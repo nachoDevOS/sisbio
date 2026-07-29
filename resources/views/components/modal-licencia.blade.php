@@ -12,7 +12,9 @@
     // los formularios de la ficha fue, porque comparten nombres de campo.
     $abierto = old('_form') === 'licencia' ? 'true' : 'false';
     $verTurnos = auth()->user()?->can('viewAny', \App\Models\AsignacionTurno::class) ?? false;
-    $urlTurnos = route('funcionarios.turnos.list', ['ci' => $ciFijo, 'situacion' => 'vigentes', 'por_pagina' => 100]);
+    // `acciones=0`: acá los turnos se muestran solo como referencia, sin los
+    // botones de concluir ni eliminar de la solapa de la ficha.
+    $urlTurnos = route('funcionarios.turnos.list', ['ci' => $ciFijo, 'situacion' => 'vigentes', 'por_pagina' => 100, 'acciones' => 0]);
 @endphp
 
 {{-- Alta de licencia para **un** funcionario ya conocido: el mismo alcance

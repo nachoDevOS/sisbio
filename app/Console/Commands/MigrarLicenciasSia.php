@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -129,8 +130,8 @@ class MigrarLicenciasSia extends Command
     }
 
     /**
-     * Traduce una fila del SIA a la fila local (renombra columnas y recorta el
-     * padding de los char()).
+     * Traduce una fila del SIA a la fila local (renombra columnas, recorta el
+     * padding de los char() y descarta la hora de `fecha`).
      *
      * @param  array<string, mixed>  $fila
      * @return array<string, mixed>
@@ -142,6 +143,13 @@ class MigrarLicenciasSia extends Command
         foreach (self::MAPA as $origen => $destino) {
             $valor = $fila[$origen] ?? null;
             $local[$destino] = is_string($valor) ? trim($valor) : $valor;
+        }
+
+        // En el SIA «Fecha» es datetime (siempre a las 00:00) pero acá la columna
+        // es date: si alguna fila trajera hora, MySQL en modo estricto rechazaría
+        // el insert por truncamiento.
+        if ($local['fecha'] !== null) {
+            $local['fecha'] = Carbon::parse($local['fecha'])->toDateString();
         }
 
         return $local;

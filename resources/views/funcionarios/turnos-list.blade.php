@@ -1,6 +1,9 @@
 @php
     $pillPorSituacion = ['vigente' => 'pill--ok', 'vencida' => 'pill--no', 'futura' => 'pill--info'];
     $etiquetaSituacion = ['vigente' => 'Vigente', 'vencida' => 'Vencida', 'futura' => 'Aún no vigente'];
+    // Sin acciones cuando la tabla se muestra solo de referencia (modal de licencia).
+    $conAcciones = $conAcciones ?? true;
+    $columnas = $conAcciones ? 8 : 7;
 @endphp
 <div class="card">
     <table>
@@ -13,7 +16,9 @@
                 <th>Desde</th>
                 <th>Hasta</th>
                 <th>Situación</th>
-                <th></th>
+                @if ($conAcciones)
+                    <th></th>
+                @endif
             </tr>
         </thead>
         <tbody>
@@ -30,27 +35,29 @@
                             {{ $etiquetaSituacion[$asignacion->situacion] ?? $asignacion->situacion }}
                         </span>
                     </td>
-                    <td>
-                        <div class="acciones">
-                            {{-- Concluir es lo que corresponde cuando el funcionario dejó
-                                 ese turno; eliminar, solo si la asignación se cargó mal. --}}
-                            @if ($asignacion->situacion !== 'vencida')
-                                @can('update', $asignacion)
-                                    <x-boton-concluir :accion="route('turnos-asignados.concluir', $asignacion)"
-                                                      :mensaje="'Turno «'.trim((string) $asignacion->turno?->nombreTurno).'» de CI '.trim((string) $asignacion->ci).'.'"
-                                                      origen="{{ $origenFicha ?? '' }}" />
+                    @if ($conAcciones)
+                        <td>
+                            <div class="acciones">
+                                {{-- Concluir es lo que corresponde cuando el funcionario dejó
+                                     ese turno; eliminar, solo si la asignación se cargó mal. --}}
+                                @if ($asignacion->situacion !== 'vencida')
+                                    @can('update', $asignacion)
+                                        <x-boton-concluir :accion="route('turnos-asignados.concluir', $asignacion)"
+                                                          :mensaje="'Turno «'.trim((string) $asignacion->turno?->nombreTurno).'» de CI '.trim((string) $asignacion->ci).'.'"
+                                                          origen="{{ $origenFicha ?? '' }}" />
+                                    @endcan
+                                @endif
+                                @can('delete', $asignacion)
+                                    <x-boton-eliminar :accion="route('turnos-asignados.destroy', $asignacion)"
+                                                      :mensaje="'Se elimina la asignación del turno «'.trim((string) $asignacion->turno?->nombreTurno).'». Si el funcionario dejó ese turno, concluilo en vez de borrarlo.'"
+                                                      ancla="turnos" />
                                 @endcan
-                            @endif
-                            @can('delete', $asignacion)
-                                <x-boton-eliminar :accion="route('turnos-asignados.destroy', $asignacion)"
-                                                  :mensaje="'Se elimina la asignación del turno «'.trim((string) $asignacion->turno?->nombreTurno).'». Si el funcionario dejó ese turno, concluilo en vez de borrarlo.'"
-                                                  ancla="turnos" />
-                            @endcan
-                        </div>
-                    </td>
+                            </div>
+                        </td>
+                    @endif
                 </tr>
             @empty
-                <tr><td colspan="8" class="vacio">El funcionario no tiene turnos asignados en este filtro.</td></tr>
+                <tr><td colspan="{{ $columnas }}" class="vacio">El funcionario no tiene turnos asignados en este filtro.</td></tr>
             @endforelse
         </tbody>
     </table>

@@ -185,9 +185,33 @@ test('la solapa de turnos asigna desde un modal, sin salir de la ficha', functio
         ->assertSee('<input type="hidden" name="_form" value="turno-asignado">', escape: false)
         ->assertSee('<input type="hidden" name="ci" value="7633685">', escape: false)
         ->assertSee('<input type="hidden" name="origen" value="local">', escape: false)
-        // Los turnos del select salen agrupados por día.
-        ->assertSee('<optgroup label="Lunes">', escape: false)
-        ->assertSee('LUN: 08:00 - 16:00');
+        // El turno se elige de una lista de tarjetas con su horario, filtrable
+        // por día, en vez de un <select> donde no entra el detalle.
+        ->assertSee('class="turno-picker"', escape: false)
+        ->assertSee('LUN: 08:00 - 16:00')
+        // Cada tarjeta lleva el día completo para el resumen de lo elegido.
+        ->assertSee('nombreDia')
+        ->assertSee('lunes')
+        ->assertSee('class="turno-elegido"', escape: false)
+        // Buscador del selector, con el texto plegado contra el que filtra.
+        ->assertSee('class="turno-picker__buscador"', escape: false)
+        ->assertSee('Buscar por turno, día u hora (ej. 08:00, lunes)')
+        ->assertSee('busca');
+});
+
+test('el buscador del selector de turnos indexa día, nombre y horas sin tildes', function () {
+    $persona = Persona::factory()->create(['ci' => '7633685']);
+    Turno::factory()->create([
+        'dia' => '4',
+        'nombreTurno' => 'MIÉ: 08:00 - 16:00',
+        'hEntrada' => '08:00',
+        'hSalida' => '16:00',
+    ]);
+
+    $this->get(route('funcionarios.show', $persona))
+        ->assertOk()
+        // «miercoles» sin tilde tiene que encontrar al turno del miércoles.
+        ->assertSee('miercoles mie: 08:00 - 16:00 08:00 16:00');
 });
 
 test('un origen desconocido no saca al usuario del listado', function () {
