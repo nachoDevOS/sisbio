@@ -55,7 +55,6 @@
             const selPaginate = document.getElementById('f-paginate');
             const selFuente = document.getElementById('f-fuente');
             const selContrato = document.getElementById('f-contrato');
-            let temporizador = null;
 
             // El filtro por contrato solo aplica a Mamoré (SIAT no tiene contratos).
             function sincronizarContrato() {
@@ -111,12 +110,9 @@
             selPaginate.addEventListener('change', () => cargar(1));
             selContrato.addEventListener('change', () => cargar(1));
             selFuente.addEventListener('change', () => { sincronizarContrato(); cargar(1); });
+            // La búsqueda se dispara solo con Enter: escribir no recarga la tabla.
             inputBuscar.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') { e.preventDefault(); clearTimeout(temporizador); cargar(1); }
-            });
-            inputBuscar.addEventListener('input', () => {
-                clearTimeout(temporizador);
-                temporizador = setTimeout(() => cargar(1), 500);
+                if (e.key === 'Enter') { e.preventDefault(); cargar(1); }
             });
 
             sincronizarContrato();

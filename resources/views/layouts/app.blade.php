@@ -513,6 +513,8 @@
                 'turnos-asignados' => request()->routeIs('turnos-asignados.*'),
                 'licencias' => request()->routeIs('licencias.*'),
                 'reportes' => request()->routeIs('reportes.*'),
+                'reporte-sin-procesar' => request()->routeIs('reportes.marcaciones.sin-procesar*'),
+                'reporte-procesado' => request()->routeIs('reportes.marcaciones.procesado*'),
                 'equipos' => request()->routeIs('equipos.*'),
                 'usuarios' => request()->routeIs('usuarios.*'),
                 'roles' => request()->routeIs('roles.*'),
@@ -560,9 +562,22 @@
                     </a>
                 </div>
             </div>
-            <a href="{{ route('reportes.marcaciones.sin-procesar') }}" @class(['sidebar__link', 'activo' => $enMenu['reportes']]) title="Reportes"@if ($enMenu['reportes']) aria-current="page"@endif>
-                <x-heroicon-o-document-chart-bar /><span class="sidebar__texto">Reportes</span>
-            </a>
+            {{-- Reportes: mismo patrón colapsable que «Parámetros». --}}
+            <div x-data="{ abierto: {{ $enMenu['reportes'] ? 'true' : 'false' }} }">
+                <button type="button" @class(['sidebar__grouptoggle', 'activo' => $enMenu['reportes']]) title="Reportes"
+                        x-on:click="sidebarPlegado ? (alternarMenu(), abierto = true) : (abierto = !abierto)" :aria-expanded="abierto">
+                    <x-heroicon-o-document-chart-bar /><span class="sidebar__texto">Reportes</span>
+                    <span class="sidebar__chevron" :style="abierto ? 'transform: rotate(180deg)' : ''"><x-heroicon-o-chevron-down /></span>
+                </button>
+                <div class="sidebar__submenu" x-show="abierto" x-cloak>
+                    <a href="{{ route('reportes.marcaciones.sin-procesar') }}" @class(['sidebar__sublink', 'activo' => $enMenu['reporte-sin-procesar']]) title="Marcaciones sin procesar"@if ($enMenu['reporte-sin-procesar']) aria-current="page"@endif>
+                        <x-heroicon-o-finger-print /><span class="sidebar__texto">Sin procesar</span>
+                    </a>
+                    <a href="{{ route('reportes.marcaciones.procesado') }}" @class(['sidebar__sublink', 'activo' => $enMenu['reporte-procesado']]) title="Marcaciones procesadas"@if ($enMenu['reporte-procesado']) aria-current="page"@endif>
+                        <x-heroicon-o-clipboard-document-list /><span class="sidebar__texto">Procesado</span>
+                    </a>
+                </div>
+            </div>
             <a href="{{ route('equipos.index') }}" @class(['sidebar__link', 'activo' => $enMenu['equipos']]) title="Equipos"@if ($enMenu['equipos']) aria-current="page"@endif>
                 <x-heroicon-o-computer-desktop /><span class="sidebar__texto">Equipos</span>
             </a>

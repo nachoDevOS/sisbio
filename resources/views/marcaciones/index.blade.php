@@ -67,7 +67,6 @@
             const dateDesde = document.getElementById('f-desde');
             const dateHasta = document.getElementById('f-hasta');
             const selTipo = document.getElementById('f-tipo');
-            let temporizador = null;
 
             async function cargar(page = 1) {
                 const params = new URLSearchParams({
@@ -103,12 +102,9 @@
             dateDesde.addEventListener('change', () => cargar(1));
             dateHasta.addEventListener('change', () => cargar(1));
             selTipo.addEventListener('change', () => cargar(1));
+            // La búsqueda se dispara solo con Enter: escribir no recarga la tabla.
             inputBuscar.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') { e.preventDefault(); clearTimeout(temporizador); cargar(1); }
-            });
-            inputBuscar.addEventListener('input', () => {
-                clearTimeout(temporizador);
-                temporizador = setTimeout(() => cargar(1), 500);
+                if (e.key === 'Enter') { e.preventDefault(); cargar(1); }
             });
 
             cargar(1);

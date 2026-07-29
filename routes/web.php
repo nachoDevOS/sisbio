@@ -107,6 +107,10 @@ Route::middleware('auth')->group(function (): void {
     // CSV). «Sin procesar» = todas las marcaciones crudas del rango.
     Route::get('reportes/marcaciones/sin-procesar', [ReporteMarcacionController::class, 'sinProcesar'])->name('reportes.marcaciones.sin-procesar');
     Route::get('reportes/marcaciones/sin-procesar/generar', [ReporteMarcacionController::class, 'sinProcesarList'])->name('reportes.marcaciones.sin-procesar.generar');
+    // «Procesado» = las mismas marcas cruzadas contra el turno asignado, los días
+    // excepcionales y las licencias, con entradas, salidas, atrasos y horas.
+    Route::get('reportes/marcaciones/procesado', [ReporteMarcacionController::class, 'procesado'])->name('reportes.marcaciones.procesado');
+    Route::get('reportes/marcaciones/procesado/generar', [ReporteMarcacionController::class, 'procesadoList'])->name('reportes.marcaciones.procesado.generar');
     // Búsqueda JSON de funcionarios para el combo (select2) del reporte.
     Route::get('reportes/marcaciones/funcionarios', [ReporteMarcacionController::class, 'buscarFuncionarios'])->name('reportes.marcaciones.funcionarios');
 });

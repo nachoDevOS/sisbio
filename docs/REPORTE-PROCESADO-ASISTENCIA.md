@@ -67,12 +67,22 @@ Motivos vistos: `HORARIO CONTINUO`, `Mantenimiento Reloj`, `CARNAVAL`,
 
 ### 1.5 `licencias` (1.107.748 filas) — permiso por `ci` + `fecha` + `turno_id`
 
+Hay **dos clases de licencia**, y se distinguen por `tCompleto`:
+
 | Campo | Significado |
 |---|---|
-| `tCompleto = 1` | día completo licenciado (`lEntra`/`lSale` en `NULL`) |
-| `tCompleto = 0` | licencia parcial, usar `lEntra` / `lSale` |
+| `tCompleto = 1` | **turno completo** (`lEntra`/`lSale` en `NULL`) |
+| `tCompleto = 0` | **por horas**: el tramo va en `lEntra` / `lSale` |
 | `goceHaberes` | con/sin sueldo |
 | `motivo` | texto libre, sin normalizar |
+
+**La licencia de turno completo cubre el día entero**: aunque la fila apunte a un
+`turno_id`, si el funcionario tiene varios turnos asignados ese día, quedan todos
+licenciados. Por eso se resuelve **a nivel día**, antes de repartir las marcas
+entre turnos, y no se compara el `turno_id`.
+
+La licencia **por horas** sí se evalúa turno por turno: se cruza con el turno por
+`turno_id` (una fila sin `turno_id` aplica a todos los turnos del día).
 
 **Una fila por día**, no por rango: un memo de 3 meses genera ~90 filas.
 
@@ -119,12 +129,16 @@ se descarta.
 ```
 1. ¿dias_excepcionales.motivoInasistencia IS NOT NULL?  → SÍ → CORTA. Fin.
 2. ¿tiene turno asignado ese día?                       → NO → NO LABORABLE
-3. ¿licencia tCompleto = 1?                             → SÍ → LICENCIA
-4. procesar marcaciones
+3. ¿licencia de turno completo (tCompleto = 1)?         → SÍ → LICENCIA (todo el día)
+4. procesar marcaciones turno por turno
 ```
 
 **El día excepcional manda sobre todo**: no se procesan marcaciones aunque el
 funcionario tenga uno o varios turnos asignados ese día.
+
+**La licencia de turno completo también corta el día entero**, sin importar a qué
+`turno_id` apunte: si el funcionario tiene dos turnos, quedan los dos licenciados.
+Las licencias **por horas** no cortan — se aplican dentro de cada turno (§3.5).
 
 ### 3.2 Atraso
 
@@ -143,15 +157,30 @@ funcionario tenga uno o varios turnos asignados ese día.
 
 La tolerancia **solo decide si hay atraso**, no cuánto vale.
 
-### 3.3 Horas computables — criterio estricto
+### 3.3 Horas computables — criterio estricto, con la tolerancia acreditada
 
 ```
-computable = min(salida, hSalida) − max(entrada, hEntrada)
+inicio = (entrada ≤ hTolerancia) ? hEntrada : entrada
+fin    = (salida  ≥ sTolerancia) ? hSalida  : salida
+
+computable = fin − inicio          (acotado al turno)
 ```
 
-Se acota al turno: el que llega 2h antes y se va 2h después no acumula 12h. La
-**permanencia real** se muestra al lado como columna informativa, para que RRHH
-pueda autorizar compensación a mano.
+Dos ideas:
+
+1. **Se acota al turno.** El que llega 2h antes y se va 2h después no acumula
+   12h. La **permanencia real** se muestra al lado como columna informativa, para
+   que RRHH pueda autorizar compensación a mano.
+2. **Dentro de la tolerancia cuenta como llegar a la hora.** Marcar 08:05 con
+   tolerancia 08:10 no descuenta 5 min: si no hay atraso, tampoco hay déficit.
+   Igual del lado de la salida con `sTolerancia`.
+
+| Entrada | Salida | inicio | fin | Computable |
+|---|---|---|---|---|
+| 07:30 | 16:59 | 08:00 | 16:00 | 8h 00m |
+| 08:05 | 16:05 | 08:00 (tolerancia) | 16:00 | 8h 00m |
+| 08:25 | 16:50 | 08:25 | 16:00 | 7h 35m |
+| 08:59 | 16:00 | 08:59 | 16:00 | 7h 01m |
 
 Sin entrada válida o sin salida válida → **computable = 0h**.
 
@@ -169,12 +198,12 @@ Sin entrada válida o sin salida válida → **computable = 0h**.
 **Abandono = únicamente irse antes de `sMinima`.** El que marca después de
 `sMaxima` trabajó de más; su falta es no haber marcado dentro de la ventana.
 
-### 3.5 Licencias parciales — corte duro
+### 3.5 Licencias por horas — corte duro
 
 ```
+tCompleto = 1              →  turno completo: no se exige ninguna marca (todo el día)
 licencia cubre la entrada  ⟺  lEntra ≤ hEntrada
 licencia cubre la salida   ⟺  lSale  ≥ hSalida
-tCompleto = 1              →  no se exige ninguna marca
 ```
 
 Si la licencia **cubre** la hora de entrada, el funcionario **no necesita marcar**
@@ -188,6 +217,30 @@ justificar y la marca pasa a ser obligatoria.
 | 07:30 (antes de `hEntrada`) | ✅ sí | ✅ CUMPLE |
 | 08:00 (= `hEntrada`) | ✅ sí | ✅ CUMPLE |
 | 08:05 | ❌ no | 🔴 **ABANDONO** |
+
+**Cómo se computan las horas.** El tramo licenciado se acredita siempre (recortado
+al turno). Lo que queda del turno son uno o dos tramos de trabajo, y cada uno se
+acredita solo si existe la marca que lo cierra:
+
+```
+licenciado = [lEntra, lSale] ∩ [hEntrada, hSalida]        ← siempre se acredita
+
+tramo previo    = [inicio,  lEntra]   si lEntra > hEntrada   ← necesita marca de ENTRADA
+tramo posterior = [lSale,   fin]      si lSale  < hSalida    ← necesita marca de SALIDA
+
+computable = licenciado + tramos acreditados     (tope: hTrabajadas)
+```
+
+El **reingreso es implícito en `lSale`**: no se marca al volver del permiso. Lo
+que se pierde cuando falta la marca de entrada es solo el tramo previo.
+
+| Licencia | Marcas | licenciado | tramos | Computable | Estado |
+|---|---|---|---|---|---|
+| 08:00–11:00 | 16:56 | 3h 00m | posterior `11:00→16:00` = 5h | **8h 00m** | ✅ CUMPLE |
+| 08:05–11:00 | 16:25 | 2h 55m | previo perdido · posterior 5h | **7h 55m** | 🔴 ABANDONO |
+| 13:00–16:00 | 08:05 | 3h 00m | previo `08:00→13:00` = 5h | **8h 00m** | ✅ CUMPLE |
+| 13:00–16:00 | — | 3h 00m | previo perdido | **3h 00m** | 🟠 SIN ENTRADA |
+| 10:00–12:00 | 08:05 · 16:30 | 2h 00m | previo 2h · posterior 4h | **8h 00m** | ✅ CUMPLE |
 
 ### 3.6 Dedupe
 
