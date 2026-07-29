@@ -253,9 +253,15 @@ registrado en un reloj pueda marcar en todos.
 **Estado:** diseñado en la base de datos, **no implementado** aún.
 
 Lo que ya está preparado:
-- Campo `es_master` en cada equipo → marca cuál es el origen de las huellas.
+- Columna `es_master` en `equipos` → marcaría cuál es el origen de las huellas.
+  **No se ofrece en la pantalla:** el checkbox «Equipo maestro» se quitó del
+  formulario, de la ficha y del tablero porque ninguna lógica leía el campo, así
+  que marcarlo no producía ningún efecto y hacía creer lo contrario. La columna
+  sigue en la base con su default `false` y ya no es asignable (fuera de
+  `$fillable`). Al implementar la replicación hay que volver a exponerla.
 - Campo `activo` → indica qué equipos participarían en la sincronización.
-- Campo `ultima_sync` → registraría la última vez que se replicó.
+- Campo `ultima_sync` → hoy guarda la última vez que el equipo respondió a
+  «Probar conexión», no una replicación de huellas.
 
 Lo que falta:
 1. **Endpoints de escritura en el microservicio Python** (hoy solo tiene lectura):

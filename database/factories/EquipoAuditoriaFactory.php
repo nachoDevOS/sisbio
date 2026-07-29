@@ -31,7 +31,6 @@ class EquipoAuditoriaFactory extends Factory
                 'puerto' => $equipo->puerto,
                 'ubicacion' => $equipo->ubicacion,
                 'algoritmo' => $equipo->algoritmo,
-                'es_master' => false,
                 'en_linea' => false,
                 'activo' => true,
                 'ultima_sync' => null,

@@ -49,7 +49,6 @@ test('guarda un equipo nuevo y redirige al listado', function () {
         'puerto' => 4370,
         'comm_key' => 0,
         'ubicacion' => 'Bodega',
-        'es_master' => '1',
         'activo' => '1',
     ];
 
@@ -60,8 +59,44 @@ test('guarda un equipo nuevo y redirige al listado', function () {
     $this->assertDatabaseHas('equipos', [
         'nombre' => 'iClock Bodega',
         'ip' => '192.168.1.60',
-        'es_master' => true,
         'activo' => true,
+    ]);
+});
+
+test('el formulario no ofrece marcar el equipo como maestro', function () {
+    // La replicación de huellas entre equipos no está implementada (ver
+    // docs/COMUNICACION-BIOMETRICOS.md §6), así que el campo no se ofrece:
+    // marcarlo no cambiaba nada.
+    $this->get(route('equipos.create'))
+        ->assertOk()
+        ->assertDontSee('maestro')
+        ->assertDontSee('name="es_master"', escape: false);
+
+    $equipo = Equipo::factory()->create();
+
+    $this->get(route('equipos.edit', $equipo))
+        ->assertOk()
+        ->assertDontSee('name="es_master"', escape: false);
+
+    $this->get(route('equipos.show', $equipo))
+        ->assertOk()
+        ->assertDontSee('Maestro');
+});
+
+test('un es_master enviado a mano no se guarda', function () {
+    $this->post(route('equipos.store'), [
+        'nombre' => 'iClock Colado',
+        'ip' => '192.168.1.61',
+        'puerto' => 4370,
+        'comm_key' => 0,
+        'activo' => '1',
+        'es_master' => '1',
+    ])->assertRedirect(route('equipos.index'));
+
+    // La columna sigue en la base con su default, pero ya no es asignable.
+    $this->assertDatabaseHas('equipos', [
+        'nombre' => 'iClock Colado',
+        'es_master' => false,
     ]);
 });
 

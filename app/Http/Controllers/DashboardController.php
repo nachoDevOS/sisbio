@@ -23,7 +23,6 @@ class DashboardController extends Controller
             'total' => Equipo::count(),
             'en_linea' => Equipo::where('en_linea', true)->count(),
             'fuera_linea' => Equipo::where('en_linea', false)->count(),
-            'maestros' => Equipo::where('es_master', true)->count(),
         ];
 
         $equiposFueraDeLinea = Equipo::query()

@@ -19,7 +19,10 @@ return new class extends Migration
             $table->unsignedInteger('comm_key')->default(0); // COMM key / password del equipo
             $table->string('ubicacion')->nullable(); // Ubicación física (ej. "Puerta principal")
             $table->string('algoritmo')->nullable(); // Firma de algoritmo (plataforma + firmware) para compatibilidad de huella
-            $table->boolean('es_master')->default(false); // Equipo maestro/origen de huellas
+            // Origen de las huellas a replicar. Reservada: la replicación entre
+            // equipos no está implementada, así que no se ofrece en la pantalla
+            // ni es asignable. Ver docs/COMUNICACION-BIOMETRICOS.md §6.
+            $table->boolean('es_master')->default(false);
             $table->boolean('en_linea')->default(false); // Último estado de conexión conocido
             $table->timestamp('ultima_sync')->nullable(); // Última vez que se conectó/sincronizó
             $table->boolean('activo')->default(true); // Si participa en la sincronización

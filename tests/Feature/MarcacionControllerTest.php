@@ -439,3 +439,83 @@ test('un invitado no puede importar marcaciones', function () {
 
     $this->post(route('marcaciones.importar'), ['archivo' => $archivo])->assertRedirect();
 });
+
+test('importar CSV va antes que el alta manual en la cabecera', function () {
+    $this->get(route('marcaciones.index'))
+        ->assertOk()
+        ->assertSeeInOrder(['Importar CSV', 'Nueva marcación']);
+});
+
+test('el import explica el formato del archivo antes de elegirlo', function () {
+    $this->get(route('marcaciones.index'))
+        ->assertOk()
+        ->assertSee('Importar marcaciones desde un CSV')
+        // De dónde sale el archivo y un ejemplo de sus columnas.
+        ->assertSee('Descargar CSV')
+        ->assertSee('CI/ID,Nombre,Fecha,Hora')
+        // El campo va dentro del modal, no suelto en la cabecera.
+        ->assertSee('id="archivo-csv"', escape: false);
+});
+
+test('el modal del import se reabre solo con el error si el archivo no sirve', function () {
+    $archivo = UploadedFile::fake()->create('marcaciones.pdf', 10, 'application/pdf');
+
+    // `from()` es lo que hace que la validación rebote al listado, como en el
+    // navegador: sin referer, Laravel manda a la raíz.
+    $this->from(route('marcaciones.index'))
+        ->post(route('marcaciones.importar'), ['archivo' => $archivo])
+        ->assertRedirect(route('marcaciones.index'))
+        ->assertSessionHasErrors('archivo');
+
+    $this->from(route('marcaciones.index'))
+        ->followingRedirects()
+        ->post(route('marcaciones.importar'), ['archivo' => $archivo])
+        ->assertOk()
+        // `abierto: true` deja el modal abierto con el error a la vista.
+        ->assertSee('x-data="{ abierto: true, archivo: \'\' }"', escape: false)
+        ->assertSee('debe ser un archivo de tipo: csv, txt');
+});
+
+test('el origen de cada marcación se explica con palabras, no solo con la letra', function () {
+    DB::table('personas')->insert([
+        ['ci' => '1', 'paterno' => 'Relojero', 'materno' => null, 'nombres' => 'Ana', 'pinReloj' => null, 'marcaDirecta' => false],
+        ['ci' => '2', 'paterno' => 'Legado', 'materno' => null, 'nombres' => 'Beto', 'pinReloj' => null, 'marcaDirecta' => false],
+    ]);
+    DB::table('asistencias')->insert([
+        ['ci' => '1', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'R'],
+        ['ci' => '2', 'fecha' => now()->toDateString(), 'hora' => now()->toDateTimeString(), 'tipo' => 'A'],
+    ]);
+
+    // En la tabla: la letra que guarda la base, más su significado al lado.
+    $this->get(route('marcaciones.list'))
+        ->assertOk()
+        ->assertSee('Origen')
+        ->assertSee('<span class="pill pill--ok">R</span>', escape: false)
+        ->assertSee('Reloj')
+        ->assertSee('Sin identificar');
+
+    // Y en el filtro, cada opción dice qué es.
+    $this->get(route('marcaciones.index'))
+        ->assertOk()
+        ->assertSee('R · Reloj')
+        ->assertSee('M · Manual')
+        ->assertSee('A · Sin identificar')
+        // Los dos campos de fecha dejan de ser dos cajas sin nombre.
+        ->assertSeeInOrder(['Desde', 'Hasta', 'Origen']);
+});
+
+test('un usuario sin permiso de crear no ve ninguna de las dos acciones', function () {
+    foreach (['ViewAny:Asistencia'] as $permiso) {
+        Permission::firstOrCreate(['name' => $permiso, 'guard_name' => 'web']);
+    }
+
+    $rol = Role::create(['name' => 'solo_lectura_import', 'guard_name' => 'web']);
+    $rol->givePermissionTo('ViewAny:Asistencia');
+
+    $this->actingAs(User::factory()->create()->assignRole($rol));
+
+    $this->get(route('marcaciones.index'))
+        ->assertOk()
+        ->assertDontSee('Importar CSV')
+        ->assertDontSee('Nueva marcación');
+});

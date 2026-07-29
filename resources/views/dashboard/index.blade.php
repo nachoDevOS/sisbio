@@ -14,7 +14,7 @@
         </div>
     </div>
 
-    <div class="stats-grid">
+    <div class="stats-grid stats-grid--3">
         <div class="stat-card">
             <div class="stat-card__valor">{{ $equipos['total'] }}</div>
             <div class="stat-card__label">Equipos registrados</div>
@@ -26,10 +26,6 @@
         <div class="stat-card stat-card--danger">
             <div class="stat-card__valor">{{ $equipos['fuera_linea'] }}</div>
             <div class="stat-card__label">Fuera de línea</div>
-        </div>
-        <div class="stat-card stat-card--warning">
-            <div class="stat-card__valor">{{ $equipos['maestros'] }}</div>
-            <div class="stat-card__label">Equipos maestros</div>
         </div>
     </div>
 

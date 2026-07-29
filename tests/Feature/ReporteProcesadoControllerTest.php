@@ -7,6 +7,8 @@ use App\Models\Persona;
 use App\Models\Turno;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 uses(RefreshDatabase::class);
 
@@ -153,7 +155,7 @@ test('el rango invertido se da vuelta en vez de salir vacío', function () {
         ->assertSee('LUN: 08:00 - 16:00');
 });
 
-test('el día sin turno asignado se informa como no laborable', function () {
+test('el día sin turno asignado no ocupa una fila, pero se cuenta en el resumen', function () {
     funcionarioProcesado();
 
     // Domingo: el turno es de los lunes.
@@ -161,7 +163,51 @@ test('el día sin turno asignado se informa como no laborable', function () {
         'desde' => '2026-07-26', 'hasta' => '2026-07-26',
     ])))
         ->assertOk()
+        ->assertSee('Sin días con turno asignado en el rango seleccionado.')
+        // Sale del listado, pero el resumen sigue diciendo que el día existió.
+        ->assertSee('No laborable: 1');
+});
+
+test('la tabla en pantalla lista solo los días con turno asignado', function () {
+    funcionarioProcesado();
+
+    // Sábado 25, domingo 26 y lunes 27: solo el lunes tiene turno.
+    $this->get(route('reportes.marcaciones.procesado.generar', rangoProcesado([
+        'desde' => '2026-07-25', 'hasta' => '2026-07-27',
+    ])))
+        ->assertOk()
+        ->assertSee('27/07/2026')
+        ->assertDontSee('25/07/2026')
+        ->assertDontSee('26/07/2026')
+        ->assertSee('No laborable: 2');
+});
+
+test('el imprimible conserva los días no laborables', function () {
+    funcionarioProcesado();
+
+    $this->get(route('reportes.marcaciones.procesado.generar', rangoProcesado([
+        'desde' => '2026-07-25', 'hasta' => '2026-07-27', 'print' => 1,
+    ])))
+        ->assertOk()
+        // El imprimible formatea la fecha con `d/n/Y`, sin cero en el mes.
+        ->assertSee('25/7/2026')
+        ->assertSee('26/7/2026')
+        ->assertSee('27/7/2026')
         ->assertSee('No laborable');
+});
+
+test('la lista en pantalla no repite los avisos de configuración del turno', function () {
+    // El turno de la referencia tiene sMinima == sTolerancia (16:00), así que el
+    // procesador levanta ese aviso en todos sus bloques.
+    funcionarioProcesado();
+
+    $this->get(route('reportes.marcaciones.procesado.generar', rangoProcesado()))
+        ->assertOk()
+        // El día se sigue viendo completo…
+        ->assertSee('LUN: 08:00 - 16:00')
+        ->assertSee('08:25:00')
+        // …pero sin la advertencia repetida fila por fila.
+        ->assertDontSee('Mínima hora de salida igual a la tolerancia');
 });
 
 test('generar con print=1 devuelve la versión imprimible', function () {
@@ -178,18 +224,107 @@ test('generar con print=1 devuelve la versión imprimible', function () {
         ->assertSee('7h 35m');
 });
 
-test('generar con print=2 descarga el CSV', function () {
+test('generar con print=2 descarga un xlsx con la maqueta del imprimible', function () {
     funcionarioProcesado();
 
-    $response = $this->get(route('reportes.marcaciones.procesado.generar', rangoProcesado(['print' => 2])))
+    $this->get(route('reportes.marcaciones.procesado.generar', rangoProcesado(['print' => 2])))
         ->assertOk()
-        ->assertHeader('content-type', 'text/csv; charset=UTF-8');
+        ->assertDownload('marcaciones-procesadas-7633685-'.now()->format('Y-m-d').'.xlsx');
+});
 
-    expect($response->getContent())
-        ->toContain('Fecha,Dia,Turno,Entro,Salio,Atraso,Abandono,Falta,Entrada lic.,Salida lic.,T.C.,C.G.H.')
-        ->toContain('"08:25:00"')
-        ->toContain('"25 min"')
-        ->toContain('"Atraso"');
+/**
+ * Lee el xlsx descargado y devuelve la hoja ya cargada, para poder afirmar
+ * sobre celdas concretas en vez de sobre el binario.
+ *
+ * @param  array<string, mixed>  $extra
+ */
+function hojaDescargada(array $extra = []): Worksheet
+{
+    $response = test()->get(route('reportes.marcaciones.procesado.generar', rangoProcesado($extra + ['print' => 2])));
+
+    $ruta = tempnam(sys_get_temp_dir(), 'sisbio-test-').'.xlsx';
+    file_put_contents($ruta, $response->streamedContent());
+
+    $hoja = IOFactory::load($ruta)->getActiveSheet();
+
+    unlink($ruta);
+
+    return $hoja;
+}
+
+test('el xlsx trae la cabecera institucional y los datos del funcionario', function () {
+    funcionarioProcesado();
+
+    $hoja = hojaDescargada();
+
+    expect($hoja->getCell('C1')->getValue())->toBe('GOBIERNO AUTONOMO DEPARTAMENTAL DEL BENI')
+        ->and($hoja->getCell('C2')->getValue())->toBe('REPORTE DE MARCACIONES')
+        ->and($hoja->getCell('C3')->getValue())->toBe('TRINIDAD')
+        ->and($hoja->getCell('C4')->getValue())->toBe('Marcaciones procesadas')
+        ->and($hoja->getCell('A6')->getValue())->toContain('PIN Reloj: 7633685')
+        ->and($hoja->getCell('A6')->getValue())->toContain('desde el 27/7/2026');
+});
+
+test('el xlsx repite las 13 columnas del imprimible', function () {
+    funcionarioProcesado();
+
+    $hoja = hojaDescargada();
+    $cabeceras = [];
+
+    foreach (range('A', 'M') as $columna) {
+        $cabeceras[] = $hoja->getCell($columna.'8')->getValue();
+    }
+
+    expect($cabeceras)->toBe(['Fecha', 'Día', 'Turno', 'Entró', 'Salió', 'Atraso', 'Abandono', 'Falta',
+        'Entrada lic.', 'Salida lic.', 'T.C.', 'C.G.H.', 'Motivo licencia']);
+});
+
+test('el xlsx guarda las horas como texto, no como hora de Excel', function () {
+    funcionarioProcesado();
+
+    $hoja = hojaDescargada();
+
+    // Fila 9: primera del cuerpo. Si Excel las tomara como hora, el valor
+    // llegaría como fracción de día (0.35…) en vez del texto del reporte.
+    expect($hoja->getCell('A9')->getValue())->toBe('27/7/2026')
+        ->and($hoja->getCell('C9')->getValue())->toBe('LUN: 08:00 - 16:00')
+        ->and($hoja->getCell('D9')->getValue())->toBe('08:25:00')
+        ->and($hoja->getCell('E9')->getValue())->toBe('16:50:00')
+        ->and($hoja->getCell('F9')->getValue())->toBe('25 min');
+});
+
+test('el xlsx cierra con los totales, el resumen y las firmas', function () {
+    funcionarioProcesado();
+
+    $hoja = hojaDescargada();
+    $texto = [];
+
+    foreach ($hoja->getRowIterator() as $fila) {
+        foreach ($fila->getCellIterator() as $celda) {
+            $texto[] = (string) $celda->getValue();
+        }
+    }
+
+    $todo = implode("\n", $texto);
+
+    expect($todo)->toContain('Totales del rango:')
+        ->toContain('Horas computadas: 7h 35m de 8h 00m')
+        ->toContain('Referencias:')
+        ->toContain('Firma Responsable')
+        ->toContain('Firma RR. HH.');
+});
+
+test('el xlsx combina fecha y día cuando el día no tiene turno', function () {
+    funcionarioProcesado();
+
+    // Sábado 25, domingo 26 y lunes 27: los dos primeros son «No laborable» y
+    // ocupan las columnas del turno de punta a punta, como el colspan del print.
+    $hoja = hojaDescargada(['desde' => '2026-07-25', 'hasta' => '2026-07-27']);
+
+    expect($hoja->getCell('A9')->getValue())->toBe('25/7/2026')
+        ->and($hoja->getCell('B9')->getValue())->toBe('Sábado')
+        ->and($hoja->getCell('C9')->getValue())->toBe('No laborable')
+        ->and($hoja->getMergeCells())->toHaveKey('C9:L9');
 });
 
 test('generar sin funcionario vuelve al formulario con error', function () {

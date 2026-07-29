@@ -5,6 +5,12 @@
     // $persona es la ficha resuelta (Mamoré, con la base local como respaldo).
     $nombreEmpleado = $persona['nombreFormal'] ?: $persona['nombre'];
     $parametros = ['persona' => $persona['ci'], 'desde' => $desde, 'hasta' => $hasta];
+
+    // La tabla en pantalla lista solo los días con turno asignado: los «no
+    // laborable» no se controlan y llenaban el listado de filas vacías. Siguen
+    // contados en «Días por estado» del resumen, y el imprimible los conserva
+    // porque ese formato replica el reporte del sistema de escritorio viejo.
+    $diasConTurno = $dias->reject(fn (array $dia): bool => $dia['estado'] === P::NO_LABORABLE);
 @endphp
 
 {{-- Partial: se inyecta bajo el filtro del reporte vía AJAX (no lleva layout). --}}
@@ -26,7 +32,7 @@
             <a class="btn" target="_blank" rel="noopener"
                href="{{ route('reportes.marcaciones.procesado.generar', $parametros + ['print' => 1]) }}"><x-heroicon-o-printer />Imprimir</a>
             <a class="btn btn--gris"
-               href="{{ route('reportes.marcaciones.procesado.generar', $parametros + ['print' => 2]) }}"><x-heroicon-o-table-cells />Excel (CSV)</a>
+               href="{{ route('reportes.marcaciones.procesado.generar', $parametros + ['print' => 2]) }}"><x-heroicon-o-table-cells />Excel</a>
         </div>
     </div>
 
@@ -83,7 +89,7 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse ($dias as $dia)
+                @forelse ($diasConTurno as $dia)
                     @php
                         $nombreDia = Turno::DIAS[$dia['fecha']->dayOfWeek + 1] ?? '—';
                         $filas = max(1, count($dia['bloques']));
@@ -113,12 +119,10 @@
                                     <td rowspan="{{ $filas }}"><strong>{{ $dia['fecha']->format('d/m/Y') }}</strong></td>
                                     <td rowspan="{{ $filas }}">{{ $nombreDia }}</td>
                                 @endif
-                                <td>
-                                    {{ trim((string) $bloque['turno']->nombreTurno) }}
-                                    @foreach ($bloque['avisos'] as $aviso)
-                                        <br><small style="color: #92400e;">⚠ {{ $aviso }}</small>
-                                    @endforeach
-                                </td>
+                                {{-- Solo el horario: los avisos de configuración del turno
+                                     (`$bloque['avisos']`) repetían la misma advertencia en cada
+                                     fila y tapaban los datos del día. --}}
+                                <td>{{ trim((string) $bloque['turno']->nombreTurno) }}</td>
                                 <td>
                                     {{ $bloque['entrada'] === null ? '' : P::hora($bloque['entrada']) }}
                                     @unless ($bloque['entradaExigida'])
@@ -143,7 +147,7 @@
                         @endforeach
                     @endif
                 @empty
-                    <tr><td colspan="13" class="vacio">Sin días en el rango seleccionado.</td></tr>
+                    <tr><td colspan="13" class="vacio">Sin días con turno asignado en el rango seleccionado.</td></tr>
                 @endforelse
             </tbody>
         </table>

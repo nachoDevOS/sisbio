@@ -368,6 +368,9 @@
         .tabla-filtros__extra select, .tabla-filtros__extra input { padding: .45rem .6rem;
             border: 1px solid var(--border); border-radius: .5rem; font-size: .8125rem;
             background: #fff; color: var(--fg); font-family: inherit; }
+        /* Filtro con su nombre al lado: un campo de fecha suelto no dice qué filtra. */
+        .filtro { display: inline-flex; align-items: center; gap: .35rem;
+            font-size: .78rem; color: var(--muted); white-space: nowrap; }
 
         /* ===== Barra de herramientas: buscador y filtros en caja, con etiqueta arriba ===== */
         .toolbar { display: flex; gap: .9rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem;
@@ -401,7 +404,11 @@
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
         @media (max-width: 900px) { .form-grid { grid-template-columns: 1fr; } }
         @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
-        .campo .ayuda { color: var(--muted); font-size: .75rem; margin-top: .25rem; }
+        /* Texto secundario (aclaraciones, cargo bajo el nombre, referencias de
+           una tabla). Vale suelto y no solo dentro de un `.campo`, que es como
+           lo venían usando varias pantallas sin que tuviera estilo. */
+        .ayuda { color: var(--muted); font-size: .75rem; }
+        .campo .ayuda { margin-top: .25rem; }
         .campo .error { color: var(--danger); font-size: .78rem; margin-top: .25rem; }
         .check { display: flex; align-items: center; gap: .5rem; }
         .check input { width: 1.1rem; height: 1.1rem; }
@@ -429,8 +436,11 @@
 
         /* ===== Escritorio: tarjetas de estadística y mini gráfico ===== */
         .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-        @media (max-width: 960px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 560px) { .stats-grid { grid-template-columns: 1fr; } }
+        /* Fila de tres tarjetas: sin esto la cuarta columna queda vacía y las
+           tres se ven angostas y descolgadas a la izquierda. */
+        .stats-grid--3 { grid-template-columns: repeat(3, 1fr); }
+        @media (max-width: 960px) { .stats-grid, .stats-grid--3 { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 560px) { .stats-grid, .stats-grid--3 { grid-template-columns: 1fr; } }
         .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: .625rem;
             padding: 1rem 1.1rem; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
         .stat-card__valor { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }

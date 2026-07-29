@@ -28,9 +28,6 @@
             <dt>Algoritmo</dt>
             <dd>{{ $equipo->algoritmo ?? 'Sin detectar' }}</dd>
 
-            <dt>Maestro</dt>
-            <dd>{{ $equipo->es_master ? 'Sí' : 'No' }}</dd>
-
             <dt>En línea</dt>
             <dd>
                 <span class="pill {{ $equipo->en_linea ? 'pill--ok' : 'pill--no' }}">

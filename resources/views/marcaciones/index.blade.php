@@ -9,20 +9,19 @@
             <h1>Marcaciones</h1>
         </div>
         @can('create', \App\Models\Asistencia::class)
-            <div style="display: flex; align-items: flex-start; gap: .5rem; flex-wrap: wrap;">
+            {{-- Importar primero: es la vía habitual de cargar marcaciones (un
+                 archivo entero). El alta manual es la excepción, de a una. --}}
+            <div class="acciones">
+                <x-modal-importar-marcaciones />
                 <x-modal-marcacion />
-
-                <form method="POST" action="{{ route('marcaciones.importar') }}" enctype="multipart/form-data" style="display: flex; align-items: flex-start; gap: .5rem;">
-                    @csrf
-                    <div>
-                        <input type="file" name="archivo" accept=".csv,text/csv" required class="input" style="width: auto;">
-                        @error('archivo') <div class="error">{{ $message }}</div> @enderror
-                    </div>
-                    <button type="submit" class="btn"><x-heroicon-o-arrow-up-tray />Importar CSV</button>
-                </form>
             </div>
         @endcan
     </div>
+
+    <p class="ayuda" style="margin: -.4rem 0 1rem;">
+        Todas las marcaciones registradas. El listado arranca en el mes actual porque
+        la tabla tiene millones de filas.
+    </p>
 
     {{-- Filtros del listado (browse): disparan la carga AJAX de la tabla. --}}
     <div class="tabla-filtros">
@@ -36,15 +35,20 @@
             registros
         </label>
 
+        {{-- Etiquetas a la vista: dos campos de fecha sueltos no dicen que son
+             un rango, y las letras del tipo no significan nada por sí solas. --}}
         <div class="tabla-filtros__extra">
-            <input type="date" id="f-desde" value="{{ $desde }}" aria-label="Desde">
-            <input type="date" id="f-hasta" value="{{ $hasta }}" aria-label="Hasta">
-            <select id="f-tipo" aria-label="Tipo">
-                <option value="">Todos</option>
-                <option value="{{ \App\Models\Asistencia::TIPO_RELOJ }}" @selected($tipo === \App\Models\Asistencia::TIPO_RELOJ)>R</option>
-                <option value="{{ \App\Models\Asistencia::TIPO_A }}" @selected($tipo === \App\Models\Asistencia::TIPO_A)>A</option>
-                <option value="{{ \App\Models\Asistencia::TIPO_MANUAL }}" @selected($tipo === \App\Models\Asistencia::TIPO_MANUAL)>M</option>
-            </select>
+            <label class="filtro">Desde <input type="date" id="f-desde" value="{{ $desde }}"></label>
+            <label class="filtro">Hasta <input type="date" id="f-hasta" value="{{ $hasta }}"></label>
+            <label class="filtro">
+                Origen
+                <select id="f-tipo">
+                    <option value="">Todos</option>
+                    @foreach (\App\Models\Asistencia::TIPOS as $letra => $etiqueta)
+                        <option value="{{ $letra }}" @selected($tipo === $letra)>{{ $letra }} · {{ $etiqueta }}</option>
+                    @endforeach
+                </select>
+            </label>
         </div>
 
         <div class="buscador">
@@ -52,6 +56,13 @@
             <input type="text" id="f-buscar" placeholder="Buscar por CI o nombre…">
         </div>
     </div>
+
+    {{-- Referencia de la columna «Origen»: la letra es lo que guarda la base. --}}
+    <p class="ayuda" style="margin: -.5rem 0 .9rem;">
+        <strong>R</strong> = marcó en el reloj biométrico ·
+        <strong>M</strong> = cargada a mano en el sistema ·
+        <strong>A</strong> = viene del SIA y su origen no está documentado.
+    </p>
 
     {{-- Aquí se inyecta el parcial marcaciones.list (tabla + paginación). --}}
     <div id="div-results" style="min-height: 8rem;">

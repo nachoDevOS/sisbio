@@ -40,12 +40,6 @@
 </div>
 
 <div class="campo check">
-    <input type="checkbox" id="es_master" name="es_master" value="1"
-           @checked(old('es_master', $equipo->es_master ?? false))>
-    <label for="es_master" style="margin: 0;">Equipo maestro (origen de las huellas a replicar)</label>
-</div>
-
-<div class="campo check">
     <input type="checkbox" id="activo" name="activo" value="1"
            @checked(old('activo', $equipo->activo ?? true))>
     <label for="activo" style="margin: 0;">Activo (participa en la sincronización)</label>

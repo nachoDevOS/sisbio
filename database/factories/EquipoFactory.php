@@ -24,18 +24,9 @@ class EquipoFactory extends Factory
             'comm_key' => 0,
             'ubicacion' => fake()->randomElement(['Entrada', 'Puerta principal', 'Bodega', 'Oficina']),
             'algoritmo' => null,
-            'es_master' => false,
             'en_linea' => false,
             'ultima_sync' => null,
             'activo' => true,
         ];
-    }
-
-    /**
-     * Estado: equipo marcado como maestro (origen de huellas).
-     */
-    public function master(): static
-    {
-        return $this->state(fn (): array => ['es_master' => true]);
     }
 }

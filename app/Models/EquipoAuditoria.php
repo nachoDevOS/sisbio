@@ -122,7 +122,6 @@ class EquipoAuditoria extends Model
             'puerto' => $equipo->puerto,
             'ubicacion' => $equipo->ubicacion,
             'algoritmo' => $equipo->algoritmo,
-            'es_master' => (bool) $equipo->es_master,
             'en_linea' => (bool) $equipo->en_linea,
             'activo' => (bool) $equipo->activo,
             'ultima_sync' => $equipo->ultima_sync?->toDateTimeString(),

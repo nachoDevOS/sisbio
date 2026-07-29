@@ -141,7 +141,7 @@ Sidebar → Marcaciones
 
 ```
 DashboardController::index()
-  ├── Equipos: total/en línea/fuera/maestros + tabla de equipos caídos → MySQL local (sin caché)
+  ├── Equipos: total/en línea/fuera + tabla de equipos caídos → MySQL local (sin caché)
   └── Asistencia SIA: tarjetas + mini gráfico (CSS puro) de 14 días
         → caché 5 min → si expiró, consulta al SIA
         → si el SIA no responde: tarjeta "Sin conexión" (el escritorio no se cae)

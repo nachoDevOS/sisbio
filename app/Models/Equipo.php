@@ -36,7 +36,6 @@ class Equipo extends Model
         'comm_key',
         'ubicacion',
         'algoritmo',
-        'es_master',
         'en_linea',
         'ultima_sync',
         'activo',
@@ -54,7 +53,6 @@ class Equipo extends Model
         return [
             'puerto' => 'integer',
             'comm_key' => 'integer',
-            'es_master' => 'boolean',
             'en_linea' => 'boolean',
             'activo' => 'boolean',
             'ultima_sync' => 'datetime',

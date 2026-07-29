@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Exceptions\MamoreException;
 use App\Models\Asistencia;
 use App\Models\Persona;
-use App\Models\Turno;
 use App\Services\DirectorioMamore;
+use App\Services\ExcelMarcacionesProcesadas;
 use App\Services\ProcesadorAsistencia;
 use App\Services\ResolutorNombres;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,6 +18,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Reportes de marcaciones desde la base local (MySQL). Sigue el patrón de
@@ -100,10 +101,14 @@ class ReporteMarcacionController extends Controller
 
     /**
      * Genera el reporte procesado del funcionario elegido. El destino depende
-     * del parámetro `print`: 1 = imprimible, 2 = CSV, otro = lista en pantalla.
+     * del parámetro `print`: 1 = imprimible, 2 = Excel, otro = lista en pantalla.
      */
-    public function procesadoList(Request $request, ResolutorNombres $resolutor, ProcesadorAsistencia $procesador): View|Response|RedirectResponse
-    {
+    public function procesadoList(
+        Request $request,
+        ResolutorNombres $resolutor,
+        ProcesadorAsistencia $procesador,
+        ExcelMarcacionesProcesadas $excel,
+    ): View|Response|BinaryFileResponse|RedirectResponse {
         $this->authorize('viewAny', Asistencia::class);
 
         $persona = $resolutor->fichaPorCi((string) $request->query('persona', ''));
@@ -135,7 +140,12 @@ class ReporteMarcacionController extends Controller
 
         return match ((int) $request->query('print', 0)) {
             1 => view('reportes.marcaciones.procesado.print', $datos),
-            2 => $this->descargarCsvProcesado($persona, $dias),
+            2 => response()
+                ->download(
+                    $excel->generar($persona, $dias, $totales, $datos['desde'], $datos['hasta']),
+                    $excel->nombreArchivo($persona),
+                )
+                ->deleteFileAfterSend(),
             default => view('reportes.marcaciones.procesado.lista', $datos),
         };
     }
@@ -178,84 +188,6 @@ class ReporteMarcacionController extends Controller
             2 => $this->descargarCsv($persona, $marcaciones),
             default => view('reportes.marcaciones.sinProcesar.lista', $datos),
         };
-    }
-
-    /**
-     * Arma el CSV del reporte procesado: una fila por turno del día, con las
-     * horas ya calculadas.
-     *
-     * @param  array<string, mixed>  $persona
-     * @param  Collection<int, array<string, mixed>>  $dias
-     */
-    private function descargarCsvProcesado(array $persona, Collection $dias): Response
-    {
-        // Mismas columnas que el reporte en pantalla, más las horas del turno al
-        // final: el CSV es para analizar, ahí el ancho no molesta.
-        $csv = "\u{FEFF}Fecha,Dia,Turno,Entro,Salio,Atraso,Abandono,Falta,Entrada lic.,Salida lic.,T.C.,C.G.H.,"
-            ."Motivo licencia,Salida anticipada,Permanencia,Computado,Esperado,Estado\n";
-
-        foreach ($dias as $dia) {
-            $comunes = [
-                $dia['fecha']->format('d/m/Y'),
-                Turno::DIAS[$dia['fecha']->dayOfWeek + 1] ?? '',
-            ];
-
-            if ($dia['bloques'] === []) {
-                $csv .= $this->filaCsv(array_merge($comunes, [
-                    '', '', '', '', '', '', '', '', '',
-                    (string) ($dia['motivo'] ?? ''),
-                    '', '',
-                    ProcesadorAsistencia::duracion(0),
-                    ProcesadorAsistencia::duracion(0),
-                    ProcesadorAsistencia::ETIQUETAS[$dia['estado']] ?? $dia['estado'],
-                ]));
-
-                continue;
-            }
-
-            foreach ($dia['bloques'] as $bloque) {
-                $licencia = $bloque['licencia'];
-
-                $csv .= $this->filaCsv(array_merge($comunes, [
-                    trim((string) $bloque['turno']->nombreTurno),
-                    $bloque['entrada'] === null ? '' : ProcesadorAsistencia::hora($bloque['entrada']),
-                    $bloque['salida'] === null ? '' : ProcesadorAsistencia::hora($bloque['salida']),
-                    $bloque['atraso'] > 0 ? ProcesadorAsistencia::desvio($bloque['atraso']) : '',
-                    $bloque['estado'] === ProcesadorAsistencia::ABANDONO ? 'ABANDONO' : '',
-                    ProcesadorAsistencia::FALTAS[$bloque['estado']] ?? '',
-                    $licencia?->lEntra?->format('H:i') ?? '',
-                    $licencia?->lSale?->format('H:i') ?? '',
-                    $licencia === null ? '' : ($licencia->tCompleto ? 'Si' : 'No'),
-                    $licencia === null ? '' : ($licencia->goceHaberes ? 'Si' : 'No'),
-                    (string) ($licencia?->motivo ?? ''),
-                    ProcesadorAsistencia::desvio($bloque['anticipo']),
-                    ProcesadorAsistencia::duracion($bloque['permanencia']),
-                    ProcesadorAsistencia::duracion($bloque['computado']),
-                    ProcesadorAsistencia::duracion($bloque['esperado']),
-                    ProcesadorAsistencia::ETIQUETAS[$bloque['estado']] ?? $bloque['estado'],
-                ]));
-            }
-        }
-
-        $archivo = 'marcaciones-procesadas-'.Str::slug($persona['ci']).'-'.now()->format('Y-m-d').'.csv';
-
-        return response($csv, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$archivo}\"",
-        ]);
-    }
-
-    /**
-     * Escapa y une una fila del CSV: los motivos son texto libre y traen comas.
-     *
-     * @param  list<string>  $columnas
-     */
-    private function filaCsv(array $columnas): string
-    {
-        return implode(',', array_map(
-            fn (string $valor): string => '"'.str_replace('"', '""', $valor).'"',
-            $columnas,
-        ))."\n";
     }
 
     /**

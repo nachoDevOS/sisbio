@@ -13,7 +13,7 @@ beforeEach(function () {
 });
 
 test('muestra los conteos de equipos', function () {
-    Equipo::factory()->create(['en_linea' => true, 'es_master' => true]);
+    Equipo::factory()->create(['en_linea' => true]);
     Equipo::factory()->create(['en_linea' => false]);
 
     $this->get(route('dashboard'))
@@ -21,7 +21,8 @@ test('muestra los conteos de equipos', function () {
         ->assertSee('Equipos registrados')
         ->assertSee('En línea')
         ->assertSee('Fuera de línea')
-        ->assertSee('Equipos maestros');
+        // La tarjeta «Equipos maestros» contaba un campo que no hacía nada.
+        ->assertDontSee('Equipos maestros');
 });
 
 test('lista solo los equipos activos fuera de línea', function () {

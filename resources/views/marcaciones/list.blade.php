@@ -1,7 +1,9 @@
 @php
+    use App\Models\Asistencia;
+
     $pillPorTipo = [
-        \App\Models\Asistencia::TIPO_RELOJ => 'pill--ok',
-        \App\Models\Asistencia::TIPO_MANUAL => 'pill--advertencia',
+        Asistencia::TIPO_RELOJ => 'pill--ok',
+        Asistencia::TIPO_MANUAL => 'pill--advertencia',
     ];
 @endphp
 <div class="card">
@@ -13,7 +15,7 @@
                 <th>Funcionario</th>
                 <th>Fecha</th>
                 <th>Hora</th>
-                <th>Tipo</th>
+                <th>Origen</th>
             </tr>
         </thead>
         <tbody>
@@ -34,7 +36,11 @@
                     </td>
                     <td>{{ $marcacion->fecha?->format('d/m/Y') }}</td>
                     <td>{{ $marcacion->hora?->format('H:i:s') }}</td>
-                    <td><span class="pill {{ $pillPorTipo[trim((string) $marcacion->tipo)] ?? 'pill--info' }}">{{ trim((string) $marcacion->tipo) }}</span></td>
+                    @php($tipoMarcacion = trim((string) $marcacion->tipo))
+                    <td style="white-space: nowrap;">
+                        <span class="pill {{ $pillPorTipo[$tipoMarcacion] ?? 'pill--info' }}">{{ $tipoMarcacion }}</span>
+                        <span class="ayuda">{{ Asistencia::TIPOS[$tipoMarcacion] ?? '—' }}</span>
+                    </td>
                 </tr>
             @empty
                 <tr><td colspan="6" class="vacio">Sin marcaciones en el rango seleccionado.</td></tr>

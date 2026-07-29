@@ -39,7 +39,6 @@ class UpdateEquipoRequest extends FormRequest
             'puerto' => ['required', 'integer', 'min:1', 'max:65535'],
             'comm_key' => ['required', 'integer', 'min:0'],
             'ubicacion' => ['nullable', 'string', 'max:255'],
-            'es_master' => ['boolean'],
             'activo' => ['boolean'],
         ];
     }
@@ -47,7 +46,6 @@ class UpdateEquipoRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'es_master' => $this->boolean('es_master'),
             'activo' => $this->boolean('activo'),
         ]);
     }

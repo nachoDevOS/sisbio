@@ -18,7 +18,7 @@ Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-T
 ## 1. ¿Qué hace el sistema?
 
 ### Tablero (dashboard)
-- **Tarjetas de equipos:** total registrado, en línea, fuera de línea y maestros.
+- **Tarjetas de equipos:** total registrado, en línea y fuera de línea.
 - **Equipos fuera de línea:** tabla con los equipos activos sin conexión
   (nombre, IP, ubicación, última sincronización); clic en la fila lleva a
   editar el equipo. Si todo está bien muestra «Todos los equipos están en línea».
@@ -30,7 +30,7 @@ Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-T
 
 ### Equipos (biométricos ZKTeco)
 - Alta/edición/baja de equipos: nombre, IP, puerto (4370), COMM key,
-  ubicación, algoritmo, maestro/esclavo, activo.
+  ubicación, algoritmo, activo.
 - **Probar conexión:** consulta el equipo real vía el microservicio y guarda
   estado en línea, algoritmo y hora del aparato.
 - **Ver marcaciones:** lee las marcaciones directamente del equipo, en vivo,
