@@ -1,4 +1,4 @@
-# Conexión a las bases de datos — SISBIO
+# Conexión a las bases de datos — SisMark
 
 Este documento explica **cómo el sistema se conecta a sus bases de datos**, con el
 código comentado línea por línea. Sirve como material de presentación.
@@ -7,7 +7,7 @@ código comentado línea por línea. Sirve como material de presentación.
 
 ## 1. Resumen: dos bases de datos
 
-SISBIO trabaja contra **dos** bases de datos al mismo tiempo:
+SisMark trabaja contra **dos** bases de datos al mismo tiempo:
 
 | Conexión  | Motor                | Uso                                   | Escritura |
 |-----------|----------------------|---------------------------------------|-----------|
@@ -15,7 +15,7 @@ SISBIO trabaja contra **dos** bases de datos al mismo tiempo:
 | `sia`     | SQL Server 2008 R2   | Sistema legado SIA: funcionarios y marcaciones | **No (solo lectura)** |
 
 La base local es propia del sistema. La base `sia` es un servidor **remoto y antiguo**
-que ya existía; SISBIO solo la **lee**, nunca escribe sobre ella.
+que ya existía; SisMark solo la **lee**, nunca escribe sobre ella.
 
 Toda la configuración vive en un solo archivo: **`config/database.php`**. Los datos
 sensibles (host, usuario, contraseña) **no** se escriben ahí: se leen del archivo
@@ -23,7 +23,7 @@ sensibles (host, usuario, contraseña) **no** se escriben ahí: se leen del arch
 
 ```
 ┌─────────────┐   conexión 'default'   ┌──────────────────────┐
-│   SISBIO    │ ─────────────────────► │  MySQL local (sisbio)│  equipos, users, roles
+│   SisMark    │ ─────────────────────► │  MySQL local (sismark)│  equipos, users, roles
 │  (Laravel)  │                        └──────────────────────┘
 │             │   conexión 'sia'       ┌──────────────────────┐
 │             │ ─────────────────────► │ SQL Server 2008 (SIA)│  Personas, Asistencia (solo lectura)
@@ -49,7 +49,7 @@ Es la conexión **por defecto**: si una consulta no dice a qué base ir, va aqu�
         'driver'    => 'mysql',                       // Motor de base de datos.
         'host'      => env('DB_HOST', '127.0.0.1'),   // Dónde está el servidor MySQL.
         'port'      => env('DB_PORT', '3306'),        // Puerto estándar de MySQL.
-        'database'  => env('DB_DATABASE', 'laravel'), // Nombre de la base (en producción: "sisbio").
+        'database'  => env('DB_DATABASE', 'laravel'), // Nombre de la base (en producción: "sismark").
         'username'  => env('DB_USERNAME', 'root'),    // Usuario de conexión.
         'password'  => env('DB_PASSWORD', ''),        // Contraseña (vacía en local).
         'charset'   => env('DB_CHARSET', 'utf8mb4'),  // Juego de caracteres (soporta emojis/acentos).
@@ -66,7 +66,7 @@ Es la conexión **por defecto**: si una consulta no dice a qué base ir, va aqu�
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=sisbio
+DB_DATABASE=sismark
 DB_USERNAME=root
 DB_PASSWORD=
 ```

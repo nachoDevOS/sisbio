@@ -277,6 +277,9 @@ class PersonaController extends Controller
                 'cargo' => null,
                 'direccion' => null,
                 'conContrato' => null,
+                // SIAT no guarda fotos: solo las tiene Mamoré.
+                'image' => null,
+                'imageThumb' => null,
             ]);
     }
 

@@ -1,4 +1,4 @@
-# Comunicación con los equipos biométricos — SISBIO
+# Comunicación con los equipos biométricos — SisMark
 
 Este documento explica **cómo el sistema se comunica con los relojes biométricos
 ZKTeco**, con el código comentado. Sirve como material de presentación.
@@ -17,7 +17,7 @@ sabe hablar ese protocolo. Por eso hay una pieza intermedia:
 
 ```
 ┌─────────────┐   HTTP + token   ┌────────────────────────┐   TCP 4370   ┌──────────┐
-│   SISBIO    │ ───────────────► │  Microservicio Python  │ ───────────► │  Reloj   │
+│   SisMark    │ ───────────────► │  Microservicio Python  │ ───────────► │  Reloj   │
 │  (Laravel)  │   (JSON)         │     (FastAPI)          │  protocolo   │ ZKTeco   │
 │             │ ◄─────────────── │  habla ZKTeco por TCP  │ ◄─────────── │ (LAN)    │
 └─────────────┘   respuesta JSON └────────────────────────┘              └──────────┘

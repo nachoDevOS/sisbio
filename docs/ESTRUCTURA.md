@@ -1,4 +1,4 @@
-# Estructura del código — SISBIO
+# Estructura del código — SisMark
 
 Mapa de archivos del sistema y qué hace cada uno. Para el "cómo desplegar"
 ver el [README](../README.md); para la historia día a día, [sesiones/](sesiones/).

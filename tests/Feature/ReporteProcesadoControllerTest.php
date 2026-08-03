@@ -242,7 +242,7 @@ function hojaDescargada(array $extra = []): Worksheet
 {
     $response = test()->get(route('reportes.marcaciones.procesado.generar', rangoProcesado($extra + ['print' => 2])));
 
-    $ruta = tempnam(sys_get_temp_dir(), 'sisbio-test-').'.xlsx';
+    $ruta = tempnam(sys_get_temp_dir(), 'sismark-test-').'.xlsx';
     file_put_contents($ruta, $response->streamedContent());
 
     $hoja = IOFactory::load($ruta)->getActiveSheet();

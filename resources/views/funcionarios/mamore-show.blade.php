@@ -63,6 +63,14 @@
     <div class="form-grid">
         <div class="tarjeta">
             <h2>Datos personales</h2>
+            {{-- Acá va la foto original (no la miniatura): es una sola imagen en la página. --}}
+            <div class="ficha-foto">
+                @if (!empty($persona['image']))
+                    <img src="{{ $persona['image'] }}" alt="Foto de {{ $persona['full_name'] ?? 'la persona' }}">
+                @else
+                    <x-heroicon-o-user />
+                @endif
+            </div>
             <dl class="datos grid-2">
                 <div><dt>Nombre completo</dt><dd>{{ $persona['full_name'] ?? '—' }}</dd></div>
                 <div><dt>Cédula</dt><dd>{{ $persona['full_ci'] ?? ($persona['ci'] ?? '—') }}</dd></div>

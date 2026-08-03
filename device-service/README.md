@@ -1,4 +1,4 @@
-# SISBIO · device-service
+# SisMark · device-service
 
 Microservicio en Python (FastAPI + pyzk) que habla el protocolo ZKTeco con los
 equipos biométricos por TCP 4370. Es la **única** pieza del sistema que abre

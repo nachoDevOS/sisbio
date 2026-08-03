@@ -76,7 +76,7 @@ class ExcelMarcacionesProcesadas
 
         $this->aplicarFormatoHoja($hoja);
 
-        $ruta = (string) tempnam(sys_get_temp_dir(), 'sisbio-xlsx-');
+        $ruta = (string) tempnam(sys_get_temp_dir(), 'sismark-xlsx-');
 
         (new Xlsx($libro))->save($ruta);
 

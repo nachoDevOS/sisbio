@@ -1,5 +1,5 @@
 """
-Microservicio de dispositivos de SISBIO.
+Microservicio de dispositivos de SisMark.
 
 Es la ÚNICA pieza del sistema que habla el protocolo ZKTeco con los equipos
 biométricos (usando la librería pyzk sobre TCP 4370). La aplicación Laravel
@@ -47,7 +47,7 @@ def cargar_env(ruta: Path) -> None:
 cargar_env(Path(__file__).resolve().parent / ".env")
 
 app = FastAPI(
-    title="SISBIO device-service",
+    title="SisMark device-service",
     description="Puente HTTP hacia los equipos biométricos ZKTeco.",
     version="1.0.0",
 )
@@ -168,7 +168,7 @@ def conectar_con_reintento(ip: str, port: int, password: int) -> ZK:
 @app.get("/health")
 def health() -> dict:
     """Chequeo de vida del microservicio. No requiere token."""
-    return {"status": "ok", "service": "sisbio-device-service"}
+    return {"status": "ok", "service": "sismark-device-service"}
 
 
 @app.get("/device/info", dependencies=[Depends(verificar_token)])

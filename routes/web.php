@@ -27,6 +27,9 @@ Route::middleware('auth')->group(function (): void {
     // Escritorio: resumen general (equipos, asistencia SIA, gráfico de
     // marcaciones).
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    // El panel de calidad de datos cuenta la tabla entera de marcaciones: se
+    // sirve aparte para que la portada no lo espere.
+    Route::get('escritorio/ajax/calidad', [DashboardController::class, 'calidad'])->name('dashboard.calidad');
 
     // Bitácora de acciones sobre las marcaciones. Va antes del resource para que
     // el binding {equipo} del show no capture la palabra «auditoria».

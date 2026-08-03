@@ -18,8 +18,8 @@ test('detrás del túnel las URLs generadas usan el host público', function () 
 
     $this->get('/prueba-url-tunel', [
         'X-Forwarded-Proto' => 'https',
-        'X-Forwarded-Host' => 'sisbio.trycloudflare.com',
-    ])->assertOk()->assertSee('https://sisbio.trycloudflare.com/login');
+        'X-Forwarded-Host' => 'sismark.trycloudflare.com',
+    ])->assertOk()->assertSee('https://sismark.trycloudflare.com/login');
 });
 
 test('sin la cabecera del proxy las URLs siguen en http', function () {

@@ -1,4 +1,4 @@
-# Documentación de SISBIO
+# Documentación de SisMark
 
 Sistema de administración de equipos biométricos ZKTeco (Gobierno del Beni).
 

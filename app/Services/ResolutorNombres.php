@@ -17,9 +17,10 @@ use Illuminate\Support\Facades\Cache;
  * API fila por fila.
  *
  * La ficha tiene la misma forma que las filas de {@see DirectorioMamore}:
- * `ci`, `nombre`, `cargo`, `direccion`, `pinReloj`, `conContrato`, `origen`.
+ * `ci`, `nombre`, `cargo`, `direccion`, `pinReloj`, `conContrato`, `foto`,
+ * `origen`.
  *
- * @phpstan-type Ficha array{ci: string, nombre: string, nombreFormal: string, cargo: ?string, direccion: ?string, pinReloj: string, conContrato: ?bool, origen: string}
+ * @phpstan-type Ficha array{ci: string, nombre: string, nombreFormal: string, cargo: ?string, direccion: ?string, pinReloj: string, conContrato: ?bool, foto: ?string, origen: string}
  */
 class ResolutorNombres
 {
@@ -138,6 +139,7 @@ class ResolutorNombres
             'direccion' => $fila['direccion'] ?: null,
             'pinReloj' => $fila['pinReloj'],
             'conContrato' => $fila['conContrato'],
+            'image' => $fila['image'] ?? null,
             'origen' => 'mamore',
         ];
     }
@@ -161,6 +163,8 @@ class ResolutorNombres
             'direccion' => null,
             'pinReloj' => trim((string) $persona->pinReloj),
             'conContrato' => null,
+            // SIAT no guarda fotos: solo las tiene Mamoré.
+            'foto' => null,
             'origen' => 'siat',
         ];
     }

@@ -8,6 +8,7 @@ use App\Models\Profesion;
 use App\Models\Role;
 use App\Models\Turno;
 use App\Models\User;
+use App\Services\DirectorioMamore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Spatie\Permission\Models\Permission;
@@ -75,6 +76,114 @@ test('el listado por defecto usa Mamoré y muestra sus personas', function () {
 
     Http::assertSent(fn ($request) => $request->hasHeader('X-API-KEY', 'secreta')
         && str_contains($request->url(), '/people'));
+});
+
+test('el listado muestra la foto que entrega Mamoré', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people*' => Http::response([
+            'data' => [
+                ['id' => 25, 'ci' => '7654321', 'paternal_surname' => 'Perez', 'maternal_surname' => 'Gomez',
+                    'first_name' => 'Juan', 'middle_name' => 'Carlos',
+                    'image' => 'https://cdn.test/people/juan.png'],
+            ],
+            'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 10, 'total' => 1],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.list'))
+        ->assertOk()
+        // El avatar y su zoom usan la miniatura; la original solo es el respaldo.
+        ->assertSee('src="https://cdn.test/people/juan-cropped.png"', false)
+        ->assertSee('alt="Foto de Juan Carlos Perez Gomez"', false)
+        ->assertSee('persona-zoom', false)
+        ->assertSee("this.src='https://cdn.test/people/juan.png'", false);
+});
+
+test('la miniatura del avatar no toca los puntos del dominio de la URL', function () {
+    $directorio = app(DirectorioMamore::class);
+
+    $fila = $directorio->normalizarPersona([
+        'ci' => '1', 'first_name' => 'Ana',
+        'image' => 'https://gadbeni.sfo3.digitaloceanspaces.com/sysadmin/prod/people/ana.png',
+    ]);
+
+    expect($fila['imageThumb'])
+        ->toBe('https://gadbeni.sfo3.digitaloceanspaces.com/sysadmin/prod/people/ana-cropped.png');
+});
+
+test('una foto sin extensión reconocible se sirve tal cual', function () {
+    $directorio = app(DirectorioMamore::class);
+
+    $fila = $directorio->normalizarPersona([
+        'ci' => '1', 'first_name' => 'Ana', 'image' => 'https://cdn.test/people/ana',
+    ]);
+
+    expect($fila['imageThumb'])->toBe('https://cdn.test/people/ana');
+});
+
+test('la ficha de Mamoré muestra la foto original del funcionario', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people/ci/*' => Http::response([
+            'data' => ['ci' => '7654321', 'full_name' => 'Juan Perez', 'image' => 'https://cdn.test/people/juan.png'],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.mamore', ['ci' => '7654321']))
+        ->assertOk()
+        ->assertSee('ficha-foto', false)
+        ->assertSee('src="https://cdn.test/people/juan.png"', false);
+});
+
+test('la ficha de Mamoré cae en el ícono genérico si la persona no tiene foto', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people/ci/*' => Http::response([
+            'data' => ['ci' => '7654321', 'full_name' => 'Juan Perez', 'image' => null],
+        ], 200),
+    ]);
+
+    // El layout trae su propio <img> (el avatar de la cuenta), así que se
+    // comprueba que no haya foto de la persona, no que no haya imágenes.
+    $this->get(route('funcionarios.mamore', ['ci' => '7654321']))
+        ->assertOk()
+        ->assertSee('ficha-foto', false)
+        ->assertDontSee('alt="Foto de', false);
+});
+
+test('el listado cae en el ícono genérico cuando la persona de Mamoré no tiene foto', function () {
+    config()->set('services.mamore.url', 'http://mamore.test/api/personal');
+    config()->set('services.mamore.key', 'secreta');
+
+    Http::fake([
+        'mamore.test/api/personal/people*' => Http::response([
+            'data' => [
+                ['id' => 26, 'ci' => '1111111', 'paternal_surname' => 'Rojas', 'first_name' => 'Ana', 'image' => null],
+            ],
+            'meta' => ['current_page' => 1, 'last_page' => 1, 'per_page' => 10, 'total' => 1],
+        ], 200),
+    ]);
+
+    $this->get(route('funcionarios.list'))
+        ->assertOk()
+        ->assertSee('Rojas')
+        ->assertDontSee('<img src=', false);
+});
+
+test('el listado SIAT no rompe por la foto: siempre muestra el ícono genérico', function () {
+    Persona::factory()->create(['ci' => '999', 'paterno' => 'Vaca', 'nombres' => 'Luis']);
+
+    $this->get(route('funcionarios.list', ['fuente' => 'siat']))
+        ->assertOk()
+        ->assertSee('Vaca')
+        ->assertDontSee('<img src=', false);
 });
 
 test('el filtro «sin contrato» le pide a la API el listado de personas sin contrato', function () {

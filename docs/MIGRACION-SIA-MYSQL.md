@@ -3,7 +3,7 @@
 Guía para migrar la información del sistema legado **SIA** (SQL Server 2008 R2,
 solo lectura) a la base **MySQL local** del sistema, tabla por tabla.
 
-**Meta:** que SISBIO viva 100% en MySQL y deje de depender del SQL Server.
+**Meta:** que SisMark viva 100% en MySQL y deje de depender del SQL Server.
 
 ---
 

@@ -149,7 +149,28 @@ class DirectorioMamore
             )),
             // `has_contract` lo informa la API; null si no vino en la respuesta.
             'conContrato' => isset($persona['has_contract']) ? (bool) $persona['has_contract'] : null,
+            'image' => $persona['image'] ?? null,
+            'imageThumb' => $this->miniatura($persona['image'] ?? null),
         ];
+    }
+
+    /**
+     * URL de la miniatura cuadrada que Mamoré genera junto a cada foto
+     * («foo.png» → «foo-cropped.png»): 300 px en vez de 1181 px, así el avatar
+     * del listado no baja el original de más de 1 MB por fila.
+     *
+     * Devuelve la URL original si no se le reconoce una extensión; la vista
+     * cae a la original igual si la miniatura no existe.
+     */
+    private function miniatura(?string $url): ?string
+    {
+        if (! filled($url)) {
+            return null;
+        }
+
+        $miniatura = preg_replace('/\.(\w+)$/', '-cropped.$1', $url, 1, $reemplazos);
+
+        return $reemplazos === 1 ? $miniatura : $url;
     }
 
     /**

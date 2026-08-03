@@ -2,96 +2,44 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Equipo;
-use App\Models\Sia\Asistencia;
-use App\Models\Sia\Persona;
-use Illuminate\Support\Facades\Cache;
+use App\Services\ResumenEscritorio;
 use Illuminate\View\View;
-use Throwable;
 
 /**
- * Escritorio: tablero de inicio con el resumen general (equipos, equipos
- * fuera de línea, asistencia SIA y su gráfico). Las consultas al SIA
- * (SQL Server 2008 remoto) se cachean 5 minutos para no castigar esa base
- * con cada visita.
+ * Escritorio: el tablero de inicio.
+ *
+ * Está ordenado por lo que alguien necesita saber al abrirlo, de arriba hacia
+ * abajo: primero si puede confiar en los datos de hoy, después qué pasó hoy, y
+ * al final el contexto (tendencia, calidad de los datos y agenda).
+ *
+ * Todos los números salen de la base local MySQL; el armado vive en
+ * {@see ResumenEscritorio}, que es quien se ocupa de que las consultas caigan
+ * sobre el índice `(fecha, ci)` de una tabla de 4,4 millones de filas.
  */
 class DashboardController extends Controller
 {
-    public function index(): View
+    public function index(ResumenEscritorio $resumen): View
     {
-        $equipos = [
-            'total' => Equipo::count(),
-            'en_linea' => Equipo::where('en_linea', true)->count(),
-            'fuera_linea' => Equipo::where('en_linea', false)->count(),
-        ];
-
-        $equiposFueraDeLinea = Equipo::query()
-            ->where('en_linea', false)
-            ->where('activo', true)
-            ->get();
-
-        try {
-            $sia = $this->statsSia();
-            $sinConexionSia = false;
-        } catch (Throwable) {
-            $sia = null;
-            $sinConexionSia = true;
-        }
-
-        $grafico = $this->graficoMarcaciones();
-
-        return view('dashboard.index', compact('equipos', 'equiposFueraDeLinea', 'sia', 'sinConexionSia', 'grafico'));
+        return view('dashboard.index', [
+            'captura' => $resumen->captura(),
+            'hoy' => $resumen->hoy(),
+            'histograma' => $resumen->histogramaHorario(),
+            'tendencia' => $resumen->tendencia(),
+            'agenda' => $resumen->agenda(),
+            'equiposFueraDeLinea' => $resumen->equiposFueraDeLinea(),
+        ]);
     }
 
     /**
-     * @return array{marcaciones_hoy: int, personas_hoy: int, marcaciones_mes: int, funcionarios: int}
-     */
-    private function statsSia(): array
-    {
-        return Cache::remember(
-            'sia.asistencia.stats',
-            now()->addMinutes(5),
-            fn (): array => [
-                'marcaciones_hoy' => Asistencia::whereDate('Fecha', today())->count(),
-                'personas_hoy' => Asistencia::whereDate('Fecha', today())->distinct()->count('IdPersona'),
-                // El tope "hasta hoy" excluye las fechas basura futuras del SIA.
-                'marcaciones_mes' => Asistencia::whereDate('Fecha', '>=', now()->startOfMonth())->whereDate('Fecha', '<=', today())->count(),
-                'funcionarios' => Persona::count(),
-            ],
-        );
-    }
-
-    /**
-     * Marcaciones por día de los últimos 14 días, para el mini gráfico de
-     * barras. Sin JS de terceros: se dibuja con CSS puro en la vista.
+     * Panel de calidad de los datos, que la portada carga por AJAX.
      *
-     * @return array{dias: list<string>, totales: list<int>}
+     * Va aparte porque es el único que cuenta la tabla entera sin que ningún
+     * índice ayude: son casi dos segundos sobre 4,4 millones de filas. Traerlo
+     * dentro de la respuesta principal haría esperar todo el escritorio —que
+     * arma el resto en unos 115 ms— por el panel menos urgente de todos.
      */
-    private function graficoMarcaciones(): array
+    public function calidad(ResumenEscritorio $resumen): View
     {
-        $dias = collect(range(13, 0))->map(fn (int $offset) => today()->subDays($offset));
-
-        try {
-            $totalesPorFecha = Cache::remember(
-                'sia.asistencia.grafico',
-                now()->addMinutes(5),
-                fn (): array => Asistencia::query()
-                    ->selectRaw('Fecha, count(*) as total')
-                    ->whereDate('Fecha', '>=', $dias->first()->toDateString())
-                    ->whereDate('Fecha', '<=', today())
-                    ->groupBy('Fecha')
-                    ->orderBy('Fecha')
-                    ->get()
-                    ->mapWithKeys(fn (Asistencia $fila): array => [$fila->Fecha->toDateString() => (int) $fila->total])
-                    ->all(),
-            );
-        } catch (Throwable) {
-            $totalesPorFecha = [];
-        }
-
-        return [
-            'dias' => $dias->map(fn ($dia): string => $dia->format('d/m'))->all(),
-            'totales' => $dias->map(fn ($dia): int => $totalesPorFecha[$dia->toDateString()] ?? 0)->all(),
-        ];
+        return view('dashboard.calidad', ['calidad' => $resumen->calidadDatos()]);
     }
 }

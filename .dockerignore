@@ -1,0 +1,58 @@
+# Dependencias: se instalan dentro de la imagen, no se copian del host.
+/vendor
+/node_modules
+
+# Credenciales: NUNCA van a la imagen. El .env se monta o se pasa por
+# env_file en tiempo de ejecución.
+.env
+.env.*
+!.env.example
+!.env.docker.example
+
+# Artefactos del servidor de desarrollo de Vite. `public/hot` en la imagen
+# hace que Laravel pida los assets a un dev-server que no existe.
+/public/hot
+/public/build
+/public/storage
+/public/fonts-manifest.dev.json
+
+# Estado local: no debe pisar el del contenedor.
+/storage/app/public/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*
+/storage/pail
+/bootstrap/cache/*
+/database/database.sqlite
+
+# Historia y herramientas de desarrollo.
+.git
+.gitignore
+.gitattributes
+.github
+/tests
+/docs
+phpunit.xml
+.phpunit.result.cache
+.phpunit.cache
+/.agents
+/.claude
+/.codex
+/.cursor
+/.idea
+/.vscode
+/.zed
+/.nova
+.editorconfig
+.phpactor.json
+_ide_helper.php
+auth.json
+
+# El microservicio se construye desde su propio contexto.
+/device-service/__pycache__
+
+# Archivos de la propia infraestructura.
+Dockerfile
+# (ya no hay compose: todo va en el Dockerfile)
+.dockerignore

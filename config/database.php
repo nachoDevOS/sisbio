@@ -127,6 +127,12 @@ return [
             // SQL Server 2008 R2: TLS antiguo, sin cifrado moderno.
             'encrypt' => env('DB_ENCRYPT_SIA', 'no'),
             'trust_server_certificate' => env('DB_TRUST_SERVER_CERT_SIA', true),
+            // Segundos de espera al abrir la conexión. Por defecto el driver
+            // espera 15 s, y el escritorio abre dos conexiones al SIA: con el
+            // servidor apagado o fuera de red la portada tardaba más de 30 s
+            // en mostrar «Sin conexión». El tablero tolera la caída, pero solo
+            // si el intento falla rápido.
+            'login_timeout' => (int) env('DB_LOGIN_TIMEOUT_SIA', 3),
         ],
 
     ],

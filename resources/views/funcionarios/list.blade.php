@@ -43,7 +43,25 @@
                     <td>{{ $persona['id'] }}</td>
                     <td>
                         <div class="persona-celda">
-                            <span class="persona-foto"><x-heroicon-o-user /></span>
+                            {{-- La foto solo la tiene Mamoré; en SIAT queda el ícono genérico.
+                                 El avatar usa la miniatura y al pasar el mouse la amplía: es la
+                                 misma imagen ya descargada, así que el zoom no pide nada más. --}}
+                            <span class="persona-avatar">
+                                <span class="persona-foto">
+                                    @if (!empty($persona['imageThumb']))
+                                        <img src="{{ $persona['imageThumb'] }}"
+                                             alt="Foto de {{ $persona['nombre'] }}" loading="lazy"
+                                             onerror="this.onerror=null; this.src='{{ $persona['image'] }}'">
+                                    @else
+                                        <x-heroicon-o-user />
+                                    @endif
+                                </span>
+                                @if (!empty($persona['imageThumb']))
+                                    <span class="persona-zoom" aria-hidden="true">
+                                        <img src="{{ $persona['imageThumb'] }}" alt="" loading="lazy">
+                                    </span>
+                                @endif
+                            </span>
                             <div>
                                 <div class="persona-nombre">
                                     {{ $persona['nombre'] }}

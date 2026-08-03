@@ -1,4 +1,4 @@
-# SISBIO
+# SisMark
 
 Sistema de Sincronización de Biométricos — Gobierno Autónomo Departamental
 del Beni. Aplicación **Laravel 13** (MVC clásico) que administra los equipos
@@ -10,7 +10,7 @@ consulta la asistencia registrada en la base institucional **SIA**
 Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-Token--> Laravel
                                                                                           |
                                                               SQL Server 2008 R2 (SIA) <--+  (conexión 'sia', pdo_sqlsrv)
-                                                              MySQL local (sisbio)     <--+  (conexión por defecto)
+                                                              MySQL local (sismark)     <--+  (conexión por defecto)
 ```
 
 ---
@@ -66,7 +66,7 @@ Equipos ZKTeco <--TCP 4370--> device-service (Python/FastAPI) <--REST + X-Auth-T
 
 | Pieza | Rol |
 |---|---|
-| **Laravel 13 (MVC)** | Controladores + Blade, lógica de negocio, base local MySQL `sisbio` (usuarios, roles, equipos). |
+| **Laravel 13 (MVC)** | Controladores + Blade, lógica de negocio, base local MySQL `sismark` (usuarios, roles, equipos). |
 | **device-service (Python/FastAPI + pyzk)** | Única pieza que habla TCP 4370 con los ZKTeco. Laravel lo consume por REST con token `X-Auth-Token` (`app/Services/DeviceService.php`). |
 | **Conexión `sia` (pdo_sqlsrv)** | Lectura de la base institucional `SIA_DEV` en SQL Server 2008 R2. Modelos de solo lectura en `app/Models/Sia/` y grammar `SqlServer2008Grammar` para paginación compatible. |
 
@@ -89,7 +89,7 @@ Puntos clave:
 | PHP | 8.3 con extensiones: `pdo_mysql`, `pdo_sqlsrv`, `intl`, `zip`, `gd` |
 | Composer | 2.x |
 | Node.js + npm | Solo para compilar assets (Vite / Tailwind 4) |
-| MySQL / MariaDB | Base local `sisbio` (conexión por defecto) |
+| MySQL / MariaDB | Base local `sismark` (conexión por defecto) |
 | ODBC | «ODBC Driver 17 for SQL Server» x64 (18 en Linux con `msodbcsql18`) |
 | Python | 3.10+ para el microservicio `device-service` |
 | Red | TCP 1433 al SQL Server del SIA; TCP 4370 a cada equipo ZKTeco (desde la máquina del microservicio) |
@@ -103,7 +103,7 @@ Puntos clave:
 ## 4. Despliegue en desarrollo
 
 ```bash
-git clone <repo> sisbio && cd sisbio
+git clone <repo> sismark && cd sismark
 composer install
 npm install && npm run build
 cp .env.example .env
@@ -117,7 +117,7 @@ Configurar en `.env`:
 
 ```env
 APP_NAME="SISTEMA DE SINCRONIZACIÓN DE BIOMETRICO"
-DB_DATABASE=sisbio ...                    # MySQL local
+DB_DATABASE=sismark ...                    # MySQL local
 DB_HOST_SIA=... DB_USERNAME_SIA=...       # SQL Server del SIA (sección 6)
 DEVICE_SERVICE_URL=http://127.0.0.1:9001  # microservicio (sección 5)
 DEVICE_SERVICE_TOKEN=un_token_compartido
@@ -216,82 +216,126 @@ en el modelo (los de `app/Models/Sia/` ya lo hacen).
 
 ---
 
-## 7. Despliegue en producción
+## 7. Despliegue en producción (Docker)
 
-### Requisitos adicionales
+El sistema se empaqueta en **una sola imagen**, construida con el `Dockerfile`
+de la raíz. No hace falta docker compose ni instalar nada en el servidor más
+allá de Docker.
 
-- Servidor web (Nginx/Apache) apuntando a `public/` con HTTPS.
-- PHP-FPM 8.3 con OPcache habilitado.
-- Supervisor (o systemd) para el worker de colas.
-- El microservicio como servicio del sistema (systemd en Linux, NSSM o
-  Tarea Programada en Windows), escuchando **solo** en localhost/red interna.
+La imagen corre sobre **NGINX Unit**, que en un único proceso sirve los
+estáticos de `public/` y ejecuta PHP: no hay nginx + php-fpm + supervisor que
+configurar por separado.
 
-### Pasos
+### Las tres piezas
 
-```bash
-composer install --no-dev --optimize-autoloader
-npm ci && npm run build
-cp .env.example .env               # y completar (ver abajo)
-php artisan key:generate
-php artisan migrate --force
-php artisan storage:link
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
-```
+| Pieza | Cómo se despliega |
+|---|---|
+| Aplicación | La imagen de este `Dockerfile`. Escucha en el puerto **8000**. |
+| Base MySQL | Recurso aparte. En Coolify: «+ New» → «Database» → «MySQL». |
+| Microservicio de biométricos | Su propia imagen, desde `device-service/`. |
 
-`.env` de producción (diferencias clave):
+> La imagen **no** trae el driver de SQL Server: desde la migración a MySQL, la
+> conexión `sia` solo se usa en la máquina de desarrollo para correr los
+> comandos `sia:migrar-*`. Al servidor sube la base ya migrada.
 
-```env
-APP_ENV=production
-APP_DEBUG=false                    # activa los toasts de error en español
-APP_URL=https://sisbio.beni.gob.bo # la URL real
-LOG_LEVEL=warning
-SESSION_ENCRYPT=true
-```
+### Variables de entorno
 
-Worker de colas (Supervisor):
+Están todas explicadas, una por una, en
+[.env.docker.example](.env.docker.example). Las que no pueden faltar:
 
-```ini
-[program:sisbio-queue]
-command=php /ruta/sisbio/artisan queue:work --tries=3 --timeout=90
-autostart=true
-autorestart=true
-```
+| Variable | Para qué |
+|---|---|
+| `APP_KEY` | Cifrado de sesiones. Sin ella el contenedor se detiene con el motivo. |
+| `DB_HOST` · `DB_DATABASE` · `DB_USERNAME` · `DB_PASSWORD` | La base MySQL. |
+| `APP_URL` | El dominio real, con `https`. |
+| `DEVICE_SERVICE_TOKEN` | Compartido con el microservicio. Vacío = rechaza todo. |
+| `MAMORE_API_URL` · `MAMORE_API_KEY` | Nombres y cargos de los funcionarios. |
 
-### Primer usuario y permisos
+> `--env-file` de Docker **no quita las comillas**: `APP_NAME="X"` entra con las
+> comillas incluidas. En ese archivo los valores van sin comillas.
 
-`php artisan db:seed` corre `RolesAndPermissionsSeeder` (genera los permisos
-y el rol `super_admin`) y crea el usuario de prueba `test@example.com`. En
-producción, cambiar la contraseña de ese usuario o crear el propio con
-`php artisan tinker` y asignarle el rol:
+### Construir y correr
 
 ```bash
-php artisan tinker --execute '
-$u = App\Models\User::factory()->create(["name" => "Admin", "email" => "admin@beni.gob.bo"]);
-$u->assignRole("super_admin");
-'
+docker build -t sismark .
+
+# La clave se genera una vez y se guarda en las variables del contenedor.
+docker run --rm sismark php artisan key:generate --show
+
+docker run -d --name sismark-app --restart unless-stopped \
+  --env-file .env.docker -p 8000:8000 \
+  -v sismark-storage:/var/www/html/storage/app/public \
+  sismark
+```
+
+El microservicio, en una máquina con ruta de red hasta los relojes:
+
+```bash
+docker build -t sismark-devices ./device-service
+docker run -d --name sismark-devices --restart unless-stopped \
+  -e DEVICE_SERVICE_TOKEN=el_mismo_token sismark-devices
+```
+
+### Qué hace el contenedor al arrancar
+
+1. Verifica que `APP_KEY`, `DB_HOST` y `DB_DATABASE` estén cargadas; si falta
+   alguna, se detiene diciendo cuál.
+2. Espera a que MySQL acepte conexiones (hasta 2 minutos).
+3. Corre `migrate --force`.
+4. Siembra los permisos y el rol `super_admin` si `SISMARK_SEED=true`.
+5. Cachea configuración, rutas y vistas.
+6. Le cede el control a NGINX Unit.
+
+> El paso 5 no es opcional: **Unit no le pasa el entorno del contenedor a los
+> procesos de PHP**, así que la aplicación funciona con lo que quedó en
+> `bootstrap/cache/config.php`. Por eso el arranque siempre lo regenera.
+
+En Coolify, la ruta de salud es `/up` y el puerto a exponer es el 8000.
+
+### Primer usuario
+
+Con `SISMARK_SEED=true` en el primer despliegue quedan creados los permisos y el
+rol `super_admin`. El usuario se crea a mano:
+
+```bash
+docker exec -it sismark-app php artisan tinker
+```
+
+```php
+$u = App\Models\User::create([
+    'name' => 'Admin',
+    'email' => 'admin@beni.gob.bo',
+    'password' => bcrypt('una_contraseña_larga'),
+]);
+$u->assignRole('super_admin');
 ```
 
 ### Checklist de seguridad
 
-- [ ] `APP_DEBUG=false` y `APP_KEY` generada.
-- [ ] `.env` fuera del control de versiones y con permisos restringidos.
-- [ ] `DEVICE_SERVICE_TOKEN` largo y aleatorio; microservicio **no** expuesto a internet.
-- [ ] Usuario del SQL Server SIA con permisos de **solo lectura**.
-- [ ] HTTPS forzado; `storage/` y `bootstrap/cache/` escribibles solo por el usuario de PHP.
+- [ ] `APP_DEBUG=false` y `APP_KEY` propia (no la de otro entorno).
+- [ ] `.env.docker` fuera del control de versiones y con permisos restringidos.
+- [ ] `DEVICE_SERVICE_TOKEN` largo y aleatorio; el microservicio **sin** dominio
+      público ni puerto publicado.
+- [ ] HTTPS terminado en el proxy de adelante.
+- [ ] Respaldo de la base configurado y probado.
 
 ### Al actualizar versión
 
 ```bash
-php artisan down
 git pull
-composer install --no-dev --optimize-autoloader
-npm ci && npm run build
-php artisan migrate --force
-php artisan config:cache && php artisan route:cache && php artisan view:cache
-php artisan up
+docker build -t sismark .
+docker rm -f sismark-app
+docker run -d --name sismark-app ...   # los mismos parámetros de antes
 ```
+
+Las migraciones las corre el propio arranque. En Coolify alcanza con volver a
+desplegar el recurso.
+
+### Nota sobre las colas
+
+Este modelo corre un solo proceso. Hoy el sistema no encola trabajos, así que no
+hay worker. Cuando se encolen los reportes masivos hará falta un contenedor
+aparte con `php artisan queue:work`, usando la misma imagen.
 
 ---
 
