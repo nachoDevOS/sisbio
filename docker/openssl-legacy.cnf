@@ -1,0 +1,22 @@
+# OpenSSL con TLS 1.0 habilitado, para poder hablar con el SQL Server 2008 R2
+# del SIA. Debian trae OpenSSL 3, que por defecto exige TLS 1.2 y cifrados
+# modernos; ese servidor no ofrece ninguno de los dos y el handshake se corta
+# con «unsupported protocol» antes del login —aun con `Encrypt=no`, porque el
+# login siempre se cifra—.
+#
+# Alcance: solo las conexiones que ESTE contenedor abre hacia afuera (la
+# conexión `sia`). El HTTPS del sitio lo termina el proxy de adelante, así que
+# bajar el nivel acá no debilita lo que ven los usuarios.
+
+openssl_conf = openssl_init
+
+[openssl_init]
+ssl_conf = ssl_sect
+
+[ssl_sect]
+system_default = system_default_sect
+
+[system_default_sect]
+MinProtocol = TLSv1
+CipherString = DEFAULT@SECLEVEL=0
+Options = UnsafeLegacyRenegotiation

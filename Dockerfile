@@ -5,9 +5,10 @@
 # la aplicación completa en un único proceso (`unitd`), que sirve los estáticos
 # de `public/` y ejecuta PHP sin necesidad de nginx + php-fpm + supervisor.
 #
-# NO incluye el driver de SQL Server. La conexión `sia` solo se usa en local,
-# para correr los comandos `sia:migrar-*` que copian el SIA a MySQL; en el
-# servidor la base ya viene migrada.
+# Incluye el driver de SQL Server (`pdo_sqlsrv` + msodbcsql18) para poder
+# correr los comandos `sia:migrar-*` desde el propio contenedor, que es como se
+# carga la base la primera vez. Fuera de esa carga el sistema no consulta al
+# SIA: trabaja siempre contra MySQL.
 #
 # La base MySQL es un recurso aparte (en Coolify: «+ New» → «Database» → MySQL)
 # y se apunta con las variables de entorno. Ver .env.docker.example.
@@ -61,6 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
         unzip \
         git \
+        gnupg2 \
         ca-certificates \
         default-mysql-client \
         libicu-dev \
@@ -68,6 +70,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libpng-dev \
         libjpeg-dev \
         libfreetype6-dev \
+        unixodbc-dev \
     && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
@@ -80,6 +83,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         pcntl \
         opcache \
     && rm -rf /var/lib/apt/lists/*
+
+# --- Driver de SQL Server (conexión `sia`) ----------------------------------
+# Necesario para correr los comandos `sia:migrar-*` desde el contenedor, que es
+# como se carga la base la primera vez. Fuera de eso el sistema no consulta al
+# SIA: si el driver falta, el escritorio simplemente muestra «Sin conexión».
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+        | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+    && echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
+        > /etc/apt/sources.list.d/mssql-release.list \
+    && apt-get update \
+    && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 \
+    && pecl install sqlsrv pdo_sqlsrv \
+    && docker-php-ext-enable sqlsrv pdo_sqlsrv \
+    && rm -rf /var/lib/apt/lists/* /tmp/pear
+
+# --- TLS antiguo para el SQL Server 2008 R2 ---------------------------------
+# Sin esto el handshake muere con «unsupported protocol» antes de llegar a
+# pedir usuario y contraseña. Ver docker/openssl-legacy.cnf.
+COPY docker/openssl-legacy.cnf /etc/ssl/openssl-legacy.cnf
+ENV OPENSSL_CONF=/etc/ssl/openssl-legacy.cnf
 
 # --- Ajustes de PHP ----------------------------------------------------------
 COPY docker/php.ini /usr/local/etc/php/conf.d/zz-sismark.ini
