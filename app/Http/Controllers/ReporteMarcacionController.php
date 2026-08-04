@@ -174,8 +174,7 @@ class ReporteMarcacionController extends Controller
         // no tiene relación con la tabla local de asistencia.
         $marcaciones = Asistencia::query()
             ->where('ci', $persona['ci'])
-            ->when($desde !== '', fn (Builder $query) => $query->whereDate('fecha', '>=', $desde))
-            ->when($hasta !== '', fn (Builder $query) => $query->whereDate('fecha', '<=', $hasta))
+            ->enRango($desde, $hasta)
             ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
             ->orderBy('fecha')
             ->orderBy('hora')

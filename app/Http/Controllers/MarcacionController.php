@@ -56,8 +56,7 @@ class MarcacionController extends Controller
         $porPagina = $this->porPagina($request, 10);
 
         $marcaciones = Asistencia::query()
-            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('fecha', '>=', $d))
-            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('fecha', '<=', $h))
+            ->enRango($desde, $hasta)
             ->when($buscar !== '', fn (Builder $query) => $query->buscar($buscar))
             ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
             ->orderByDesc('fecha')
@@ -84,9 +83,15 @@ class MarcacionController extends Controller
         $fecha = Carbon::parse($request->validated('fecha'))->startOfDay();
         $hora = Carbon::parse($request->validated('hora'))->format('H:i:s');
 
+        // `fecha` se compara entera y no con `whereDate()`: siempre está guardada
+        // a medianoche, y así la búsqueda cae sobre el índice único (ci, fecha,
+        // hora) en vez de recorrer todas las marcaciones de esa cédula. `hora` sí
+        // va por `whereTime()`: hay filas viejas del SIA con una fecha base
+        // distinta de 1899-12-30, y compararla entera las dejaría pasar como si
+        // no existieran.
         $yaExiste = Asistencia::query()
             ->where('ci', $ci)
-            ->whereDate('fecha', $fecha->toDateString())
+            ->where('fecha', $fecha)
             ->whereTime('hora', $hora)
             ->exists();
 
@@ -99,6 +104,7 @@ class MarcacionController extends Controller
             'fecha' => $fecha,
             'hora' => '1899-12-30 '.$hora,
             'tipo' => Asistencia::TIPO_MANUAL,
+            'observacion' => $request->validated('observacion'),
         ]);
 
         return redirect($this->destino($request, $ci))

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Asistencia;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -313,7 +314,10 @@ test('registra una marcación manual de tipo M', function () {
         'ci' => '888', 'paterno' => 'Roca', 'materno' => null, 'nombres' => 'Luis', 'pinReloj' => null, 'marcaDirecta' => false,
     ]);
 
-    $this->post(route('marcaciones.store'), ['ci' => '888', 'fecha' => '2026-07-20', 'hora' => '08:30'])
+    $this->post(route('marcaciones.store'), [
+        'ci' => '888', 'fecha' => '2026-07-20', 'hora' => '08:30',
+        'observacion' => 'Papeleta firmada por el jefe de unidad.',
+    ])
         ->assertRedirect(route('marcaciones.index'))
         ->assertSessionHas('estado');
 
@@ -322,7 +326,30 @@ test('registra una marcación manual de tipo M', function () {
     expect($marcacion)->not->toBeNull()
         ->and(trim($marcacion->tipo))->toBe('M')
         ->and($marcacion->fecha)->toContain('2026-07-20')
-        ->and($marcacion->hora)->toContain('08:30:00');
+        ->and($marcacion->hora)->toContain('08:30:00')
+        ->and($marcacion->observacion)->toBe('Papeleta firmada por el jefe de unidad.');
+});
+
+test('la marcación manual exige el motivo', function () {
+    DB::table('personas')->insert([
+        'ci' => '888', 'paterno' => 'Roca', 'materno' => null, 'nombres' => 'Luis', 'pinReloj' => null, 'marcaDirecta' => false,
+    ]);
+
+    $this->post(route('marcaciones.store'), ['ci' => '888', 'fecha' => '2026-07-20', 'hora' => '08:30'])
+        ->assertSessionHasErrors('observacion');
+
+    // Un motivo de dos letras no explica nada: se pide un mínimo.
+    $this->post(route('marcaciones.store'), [
+        'ci' => '888', 'fecha' => '2026-07-20', 'hora' => '08:30', 'observacion' => 'ok',
+    ])->assertSessionHasErrors('observacion');
+
+    expect(DB::table('asistencias')->count())->toBe(0);
+});
+
+test('el modal de marcación manual pide el motivo', function () {
+    $this->get(route('marcaciones.index'))
+        ->assertOk()
+        ->assertSee('name="observacion" rows="2" required', escape: false);
 });
 
 test('registrada desde la ficha, la marcación vuelve a la ficha', function () {
@@ -332,15 +359,18 @@ test('registrada desde la ficha, la marcación vuelve a la ficha', function () {
 
     $this->post(route('marcaciones.store'), [
         'ci' => '888', 'fecha' => '2026-07-20', 'hora' => '08:30', 'origen' => 'local',
+        'observacion' => 'Olvidó marcar la entrada.',
     ])->assertRedirect(route('funcionarios.show', ['persona' => '888']));
 
     $this->post(route('marcaciones.store'), [
         'ci' => '888', 'fecha' => '2026-07-20', 'hora' => '09:30', 'origen' => 'mamore',
+        'observacion' => 'Olvidó marcar la entrada.',
     ])->assertRedirect(route('funcionarios.mamore', ['ci' => '888']));
 
     // Un origen desconocido no saca al usuario del sistema.
     $this->post(route('marcaciones.store'), [
         'ci' => '888', 'fecha' => '2026-07-20', 'hora' => '10:30', 'origen' => 'https://otro-sitio.test',
+        'observacion' => 'Olvidó marcar la entrada.',
     ])->assertRedirect(route('marcaciones.index'));
 });
 
@@ -410,7 +440,10 @@ test('la marcación manual no duplica la misma ci, fecha y hora', function () {
         'ci' => '888', 'fecha' => '2026-07-20 00:00:00', 'hora' => '1899-12-30 08:30:00', 'tipo' => 'M',
     ]);
 
-    $this->post(route('marcaciones.store'), ['ci' => '888', 'fecha' => '2026-07-20', 'hora' => '08:30'])
+    $this->post(route('marcaciones.store'), [
+        'ci' => '888', 'fecha' => '2026-07-20', 'hora' => '08:30',
+        'observacion' => 'Se vuelve a cargar por las dudas.',
+    ])
         ->assertRedirect()
         ->assertSessionHas('error');
 
@@ -519,3 +552,82 @@ test('un usuario sin permiso de crear no ve ninguna de las dos acciones', functi
         ->assertDontSee('Importar CSV')
         ->assertDontSee('Nueva marcación');
 });
+
+test('el rango incluye los dos días extremos y deja fuera los vecinos', function () {
+    DB::table('personas')->insert([
+        'ci' => '888', 'paterno' => 'Borde', 'materno' => null, 'nombres' => 'Ana', 'pinReloj' => null, 'marcaDirecta' => false,
+    ]);
+
+    foreach (['2026-07-31' => '07:00:00', '2026-08-01' => '08:00:00', '2026-08-04' => '09:00:00', '2026-08-05' => '10:00:00'] as $dia => $hora) {
+        DB::table('asistencias')->insert([
+            'ci' => '888', 'fecha' => $dia.' 00:00:00', 'hora' => '1899-12-30 '.$hora, 'tipo' => 'R',
+        ]);
+    }
+
+    $marcaciones = Asistencia::query()->enRango('2026-08-01', '2026-08-04')->pluck('fecha');
+
+    expect($marcaciones)->toHaveCount(2)
+        ->and($marcaciones->map(fn ($fecha): string => $fecha->toDateString())->all())
+        ->toBe(['2026-08-01', '2026-08-04']);
+});
+
+test('el rango filtra sin envolver la columna en una función', function () {
+    // `whereDate()` genera `date(fecha) >= ?`, que anula el índice (fecha, ci) y
+    // manda a MySQL a recorrer los 4,4 millones de filas: 8,6 s por página del
+    // listado contra 15 ms, y el count(*) de la paginación, 5,9 s contra 0,5 ms.
+    $sql = Asistencia::query()->enRango('2026-08-01', '2026-08-04')->toSql();
+
+    expect($sql)->not->toContain('date(')
+        ->and($sql)->toContain('"fecha" >=')
+        ->and($sql)->toContain('"fecha" <');
+
+    // El corte de arriba va por el día siguiente, para que entre todo el día `hasta`.
+    expect(cortesDelRango('2026-08-01', '2026-08-04'))
+        ->toBe(['2026-08-01 00:00:00', '2026-08-05 00:00:00']);
+});
+
+test('el rango deja pasar los extremos vacíos', function () {
+    expect(cortesDelRango('', ''))->toBe([])
+        ->and(cortesDelRango(null, null))->toBe([])
+        ->and(cortesDelRango('2026-08-01', ''))->toBe(['2026-08-01 00:00:00']);
+});
+
+test('el listado no envuelve la fecha en una función al paginar', function () {
+    DB::table('personas')->insert([
+        'ci' => '888', 'paterno' => 'Perez', 'materno' => null, 'nombres' => 'Ana', 'pinReloj' => null, 'marcaDirecta' => false,
+    ]);
+    DB::table('asistencias')->insert([
+        'ci' => '888', 'fecha' => now()->startOfDay()->toDateTimeString(),
+        'hora' => '1899-12-30 08:00:00', 'tipo' => 'R',
+    ]);
+
+    // La consulta del listado y el count(*) de la paginación son dos consultas
+    // distintas: las dos tienen que quedar sargables, no solo la primera.
+    $consultas = [];
+    DB::listen(function ($query) use (&$consultas): void {
+        $consultas[] = $query->sql;
+    });
+
+    $this->get(route('marcaciones.list'))->assertOk()->assertSee('888');
+
+    $sobreAsistencias = array_filter($consultas, fn (string $sql): bool => str_contains($sql, '"asistencias"'));
+
+    expect($sobreAsistencias)->not->toBeEmpty()
+        ->and(array_filter($sobreAsistencias, fn (string $sql): bool => str_contains($sql, 'date(')))->toBeEmpty()
+        ->and(array_filter($sobreAsistencias, fn (string $sql): bool => str_contains($sql, 'count(')))->not->toBeEmpty();
+});
+
+/**
+ * Los cortes de fecha que arma el scope, como los ve la base. Van al query como
+ * objetos Carbon —el grammar los formatea al ejecutar—, así que se comparan
+ * formateados y no contra el objeto.
+ *
+ * @return list<string>
+ */
+function cortesDelRango(?string $desde, ?string $hasta): array
+{
+    return array_map(
+        fn ($corte): string => $corte instanceof DateTimeInterface ? $corte->format('Y-m-d H:i:s') : (string) $corte,
+        Asistencia::query()->enRango($desde, $hasta)->getBindings()
+    );
+}

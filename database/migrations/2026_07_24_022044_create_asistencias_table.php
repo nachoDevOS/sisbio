@@ -8,7 +8,13 @@ use Illuminate\Support\Facades\Schema;
  * Tabla local (MySQL) que replica «Asistencia» del SIA (SQL Server 2008 R2):
  * las marcaciones de los funcionarios. Mismos campos, en camelCase.
  *
- * Igual que personas, suma id autoincremental, timestamps y eliminación lógica.
+ * Suma id autoincremental y timestamps. A diferencia del resto de las tablas,
+ * NO lleva eliminación lógica ni columnas de auditoría de baja: las marcaciones
+ * no se dan de baja desde el sistema —entran del reloj o de un CSV y se
+ * corrigen, no se borran—, y el `deleted_at IS NULL` que agregaba Eloquent
+ * costaba caro sobre 4,4 millones de filas (le impide a MySQL usar la
+ * optimización de MIN/MAX sobre el índice).
+ *
  * El carnet va en `ci` (en el SIA es IdPersona). En el SIA la clave es compuesta
  * (IdPersona + Fecha + Hora); aquí eso pasa a un índice único (ci + fecha + hora)
  * que sirve de clave natural para el upsert idempotente. `ci` también se indexa
@@ -31,10 +37,6 @@ return new class extends Migration
 
             $table->timestamps();
             $table->foreignId('registerUser_id')->nullable()->constrained('users');
-
-            $table->softDeletes();
-            $table->foreignId('deleteUser_id')->nullable()->constrained('users');
-            $table->text('deleteObservacion')->nullable();
 
             $table->unique(['ci', 'fecha', 'hora']);
             $table->index('ci');

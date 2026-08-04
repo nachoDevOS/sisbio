@@ -97,8 +97,7 @@ class PersonaController extends Controller
 
         $marcaciones = Asistencia::query()
             ->where('ci', $ci)
-            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('fecha', '>=', $d))
-            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('fecha', '<=', $h))
+            ->enRango($desde, $hasta)
             ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
             ->orderByDesc('fecha')
             ->orderByDesc('hora')
@@ -211,8 +210,7 @@ class PersonaController extends Controller
         $tipo = $request->query('tipo', '');
 
         $marcaciones = $persona->marcaciones()
-            ->when($desde, fn (Builder $query, string $d) => $query->whereDate('fecha', '>=', $d))
-            ->when($hasta, fn (Builder $query, string $h) => $query->whereDate('fecha', '<=', $h))
+            ->enRango($desde, $hasta)
             ->when($tipo !== '', fn (Builder $query) => $query->where('tipo', $tipo))
             ->orderBy('fecha')
             ->orderBy('hora')

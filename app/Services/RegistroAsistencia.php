@@ -56,9 +56,14 @@ class RegistroAsistencia
                 continue;
             }
 
+            // Igual que en MarcacionController::store(): `fecha` entera para caer
+            // sobre el índice (ci, fecha, hora) —siempre está a medianoche— y
+            // `hora` por `whereTime()`, porque hay filas viejas del SIA con una
+            // fecha base distinta de 1899-12-30. Acá pesa más: corre una vez por
+            // cada fila del CSV.
             $yaExiste = Asistencia::query()
                 ->where('ci', $persona->ci)
-                ->whereDate('fecha', $fecha->toDateString())
+                ->where('fecha', $fecha)
                 ->whereTime('hora', $momento->format('H:i:s'))
                 ->exists();
 

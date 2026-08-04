@@ -266,10 +266,11 @@ class ResumenEscritorio
      * porque `fecha` y `hora` son columnas separadas y pedirle a MySQL que
      * ordene por las dos cuesta más de un segundo sobre 4,4 millones de filas.
      *
-     * Y va por `orderByDesc(...)->value(...)` en vez de `max(...)`: el
-     * `deleted_at IS NULL` de la eliminación lógica le impide a MySQL usar la
-     * optimización de MIN/MAX sobre el índice, y la consulta se convierte en un
-     * recorrido completo (medido: 885 ms contra 6 ms).
+     * Va por `orderByDesc(...)->value(...)` en vez de `max(...)`: con el filtro
+     * de fecha futura MySQL no siempre aplica la optimización de MIN/MAX sobre
+     * el índice, y la consulta se convierte en un recorrido completo. Con la
+     * eliminación lógica encima —que `asistencias` ya no tiene— eran 885 ms
+     * contra 6 ms; la forma que se mide rápida es esta, así que se conserva.
      */
     private function ultimaMarcacion(): ?Carbon
     {
@@ -434,14 +435,14 @@ class ResumenEscritorio
     }
 
     /**
-     * Marcaciones de un rango de días, ambos extremos incluidos.
+     * Marcaciones de un rango de días, ambos extremos incluidos. El recorte lo
+     * hace el scope del modelo, que es el mismo que usan el listado y los
+     * reportes; acá queda el atajo para no repetir `Asistencia::query()`.
      *
      * @return Builder<Asistencia>
      */
     private function enRango(Carbon $desde, Carbon $hasta): Builder
     {
-        return Asistencia::query()
-            ->where('fecha', '>=', $desde->copy()->startOfDay())
-            ->where('fecha', '<', $hasta->copy()->addDay()->startOfDay());
+        return Asistencia::query()->enRango($desde, $hasta);
     }
 }

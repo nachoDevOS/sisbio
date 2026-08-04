@@ -805,8 +805,7 @@ class ProcesadorAsistencia
     {
         return Asistencia::query()
             ->where('ci', $ci)
-            ->whereDate('fecha', '>=', $desde)
-            ->whereDate('fecha', '<=', $hasta)
+            ->enRango($desde, $hasta)
             ->orderBy('fecha')
             ->orderBy('hora')
             ->get()

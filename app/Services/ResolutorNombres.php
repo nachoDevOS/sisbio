@@ -64,11 +64,11 @@ class ResolutorNombres
             ->get()
             ->keyBy(fn (Persona $persona): string => trim((string) $persona->ci));
 
-        $usarMamore = $this->mamore->configurado();
+        $deMamore = $this->mamore->configurado() ? $this->fichasMamore($cis->all()) : [];
         $fichas = [];
 
         foreach ($cis as $ci) {
-            $ficha = $usarMamore ? $this->fichaMamore($ci) : null;
+            $ficha = $deMamore[$ci] ?? null;
 
             if ($ficha === null && $locales->has($ci)) {
                 $ficha = $this->fichaLocal($locales->get($ci));
@@ -91,34 +91,60 @@ class ResolutorNombres
     }
 
     /**
-     * Ficha de una persona en Mamoré por CI, cacheada por un día. Devuelve
-     * `null` si no existe (404). Un fallo transitorio de la API no se cachea (se
-     * reintenta luego) y también devuelve `null`.
+     * Fichas de Mamoré de varias cédulas, cacheadas por un día. Las que ya están
+     * en caché salen de ahí y las que faltan se piden todas juntas, en un solo
+     * pool: antes iba una consulta HTTP por fila, una atrás de la otra, y con la
+     * caché fría eso era lo que dejaba el listado en «Cargando…».
      *
-     * @return array<string, mixed>|null
+     * @param  list<string>  $cis
+     * @return array<string, ?array<string, mixed>>
      */
-    private function fichaMamore(string $ci): ?array
+    private function fichasMamore(array $cis): array
     {
-        $clave = 'mamore.ficha.'.$ci;
-        $cacheado = Cache::get($clave);
+        $fichas = [];
+        $faltantes = [];
 
-        // El '' cacheado es «Mamoré no tiene a esta persona»: se respeta para no
-        // repetir la consulta durante el día.
-        if ($cacheado !== null) {
-            return $cacheado === '' ? null : $cacheado;
+        foreach ($cis as $ci) {
+            $cacheado = Cache::get($this->claveCache($ci));
+
+            // El '' cacheado es «Mamoré no tiene a esta persona»: se respeta para
+            // no repetir la consulta durante el día.
+            if ($cacheado !== null) {
+                $fichas[$ci] = $cacheado === '' ? null : $cacheado;
+
+                continue;
+            }
+
+            $faltantes[] = $ci;
+        }
+
+        if ($faltantes === []) {
+            return $fichas;
         }
 
         try {
-            $persona = $this->mamore->personByCi($ci);
+            $respuestas = $this->mamore->personasPorCi($faltantes);
         } catch (MamoreException) {
-            return null;
+            return $fichas;
         }
 
-        $ficha = $persona === null ? null : $this->desdeMamore($persona);
+        foreach ($respuestas as $ci => $respuesta) {
+            $ficha = $respuesta['persona'] === null ? null : $this->desdeMamore($respuesta['persona']);
+            $fichas[$ci] = $ficha;
 
-        Cache::put($clave, $ficha ?? '', now()->addDay());
+            // Un fallo transitorio de la API no se cachea: se reintenta en la
+            // próxima carga en vez de dejar la fila sin nombre todo el día.
+            if (! $respuesta['error']) {
+                Cache::put($this->claveCache($ci), $ficha ?? '', now()->addDay());
+            }
+        }
 
-        return $ficha;
+        return $fichas;
+    }
+
+    private function claveCache(string $ci): string
+    {
+        return 'mamore.ficha.'.$ci;
     }
 
     /**

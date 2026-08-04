@@ -64,6 +64,16 @@
                         </div>
                     </div>
 
+                    {{-- Obligatoria: es la única marcación que no viene del reloj, así que
+                         el motivo tiene que quedar escrito junto a la fila. --}}
+                    <div class="campo">
+                        <label for="observacion-{{ $sufijo }}">Motivo <span class="req">*</span></label>
+                        <textarea id="observacion-{{ $sufijo }}" name="observacion" rows="2" required
+                                  maxlength="500" placeholder="Por qué se carga a mano: papeleta, equipo caído, olvido del funcionario…"
+                        >{{ old('observacion') }}</textarea>
+                        @error('observacion') <div class="error">{{ $message }}</div> @enderror
+                    </div>
+
                     <p class="ayuda">Se registra como tipo <strong>M</strong> (manual).</p>
 
                     <div class="modal-acciones">

@@ -88,7 +88,7 @@ class MigrarMarcacionesSia extends Command
 
     /**
      * Inserta/actualiza un lote en la tabla local. Al reejecutar refresca tipo
-     * y updated_at; nunca toca created_at ni deleted_at.
+     * y updated_at; nunca toca created_at.
      *
      * @param  list<array<string, mixed>>  $lote
      */
