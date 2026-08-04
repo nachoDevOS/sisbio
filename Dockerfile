@@ -152,7 +152,16 @@ RUN sed -i 's/\r$//' /usr/local/bin/sismark-entrypoint \
 EXPOSE 8000
 
 # `/up` es la ruta de salud que registra bootstrap/app.php.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+#
+# El período de gracia es largo a propósito: el arranque corre las migraciones
+# ANTES de levantar el servidor, y una migración pesada sobre la tabla de
+# marcaciones —4,4 millones de filas— puede tardar minutos. Con los 40 s por
+# defecto, el orquestador daba el despliegue por fallido y lo revertía en mitad
+# de la migración (medido en Coolify: el índice de `asistencias` tardó 1 m 23 s).
+#
+# Para una migración que vaya a tardar más que esto, el camino es desplegar con
+# SISMARK_SKIP_MIGRATIONS=true y correrla aparte.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=600s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8000/up || exit 1
 
 # El entrypoint propio prepara la base y las cachés, y después le cede el
