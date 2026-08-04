@@ -41,15 +41,41 @@ fi
 # La base es un recurso aparte y puede tardar en aceptar conexiones. Sin esta
 # espera, la primera migración muere y la aplicación queda contra una base que
 # todavía no está.
-echo "[sismark] Esperando a MySQL en ${DB_HOST}:${DB_PORT:-3306}…"
+#
+# `127.0.0.1` y `localhost` son el error más común al desplegar: dentro del
+# contenedor apuntan al contenedor mismo, no a la base. Se avisa de entrada en
+# vez de dejar que el arranque se cuelgue dos minutos y el orquestador lo dé
+# por muerto sin decir por qué.
+case "${DB_HOST}" in
+    127.0.0.1|localhost|::1)
+        echo "[sismark] ERROR: DB_HOST=${DB_HOST} apunta al propio contenedor, no a la base."
+        echo "[sismark] Usar el nombre del servicio o del recurso de la base"
+        echo "[sismark] (p. ej. 'mysql'), o 'host.docker.internal' si la base"
+        echo "[sismark] corre en la máquina que hospeda a Docker."
+        exit 1
+        ;;
+esac
+
+espera_maxima=90
+echo "[sismark] Esperando a MySQL en ${DB_HOST}:${DB_PORT:-3306} (hasta ${espera_maxima}s)…"
 intentos=0
 until mysqladmin ping -h"${DB_HOST}" -P"${DB_PORT:-3306}" --silent 2>/dev/null; do
     intentos=$((intentos + 1))
-    if [ "${intentos}" -ge 60 ]; then
-        echo "[sismark] ERROR: MySQL no respondió después de 60 intentos (2 min)."
+    if [ "$((intentos * 3))" -ge "${espera_maxima}" ]; then
+        echo "[sismark] ERROR: MySQL no respondió en ${espera_maxima}s."
+        echo "[sismark] Revisar que DB_HOST sea alcanzable desde este contenedor,"
+        echo "[sismark] que la base esté en la misma red, y que el usuario"
+        echo "[sismark] '${DB_USERNAME:-(sin DB_USERNAME)}' pueda conectarse."
+        # El motivo real del último intento, que hasta acá se descartaba.
+        mysqladmin ping -h"${DB_HOST}" -P"${DB_PORT:-3306}" 2>&1 | sed 's/^/[sismark]   /'
         exit 1
     fi
-    sleep 2
+    # Una señal de vida cada 15 s: en un log de despliegue, el silencio no
+    # distingue «todavía arrancando» de «colgado».
+    if [ "$((intentos % 5))" -eq 0 ]; then
+        echo "[sismark] …sigue sin responder ($((intentos * 3))s)"
+    fi
+    sleep 3
 done
 echo "[sismark] MySQL responde."
 
