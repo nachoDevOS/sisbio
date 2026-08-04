@@ -107,26 +107,38 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
-# --- 7. Microservicio de biométricos embebido (opcional) --------------------
-# Con SISMARK_DEVICE_SERVICE=true, el microservicio Python corre DENTRO de este
-# contenedor en vez de ser un recurso aparte. Escucha solo en 127.0.0.1, así que
-# el único que puede hablarle es el PHP de este mismo contenedor y el puerto no
-# queda expuesto ni siquiera a la red de Docker.
+# --- 7. Microservicio de biométricos ----------------------------------------
+# El microservicio Python corre DENTRO de este contenedor y se levanta acá. La
+# imagen lo trae encendido (ENV SISMARK_DEVICE_SERVICE=true en el Dockerfile):
+# no hay que configurar nada para que las acciones de equipos funcionen.
+#
+# Escucha solo en 127.0.0.1, así que el único que puede hablarle es el PHP de
+# este mismo contenedor: el puerto no queda expuesto ni a internet ni a la red
+# de Docker.
+#
+# Se apaga con SISMARK_DEVICE_SERVICE=false, que es lo que corresponde cuando el
+# microservicio corre en OTRA máquina —la que sí tiene ruta hasta los relojes—
+# con el contenedor de device-service/ y su DEVICE_SERVICE_URL apuntando ahí.
 #
 # Queda como proceso en segundo plano: al hacer `exec` más abajo, este shell es
 # reemplazado y el proceso de Python pasa a colgar del PID 1. Si se cae, NO se
 # reinicia solo —la sonda de salud del contenedor mira /up de Laravel, no al
-# microservicio—; el reinicio es reiniciar el contenedor. Para un servicio que
-# tenga que sobrevivir por su cuenta, el camino sigue siendo el contenedor
-# aparte de device-service/.
-if [ "${SISMARK_DEVICE_SERVICE}" = "true" ]; then
-    if [ -z "${DEVICE_SERVICE_TOKEN}" ]; then
-        echo "[sismark] ERROR: SISMARK_DEVICE_SERVICE=true pero DEVICE_SERVICE_TOKEN está vacío."
-        echo "[sismark] El microservicio rechaza TODAS las peticiones sin token (fail-closed)."
-        echo "[sismark] Generar uno con:  openssl rand -hex 32"
-        exit 1
-    fi
+# microservicio—; el reinicio es reiniciar el contenedor.
+devices=${SISMARK_DEVICE_SERVICE:-true}
 
+# Sin token el microservicio rechaza todo (fail-closed), así que arrancarlo no
+# serviría de nada. Se avisa y se sigue: el resto del sistema —informes,
+# marcaciones ya importadas, personal— funciona igual sin los equipos, y tumbar
+# el arranque entero por esto dejaría la aplicación entera inaccesible.
+if [ "${devices}" = "true" ] && [ -z "${DEVICE_SERVICE_TOKEN}" ]; then
+    echo "[sismark] AVISO: DEVICE_SERVICE_TOKEN está vacío; no se arranca el microservicio."
+    echo "[sismark] Las acciones de equipos van a fallar hasta que se configure."
+    echo "[sismark] Generar un token con:  openssl rand -hex 32"
+    echo "[sismark] y ponerlo en las variables de entorno del contenedor."
+    devices=false
+fi
+
+if [ "${devices}" = "true" ]; then
     device_bind="${DEVICE_SERVICE_BIND:-127.0.0.1}"
     device_port="${DEVICE_SERVICE_PORT:-9001}"
     device_log=/var/www/html/storage/logs/device-service.log

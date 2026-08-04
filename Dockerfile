@@ -101,17 +101,20 @@ RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     && docker-php-ext-enable sqlsrv pdo_sqlsrv \
     && rm -rf /var/lib/apt/lists/* /tmp/pear
 
-# --- Microservicio de biométricos embebido (opcional) ------------------------
-# Normalmente el microservicio es un contenedor aparte (device-service/
-# Dockerfile) y se le apunta con DEVICE_SERVICE_URL. Pero cuando la aplicación
-# se despliega en un solo recurso —Coolify con una sola imagen, o un servidor
-# interno donde no vale la pena administrar dos contenedores— conviene tenerlo
-# adentro: se arranca desde el entrypoint con SISMARK_DEVICE_SERVICE=true y
-# escucha SOLO en 127.0.0.1, de modo que DEVICE_SERVICE_URL=http://127.0.0.1:9001
-# pasa a ser correcto y el puerto 9001 no queda accesible desde afuera.
+# --- Microservicio de biométricos --------------------------------------------
+# El microservicio Python viene DENTRO de esta imagen y el entrypoint lo levanta
+# solo, sin configuración: la imagen se despliega como un único recurso y las
+# acciones de equipos funcionan de entrada.
 #
-# El intérprete y las dependencias se instalan siempre (unos 90 MB); lo que
-# decide la variable es si el proceso arranca o no.
+# Escucha en 127.0.0.1:9001, que es exactamente el valor por defecto de
+# `services.device_service.url`. Al vivir los dos procesos en el mismo
+# contenedor, `127.0.0.1` es el destino correcto, y el puerto 9001 no queda
+# accesible desde afuera —ni desde internet ni desde la red de Docker—, que es
+# lo que exige `device-service/main.py`.
+#
+# `device-service/Dockerfile` sigue existiendo para quien necesite correrlo en
+# OTRA máquina (ver el aviso de abajo). En ese caso se apaga el de acá con
+# SISMARK_DEVICE_SERVICE=false y se apunta DEVICE_SERVICE_URL al de afuera.
 #
 # OJO: esto resuelve dónde vive el microservicio, no la ruta de red hasta los
 # relojes. Sigue haciendo falta que ESTE contenedor alcance el puerto 4370 de
@@ -132,6 +135,13 @@ RUN python3 -m venv /opt/device-venv \
         -r /srv/device-service/requirements.txt
 
 COPY device-service/main.py /srv/device-service/main.py
+
+# Encendido por defecto: desplegar la imagen tal cual tiene que alcanzar. El
+# bind a loopback es a propósito y no conviene cambiarlo salvo que otro
+# contenedor tenga que consultar a este microservicio.
+ENV SISMARK_DEVICE_SERVICE=true \
+    DEVICE_SERVICE_BIND=127.0.0.1 \
+    DEVICE_SERVICE_PORT=9001
 
 
 # --- TLS antiguo para el SQL Server 2008 R2 ---------------------------------
