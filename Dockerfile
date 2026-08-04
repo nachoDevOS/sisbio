@@ -14,7 +14,10 @@
 # y se apunta con las variables de entorno. Ver .env.docker.example.
 #
 # El microservicio de biométricos tiene su propio Dockerfile, en
-# `device-service/`, y se despliega como un segundo recurso.
+# `device-service/`, y se despliega como un segundo recurso. Esta imagen
+# igual lo trae adentro: con SISMARK_DEVICE_SERVICE=true el entrypoint lo
+# arranca acá mismo, escuchando en 127.0.0.1, y se despliega todo como un solo
+# recurso. Ver .env.docker.example, sección 3.
 #
 #   docker build -t sismark .
 #   docker run -d --env-file .env.docker -p 8000:8000 sismark
@@ -97,6 +100,39 @@ RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
     && pecl install sqlsrv pdo_sqlsrv \
     && docker-php-ext-enable sqlsrv pdo_sqlsrv \
     && rm -rf /var/lib/apt/lists/* /tmp/pear
+
+# --- Microservicio de biométricos embebido (opcional) ------------------------
+# Normalmente el microservicio es un contenedor aparte (device-service/
+# Dockerfile) y se le apunta con DEVICE_SERVICE_URL. Pero cuando la aplicación
+# se despliega en un solo recurso —Coolify con una sola imagen, o un servidor
+# interno donde no vale la pena administrar dos contenedores— conviene tenerlo
+# adentro: se arranca desde el entrypoint con SISMARK_DEVICE_SERVICE=true y
+# escucha SOLO en 127.0.0.1, de modo que DEVICE_SERVICE_URL=http://127.0.0.1:9001
+# pasa a ser correcto y el puerto 9001 no queda accesible desde afuera.
+#
+# El intérprete y las dependencias se instalan siempre (unos 90 MB); lo que
+# decide la variable es si el proceso arranca o no.
+#
+# OJO: esto resuelve dónde vive el microservicio, no la ruta de red hasta los
+# relojes. Sigue haciendo falta que ESTE contenedor alcance el puerto 4370 de
+# cada equipo; si la aplicación corre en un VPS fuera de la red del organismo,
+# no hay Dockerfile que lo arregle.
+#
+# Debian marca su Python como "externally managed" (PEP 668) y rechaza pip
+# sobre el intérprete del sistema: por eso el venv.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 \
+        python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY device-service/requirements.txt /srv/device-service/requirements.txt
+RUN python3 -m venv /opt/device-venv \
+    && /opt/device-venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/device-venv/bin/pip install --no-cache-dir \
+        -r /srv/device-service/requirements.txt
+
+COPY device-service/main.py /srv/device-service/main.py
+
 
 # --- TLS antiguo para el SQL Server 2008 R2 ---------------------------------
 # Sin esto el handshake muere con «unsupported protocol» antes de llegar a

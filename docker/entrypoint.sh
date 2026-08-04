@@ -107,6 +107,63 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
+# --- 7. Microservicio de biométricos embebido (opcional) --------------------
+# Con SISMARK_DEVICE_SERVICE=true, el microservicio Python corre DENTRO de este
+# contenedor en vez de ser un recurso aparte. Escucha solo en 127.0.0.1, así que
+# el único que puede hablarle es el PHP de este mismo contenedor y el puerto no
+# queda expuesto ni siquiera a la red de Docker.
+#
+# Queda como proceso en segundo plano: al hacer `exec` más abajo, este shell es
+# reemplazado y el proceso de Python pasa a colgar del PID 1. Si se cae, NO se
+# reinicia solo —la sonda de salud del contenedor mira /up de Laravel, no al
+# microservicio—; el reinicio es reiniciar el contenedor. Para un servicio que
+# tenga que sobrevivir por su cuenta, el camino sigue siendo el contenedor
+# aparte de device-service/.
+if [ "${SISMARK_DEVICE_SERVICE}" = "true" ]; then
+    if [ -z "${DEVICE_SERVICE_TOKEN}" ]; then
+        echo "[sismark] ERROR: SISMARK_DEVICE_SERVICE=true pero DEVICE_SERVICE_TOKEN está vacío."
+        echo "[sismark] El microservicio rechaza TODAS las peticiones sin token (fail-closed)."
+        echo "[sismark] Generar uno con:  openssl rand -hex 32"
+        exit 1
+    fi
+
+    device_bind="${DEVICE_SERVICE_BIND:-127.0.0.1}"
+    device_port="${DEVICE_SERVICE_PORT:-9001}"
+    device_log=/var/www/html/storage/logs/device-service.log
+
+    : > "${device_log}"
+    chown unit:unit "${device_log}"
+
+    echo "[sismark] Arrancando microservicio de biométricos en ${device_bind}:${device_port}…"
+
+    # `su -p` conserva el entorno: el microservicio lee DEVICE_SERVICE_TOKEN y
+    # sus timeouts de las variables del proceso.
+    su -p -s /bin/sh unit -c \
+        "exec /opt/device-venv/bin/python -m uvicorn main:app \
+             --app-dir /srv/device-service \
+             --host '${device_bind}' --port '${device_port}'" \
+        >> "${device_log}" 2>&1 &
+
+    # Esperar a que conteste /health (no exige token) antes de seguir: sin esto,
+    # el primer clic en «Probar conexión» tras un despliegue puede caer en el
+    # hueco entre que Unit acepta peticiones y uvicorn terminó de levantar, y el
+    # usuario ve «no se pudo contactar al microservicio» sin que nada esté mal.
+    intentos=0
+    until curl -fsS "http://127.0.0.1:${device_port}/health" >/dev/null 2>&1; do
+        intentos=$((intentos + 1))
+        if [ "${intentos}" -ge 30 ]; then
+            echo "[sismark] AVISO: el microservicio no respondió en 30s. Últimas líneas de su log:"
+            tail -n 20 "${device_log}" 2>/dev/null | sed 's/^/[sismark]   /'
+            echo "[sismark] La aplicación arranca igual; las acciones de equipos van a fallar."
+            break
+        fi
+        sleep 1
+    done
+    if [ "${intentos}" -lt 30 ]; then
+        echo "[sismark] Microservicio de biométricos responde."
+    fi
+fi
+
 # Las cachés se escribieron como root: se devuelven al usuario de Unit.
 chown -R unit:unit storage bootstrap/cache
 
